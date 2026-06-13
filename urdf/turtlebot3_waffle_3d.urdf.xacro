@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<!--
+  TurtleBot3 Waffle + 3D LiDAR (Velodyne VLP-16 style) description, used by
+  robot_state_publisher to provide TF (including base_link -> velodyne_link).
+
+  The Gazebo sensor itself lives in the SDF model
+  (susumu_sim/models/turtlebot3_waffle_3d/model.sdf); this file only adds the
+  matching velodyne_link frame so TF and the SDF agree.
+-->
+<robot name="turtlebot3_waffle_3d" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Standard waffle body (links, wheels, 2D scan, camera, imu frames) -->
+  <xacro:include filename="$(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf"/>
+
+  <!-- 3D LiDAR frame, mounted on top of base_link (matches model.sdf pose) -->
+  <joint name="velodyne_joint" type="fixed">
+    <origin xyz="0 0 0.20" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="velodyne_link"/>
+  </joint>
+
+  <link name="velodyne_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0516" length="0.0717"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0516" length="0.0717"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.83"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+               iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+</robot>
