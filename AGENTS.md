@@ -35,6 +35,9 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 
 ## 絶対に守る制約・方針
 
+- **`git commit` と `git push` は勝手にしない。** ユーザーが明示的に「commit して」
+  「push して」と指示したときだけ実行する。それ以外は変更を作業ツリーに残すだけにとどめ、
+  勝手にコミット・プッシュしない（ブランチを切る等の判断も同様にユーザーに委ねる）。
 - **Gazebo は Classic 11**。Ignition/Gazebo Sim ではない。
   - HuNavSim は必ず **`v1.0-humble`** ブランチを使う（`v2.0` は Gazebo Sim 用で動かない）。
 - **独自メッセージは作らない**。標準型のみ（`Twist` / `PoseWithCovarianceStamped` /
