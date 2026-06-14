@@ -1,8 +1,8 @@
-# Spawns the 3D-LiDAR TurtleBot3 (waffle + Velodyne VLP-16) into a running
-# Gazebo, and starts robot_state_publisher for TF.
+# 起動中の Gazebo に 3D-LiDAR TurtleBot3（waffle + Velodyne VLP-16）を spawn し、
+# TF 用に robot_state_publisher を起動する。
 #
-# Reusable building block: included by the full simulation launch, and also
-# usable standalone against an already-running Gazebo for quick checks.
+# 再利用可能な部品: 全部入りシミュレーション launch から include されるほか、
+# 既に動いている Gazebo に対して単体で動作確認用に使うこともできる。
 
 import os
 
@@ -31,10 +31,10 @@ def generate_launch_description():
     declare_y = DeclareLaunchArgument('y_pose', default_value='0.0')
     declare_z = DeclareLaunchArgument('z_pose', default_value='0.05')
     declare_yaw = DeclareLaunchArgument('yaw', default_value='0.0')
-    # Must match the robot_name the HuNav plugin tracks (default 'turtlebot3').
+    # HuNav プラグインが追跡する robot_name と一致させること（既定 'turtlebot3'）。
     declare_entity = DeclareLaunchArgument('entity_name', default_value='turtlebot3')
 
-    # robot_state_publisher: TF from the URDF (incl. base_link -> velodyne_link)
+    # robot_state_publisher: URDF から TF を生成（base_link -> velodyne_link 含む）
     robot_description = Command(['xacro ', xacro_file])
     robot_state_publisher = Node(
         package='robot_state_publisher',
@@ -43,8 +43,8 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time,
                      'robot_description': robot_description}])
 
-    # Spawn the SDF model (carries the Gazebo plugins: diff_drive, laser,
-    # 3D velodyne gpu_ray, imu, camera).
+    # SDF モデルを spawn（Gazebo プラグインを含む: diff_drive,
+    # 3D velodyne gpu_ray, imu, camera）。2D LiDAR は搭載していない。
     spawn_entity = Node(
         package='gazebo_ros',
         executable='spawn_entity.py',
@@ -53,10 +53,36 @@ def generate_launch_description():
                    '-file', sdf_file,
                    '-x', x, '-y', y, '-z', z, '-Y', yaw])
 
+    # 2D LiDAR を載せない代わりに、3D LiDAR の点群 /velodyne_points を
+    # pointcloud_to_laserscan で 2D スキャン /scan に変換する。
+    # AMCL と Nav2 の obstacle_layer はこの /scan を使う。
+    pointcloud_to_laserscan = Node(
+        package='pointcloud_to_laserscan',
+        executable='pointcloud_to_laserscan_node',
+        name='pointcloud_to_laserscan',
+        output='screen',
+        remappings=[('cloud_in', '/velodyne_points'),
+                    ('scan', '/scan')],
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'target_frame': 'velodyne_link',  # /scan の出力フレーム
+            'transform_tolerance': 0.01,
+            'min_height': -0.20,   # velodyne_link 基準の高さ帯 [m]
+            'max_height': 1.0,
+            'angle_min': -3.14159,  # -180°
+            'angle_max': 3.14159,   # +180°
+            'angle_increment': 0.0087,  # ~0.5°
+            'scan_time': 0.1,
+            'range_min': 0.45,
+            'range_max': 30.0,
+            'use_inf': True,
+        }])
+
     ld = LaunchDescription()
     for a in (declare_use_sim_time, declare_x, declare_y, declare_z,
               declare_yaw, declare_entity):
         ld.add_action(a)
     ld.add_action(robot_state_publisher)
     ld.add_action(spawn_entity)
+    ld.add_action(pointcloud_to_laserscan)
     return ld

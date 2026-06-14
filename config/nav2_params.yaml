@@ -210,7 +210,7 @@ local_costmap:
         enabled: True
         observation_sources: scan
         scan:
-          topic: /scan_filtered
+          topic: /scan
           max_obstacle_height: 2.0
           clearing: True
           marking: True
@@ -231,7 +231,7 @@ local_costmap:
         mark_threshold: 0
         observation_sources: pointcloud
         pointcloud:
-          topic: /velodyne_points_filtered
+          topic: /velodyne_points
           max_obstacle_height: 2.0
           min_obstacle_height: 0.05
           clearing: True
@@ -263,7 +263,7 @@ global_costmap:
         enabled: True
         observation_sources: scan
         scan:
-          topic: /scan_filtered
+          topic: /scan
           max_obstacle_height: 2.0
           clearing: True
           marking: True
@@ -285,7 +285,7 @@ global_costmap:
         mark_threshold: 0
         observation_sources: pointcloud
         pointcloud:
-          topic: /velodyne_points_filtered
+          topic: /velodyne_points
           max_obstacle_height: 2.0
           min_obstacle_height: 0.05
           clearing: True

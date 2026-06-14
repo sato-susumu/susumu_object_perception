@@ -1,13 +1,13 @@
-# Phase A: HuNavSim-controlled pedestrians in the multi-room house world.
+# 複数の部屋がつながった house world で HuNavSim が制御する歩行者を動かす。
 #
-# This launch reuses the HuNav Gazebo wrapper world-generation pipeline:
-#   1. hunav_loader            -> loads the 5-agent config (agents_house.yaml)
-#   2. hunav_gazebo_world_generator -> merges house.world + agents into
-#                                       generatedWorld.world (with the HuNav plugin)
-#   3. gzserver/gzclient       -> runs the generated world
-#   4. hunav_agent_manager     -> drives agent behaviors (Social Force Model)
+# この launch は HuNav Gazebo wrapper のワールド生成パイプラインを再利用する:
+#   1. hunav_loader            -> 5人のエージェント設定（agents_house.yaml）を読み込む
+#   2. hunav_gazebo_world_generator -> house.world + エージェントを統合し
+#                                       generatedWorld.world を生成（HuNav プラグイン付き）
+#   3. gzserver/gzclient       -> 生成したワールドを実行する
+#   4. hunav_agent_manager     -> エージェントの behavior を駆動（Social Force Model）
 #
-# No robot is spawned in this phase. Robot + Nav2 are added in later phases.
+# この launch ではロボットは spawn しない。ロボット + Nav2 は別の launch で追加する。
 
 from os import path, pathsep
 
@@ -28,45 +28,46 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
 
     # ------------------------------------------------------------------
-    # Launch arguments
+    # Launch 引数
     # ------------------------------------------------------------------
     declare_agents_conf = DeclareLaunchArgument(
-        'configuration_file', default_value='agents_house.yaml',
-        description='Agent (pedestrian) configuration file in susumu_sim/config')
+        'configuration_file', default_value='agents_cafe.yaml',
+        description='susumu_sim/config 内のエージェント（歩行者）設定ファイル')
     declare_base_world = DeclareLaunchArgument(
-        'base_world', default_value='house.world',
-        description='Base world file (taken from hunav_gazebo_wrapper/worlds)')
+        'base_world', default_value='cafe.world',
+        description='ベースとなる world ファイル（hunav_gazebo_wrapper/worlds から取得）')
     declare_gz_obs = DeclareLaunchArgument(
         'use_gazebo_obs', default_value='true',
-        description='Let agents treat the closest Gazebo model as an obstacle')
+        description='最寄りの Gazebo モデルを障害物としてエージェントに扱わせる')
     declare_rate = DeclareLaunchArgument(
         'update_rate', default_value='100.0',
-        description='HuNav plugin update rate (Hz)')
+        description='HuNav プラグインの更新レート（Hz）')
     declare_robot_name = DeclareLaunchArgument(
         'robot_name', default_value='turtlebot3',
-        description='Name of the robot Gazebo model the HuNav plugin tracks')
+        description='HuNav プラグインが追跡するロボットの Gazebo モデル名')
     declare_global_frame = DeclareLaunchArgument(
         'global_frame_to_publish', default_value='map',
-        description='Global frame in which agent positions are published')
+        description='エージェント位置を publish するグローバルフレーム')
     declare_use_navgoal = DeclareLaunchArgument(
         'use_navgoal_to_start', default_value='False',
-        description='Start agents only after a navigation goal is received')
+        description='ナビゲーションゴールを受け取ってからエージェントを動かし始める')
     declare_navgoal_topic = DeclareLaunchArgument(
         'navgoal_topic', default_value='goal_pose',
-        description='Topic carrying the robot navigation goal')
+        description='ロボットのナビゲーションゴールを運ぶトピック')
     declare_ignore_models = DeclareLaunchArgument(
         'ignore_models', default_value='ground_plane',
-        description='Gazebo models the agents should ignore as obstacles')
+        description='エージェントが障害物として無視すべき Gazebo モデル')
     declare_verbose = DeclareLaunchArgument(
         'verbose', default_value='False',
-        description='Increase Gazebo terminal output')
+        description='Gazebo のターミナル出力を増やす')
     declare_use_rviz = DeclareLaunchArgument(
         'use_rviz', default_value='False',
-        description='Open RViz to visualize the published people markers')
-    # Phase A publishes a static map->odom TF so frames resolve without Nav2.
+        description='publish された people マーカーを可視化する RViz を開く')
+    # 外部のナビゲーションがない場合、静的な map->odom TF を publish して
+    # Nav2 なしでもフレームが解決できるようにする。
     declare_navigation = DeclareLaunchArgument(
         'navigation', default_value='False',
-        description='Set True when an external localization/navigation provides map->odom')
+        description='外部の自己位置推定/ナビゲーションが map->odom を提供する場合は True にする')
 
     agents_conf = LaunchConfiguration('configuration_file')
     base_world = LaunchConfiguration('base_world')
@@ -80,7 +81,7 @@ def generate_launch_description():
     navigation = LaunchConfiguration('navigation')
 
     # ------------------------------------------------------------------
-    # 1) hunav_loader: read the agent configuration
+    # 1) hunav_loader: エージェント設定を読み込む
     # ------------------------------------------------------------------
     agent_conf_file = PathJoinSubstitution([
         FindPackageShare('susumu_sim'), 'config', agents_conf])
@@ -92,8 +93,8 @@ def generate_launch_description():
         parameters=[agent_conf_file])
 
     # ------------------------------------------------------------------
-    # 2) world generator: house.world + agents -> generatedWorld.world
-    #    (the generator looks for base_world inside hunav_gazebo_wrapper/worlds)
+    # 2) ワールド生成: house.world + エージェント -> generatedWorld.world
+    #    （生成器は hunav_gazebo_wrapper/worlds 内の base_world を探す）
     # ------------------------------------------------------------------
     world_file = PathJoinSubstitution([
         FindPackageShare('hunav_gazebo_wrapper'), 'worlds', base_world])
@@ -119,11 +120,11 @@ def generate_launch_description():
                 TimerAction(period=2.0, actions=[hunav_worldgen_node])]))
 
     # ------------------------------------------------------------------
-    # 3) Gazebo with the generated world
+    # 3) 生成したワールドで Gazebo を起動
     # ------------------------------------------------------------------
-    # The hunav_gazebo_wrapper env-hooks already prepend its models/worlds to the
-    # GAZEBO_* paths when the workspace is sourced. We additionally make sure the
-    # wrapper media (human meshes) and the standard gazebo plugin dir are present.
+    # hunav_gazebo_wrapper の env-hook は、ワークスペースを source した時点で
+    # models/worlds を GAZEBO_* パスの先頭に追加済み。ここではさらに wrapper の
+    # メディア（人物メッシュ）と標準の gazebo プラグインディレクトリが含まれることを確認する。
     wrapper_models = PathJoinSubstitution([
         FindPackageShare('hunav_gazebo_wrapper'), 'models'])
     wrapper_media = PathJoinSubstitution([
@@ -166,7 +167,7 @@ def generate_launch_description():
                 TimerAction(period=2.0, actions=[gzserver_process, gzclient_process])]))
 
     # ------------------------------------------------------------------
-    # 4) HuNav behavior manager (Social Force Model driver)
+    # 4) HuNav behavior マネージャ（Social Force Model の駆動）
     # ------------------------------------------------------------------
     hunav_manager_node = Node(
         package='hunav_agent_manager',
@@ -175,7 +176,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{'use_sim_time': True}])
 
-    # When no navigation is running, publish a static map->odom so TF is complete.
+    # ナビゲーションが動いていないときは静的な map->odom を publish して TF を完結させる。
     static_tf_node = Node(
         package='tf2_ros', executable='static_transform_publisher',
         output='screen',

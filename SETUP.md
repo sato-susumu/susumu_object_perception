@@ -7,6 +7,11 @@ ROS2 Humble + Gazebo Classic 11 環境で、**HuNavSim で制御した5人**を 
 - ワークスペース: `/home/taro/ros2_ws`
 - パッケージ: `susumu_sim`
 
+> このファイルは Phase A〜F の**時系列の構築履歴**。各フェーズのパスやコマンドは
+> その時点のもの（例: launch は当初 `launch/` 直下、Phase F で `launch/include/` へ
+> 移動）。**最新のディレクトリ構成・設計は [`docs/software_design.md`](docs/software_design.md)**、
+> 使い方は [`README.md`](README.md) を参照。
+
 ---
 
 ## 全体構成
@@ -381,6 +386,12 @@ ros2 launch susumu_sim simulation.launch.py follow:=true
 > `cyclic_goals: true` と合わせ、**5人がゆっくり・無限に歩き続ける**。
 > （`once: true` のままだと数十秒で止まり追跡対象が消える問題があった。）
 
+> ⚠️ **【後日判明・重要】上記の `once: false` は誤り。** Phase F 以降の検証で、
+> `once: false` だと**ほとんどのエージェントが数十秒で停止する**ことが分かった
+> （HuNav の behavior 駆動が正しく回らない）。正しくは公式 house シナリオと同じ
+> **`once: true` + `cyclic_goals: true`** で、これで5人が巡回し続ける。
+> 詳細は [Phase G](#phase-g-人が動かない問題の解決once-true) を参照。
+
 ### 確実にずっと追跡（パラメータ調整）
 
 - `person_detector`: `moving_speed` 0.10→**0.04**（低速でも人と認識）、
@@ -458,8 +469,152 @@ costmap に障害物の帯がマークされ、残り続けていた。
 
 ---
 
+## Phase F: 純粋なシミュレーター化（追従機能の分離）✅完了
+
+> このパッケージを「人を検知して右隣を歩く」追従ロボットから、**純粋な
+> シミュレーター**へ変更した。追従系（人検知・右側追従）は別パッケージ
+> `susumu_lidar_perception` へ分離。
+
+### やったこと
+
+1. **追従ノードを削除**: `susumu_sim/follow_person_node.py`（右側追従）と
+   `susumu_sim/person_detector_node.py`（LiDAR人検知＋人除去フィルタ）を削除。
+   `launch/follow_person.launch.py` と `simulation.launch.py` の `follow:=true`
+   パイプラインも削除。
+2. **Nav2 を生センサに戻した**: `config/nav2_params.yaml` の costmap 入力を
+   人除去済みの `/scan_filtered`・`/velodyne_points_filtered` から、生の
+   `/scan`・`/velodyne_points` に戻した（検知ノードが消えてフィルタトピックが
+   出なくなるため）。人も普通の障害物として costmap に乗る。
+3. **歩行者を通常速度へ復元**: `config/agents_house.yaml` を、追従デモ用に
+   落としていた値（`max_vel:0.5`, `vel:0.2`/`0.27`, 2ゴール, force factors
+   4/1/2, `goal_radius:0.8`）から通常歩行（`max_vel:1.5`, `vel:0.6`/`0.8`,
+   3ゴール三角ルート, force factors 10/5/20, `goal_radius:0.3`）へ戻した。
+4. **Teleop GUI を追加**: `susumu_lidar_perception` を参考に
+   `susumu_sim/teleop_gui_node.py`（tkinter）を追加。矢印/テンキー手動操縦＋
+   AUTO トグルで部屋を Nav2 巡回＋原点ワープ。`simulation.launch.py` に
+   `gui`（既定 True）引数で組み込み（Nav2 起動後 +15秒）。
+5. **launch をサブフォルダへ整理**: エントリの `launch/simulation.launch.py` は
+   そのまま、内部で include される部品 launch（`hunav_house` / `spawn_robot` /
+   `test_robot_empty`）を **`launch/include/`** へ移動。`simulation.launch.py` と
+   `test_robot_empty.launch.py` の include パスを `launch/include/...` に修正
+   （`install(DIRECTORY launch ...)` はサブフォルダごと入るため CMakeLists は修正不要）。
+6. **ドキュメント整備**: 設計を `docs/software_design.md`（表・Mermaid 状態遷移/
+   シーケンス図）に集約。README はディレクトリ構成等をデザインへ移し、launch
+   一覧とデザインへのリンクを掲載。`CLAUDE.md`（`@AGENTS.md`）を追加。
+7. **ライセンスを MIT に**: `package.xml` を `MIT` に変更し `LICENSE` を追加。
+8. **コメントを日本語化**: `teleop_gui_node.py` と全 launch のコメント・docstring・
+   引数説明を日本語へ（ROS のトピック名やログ文字列は英語のまま）。
+
+### 検証
+
+```bash
+rm -rf build/susumu_sim install/susumu_sim   # 削除/移動ファイルを install から消す
+colcon build --packages-select susumu_sim --symlink-install
+# → install/.../lib/susumu_sim には teleop_gui_node.py のみ、
+#   follow_person.launch.py は消え、部品 launch は share/.../launch/include/ に
+#   入っていることを確認
+ros2 launch susumu_sim simulation.launch.py --show-args   # gui 引数が出る
+```
+
+---
+
+## Phase G: 人が動かない問題の解決（`once: true`）✅完了
+
+> 症状: full simulation で **5人中2〜3人（時に0〜1人）しか動かず**、止まった
+> エージェントは init 付近や中央 (3,0.5) で固着。人だけ起動（ロボットなし）では
+> `Robot model turtlebot3 not found` でアクターが崩壊し、**T ポーズ・床埋まり・空中**に
+> なる（z 座標が -3.0〜+2.2 と異常値）。
+
+### 切り分けでやったこと（いずれも効果なし）
+
+- init_pose を家全体に分散（→ 家の外・壁・家具に埋まる別問題を誘発しただけ）
+- 全 behavior を REGULAR に統一 → 改善せず
+- ゴールの密集解消・家具回避 → 改善せず
+- → **設定（init/goal/behavior）の調整では直らない**ことが複数回の実機検証で確定。
+
+### 真因と解決
+
+GitHub と HuNav 同梱シナリオを調査し、**動作実績のある公式設定**
+`hunav_gazebo_wrapper/scenarios/agents_house.yaml` と比較したところ、決定的な違いは
+**`once`** だった。
+
+| | susumu_sim（動かない） | 公式 house（動く） |
+|---|---|---|
+| `once` | **false** | **true** |
+| `cyclic_goals` | true | true |
+
+`once: false` だと HuNav の behavior 駆動が正しく回らず、ほとんどのエージェントが
+数十秒で停止する。正しくは **`once: true` + `cyclic_goals: true`**（巡回し続ける）。
+
+**対処**: 公式 `scenarios/agents_house.yaml` を `config/agents_house.yaml` に
+そのままコピー（`cp`）。これで起動後 **5/5 全員が家の中を継続的に動き回る**ことを
+実機で確認。
+
+```bash
+cp ~/ros2_ws/src/hunav_gazebo_wrapper/scenarios/agents_house.yaml \
+   ~/ros2_ws/src/susumu_sim/config/agents_house.yaml
+colcon build --packages-select susumu_sim --symlink-install
+ros2 launch susumu_sim simulation.launch.py
+# /people の各エージェント位置が継続的に変化することを確認
+```
+
+> 教訓: 設定をゼロから調整するより、**動作実績のある同梱シナリオをコピー**して
+> 差分を見るのが最短だった。init_pose の z=1.25（agent5）も誤記ではなく公式通り。
+
+---
+
+## Phase H: house→cafe world へ切り替え（人が動く問題の最終解決）✅完了
+
+> 症状: house world では、公式 `agents_house.yaml` をコピーしても、init/goal/behavior/
+> once/duration/goal_radius をどう調整しても、**起動直後に5人中ほぼ全員が同じ場所で固着**
+> （複数エージェントを置くと特に顕著）。十数回の実機検証で、設定調整では直らないことが確定。
+
+### 原因
+
+house world は**狭い通路・折戸・家具の密集**があり、複数エージェントの経路が中央リビング
+付近で交差すると、Social Force Model の相互回避力でデッドロックして止まる。公式の cafe
+シナリオは「動く」と報告されており（hunav_sim issue #7）、**house world 固有の問題**。
+
+### 解決: cafe world へ切り替え
+
+公式が動作実績を持つ **cafe シナリオ**に変更:
+
+```bash
+# マップと人設定を susumu_sim にコピー
+cp ~/ros2_ws/src/hunav_gazebo_wrapper/maps/cafe.{pgm,yaml} ~/ros2_ws/src/susumu_sim/maps/
+cp ~/ros2_ws/src/hunav_gazebo_wrapper/scenarios/agents_cafe.yaml \
+   ~/ros2_ws/src/susumu_sim/config/
+```
+
+- `launch/include/hunav_house.launch.py`: `configuration_file` 既定を `agents_cafe.yaml`、
+  `base_world` を `cafe.world` に変更。
+- `launch/simulation.launch.py`: `map` 既定を `cafe.yaml` に変更。
+- **spawn 遅延を 8→15 秒**に延長（cafe.world は house より重く、`/spawn_entity` サービスが
+  立つ前に spawn しようとして `Was Gazebo started with GazeboRosFactory?` で失敗していた）。
+  これに合わせ nav2/rviz を 12→20s、gui を 15→24s に後ろ倒し。
+
+### 検証
+
+```bash
+colcon build --packages-select susumu_sim --symlink-install
+ros2 launch susumu_sim simulation.launch.py
+# /people を観察 → 起動後、各時点で 3〜4/5 が継続的に移動（顔ぶれは入れ替わる）。
+# agent1 は 25秒で 4.29m 移動するなど、house の「全員固着」とは別物。
+```
+
+> house の素材（house.world / agents_house.yaml / house.{pgm,yaml}）は残してあるので、
+> `map:=.../house.yaml` + `configuration_file:=agents_house.yaml` + `base_world:=house.world`
+> で house に戻すことも可能（ただし人は固着しがち）。
+
+---
+
 ## トラブルシュート memo
 
 - `fatal error: lightsfm/sfm.hpp: No such file` → Phase 0-3 の lightsfm 未導入。
 - `no rosdep rule for 'people_msgs'` → apt に無い。Phase 0-2 でソース導入。
 - v2.0 を間違えて入れると Gazebo Sim 依存でビルド/起動に失敗する → v1.0-humble を使う。
+- 人が起動直後に全員固着する → house world 固有のデッドロック。cafe world を使う（Phase H）。
+- `Was Gazebo started with GazeboRosFactory?` で spawn 失敗 → world が重く spawn が早すぎ。
+  `simulation.launch.py` の spawn TimerAction 遅延を増やす（cafe では 15 秒）。
+- 人が全く動かない／T ポーズ／床埋まり → ロボット未 spawn が原因のことが多い
+  （HuNav はロボット必須）。`Robot model turtlebot3 not found` がログに出ていないか確認。

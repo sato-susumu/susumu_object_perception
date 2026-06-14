@@ -1,12 +1,13 @@
-# Phase D: full simulation.
+# 全部入りシミュレーション。
 #
-#   Gazebo (house world) + 5 HuNavSim pedestrians      (from hunav_house.launch.py)
-#   + 3D-LiDAR TurtleBot3 (waffle + Velodyne VLP-16)   (from spawn_robot.launch.py)
-#   + Nav2 (AMCL localization + 3D-pointcloud obstacle avoidance)
+#   Gazebo（house world）+ HuNavSim 歩行者5人          （hunav_house.launch.py より）
+#   + 3D-LiDAR TurtleBot3（waffle + Velodyne VLP-16）  （spawn_robot.launch.py より）
+#   + Nav2（AMCL 自己位置推定 + 3D点群による障害物回避）
 #   + RViz2
+#   + Teleop / 自動巡回 GUI
 #
-# Give a goal in RViz2 ("2D Goal Pose") and the robot navigates the house while
-# avoiding the moving people (the 3D LiDAR marks them in the costmaps).
+# RViz2 の「2D Goal Pose」でゴールを与えると、歩く人（3D LiDAR が costmap に
+# マークする）を避けながら家の中を自律移動する。GUI からは手動操縦・部屋の自動巡回もできる。
 
 import os
 
@@ -28,7 +29,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_nav2 = LaunchConfiguration('use_nav2')
     use_rviz = LaunchConfiguration('use_rviz')
-    follow = LaunchConfiguration('follow')
+    use_gui = LaunchConfiguration('gui')
     map_yaml = LaunchConfiguration('map')
     params_file = LaunchConfiguration('params_file')
     x_pose = LaunchConfiguration('x_pose')
@@ -37,52 +38,52 @@ def generate_launch_description():
 
     declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
     declare_use_nav2 = DeclareLaunchArgument('use_nav2', default_value='True',
-        description='Launch the Nav2 stack')
+        description='Nav2 スタックを起動する')
     declare_use_rviz = DeclareLaunchArgument('use_rviz', default_value='True',
-        description='Launch RViz2')
-    declare_follow = DeclareLaunchArgument('follow', default_value='False',
-        description='Launch the LiDAR person-follow pipeline (walk on a person\'s right)')
+        description='RViz2 を起動する')
+    declare_gui = DeclareLaunchArgument('gui', default_value='True',
+        description='Teleop / 自動巡回 GUI ウィンドウを起動する')
     declare_map = DeclareLaunchArgument('map',
-        default_value=os.path.join(susumu_pkg, 'maps', 'house.yaml'),
-        description='Full path to the map yaml')
+        default_value=os.path.join(susumu_pkg, 'maps', 'cafe.yaml'),
+        description='マップ yaml のフルパス')
     declare_params = DeclareLaunchArgument('params_file',
         default_value=os.path.join(susumu_pkg, 'config', 'nav2_params.yaml'),
-        description='Full path to the Nav2 params yaml (3D-LiDAR obstacle avoidance)')
-    # Robot spawn pose. Keep it on free space in the house map.
+        description='Nav2 パラメータ yaml のフルパス（3D-LiDAR 障害物回避）')
+    # ロボットの spawn 姿勢。house マップ上の空きスペースに置くこと。
     declare_x = DeclareLaunchArgument('x_pose', default_value='0.0')
     declare_y = DeclareLaunchArgument('y_pose', default_value='0.0')
     declare_yaw = DeclareLaunchArgument('yaw', default_value='0.0')
 
     # ------------------------------------------------------------------
-    # 1) Gazebo house world + 5 HuNavSim pedestrians.
-    #    navigation:=True tells the HuNav launch NOT to publish a static
-    #    map->odom (Nav2/AMCL will provide it instead).
+    # 1) Gazebo house world + HuNavSim 歩行者5人。
+    #    navigation:=True は HuNav launch に静的な map->odom を publish させない
+    #    ことを伝える（代わりに Nav2/AMCL が提供する）。
     # ------------------------------------------------------------------
     hunav_world = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(susumu_pkg, 'launch', 'hunav_house.launch.py')),
+            os.path.join(susumu_pkg, 'launch', 'include', 'hunav_house.launch.py')),
         launch_arguments={
             'robot_name': 'turtlebot3',
             'navigation': use_nav2,
         }.items())
 
     # ------------------------------------------------------------------
-    # 2) Spawn the 3D-LiDAR TurtleBot3 + robot_state_publisher.
-    #    Delay so Gazebo (started inside the HuNav launch) is up first.
+    # 2) 3D-LiDAR TurtleBot3 を spawn + robot_state_publisher。
+    #    Gazebo（HuNav launch 内で起動）が先に立ち上がるよう遅延させる。
     # ------------------------------------------------------------------
     spawn_robot = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(susumu_pkg, 'launch', 'spawn_robot.launch.py')),
+            os.path.join(susumu_pkg, 'launch', 'include', 'spawn_robot.launch.py')),
         launch_arguments={
             'use_sim_time': use_sim_time,
             'entity_name': 'turtlebot3',
             'x_pose': x_pose, 'y_pose': y_pose, 'yaw': yaw,
         }.items())
 
-    spawn_robot_delayed = TimerAction(period=8.0, actions=[spawn_robot])
+    spawn_robot_delayed = TimerAction(period=15.0, actions=[spawn_robot])
 
     # ------------------------------------------------------------------
-    # 3) Nav2 (localization + navigation). Delay so the robot/TF exist.
+    # 3) Nav2（自己位置推定 + ナビゲーション）。robot/TF が揃うよう遅延させる。
     # ------------------------------------------------------------------
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -96,7 +97,7 @@ def generate_launch_description():
             'autostart': 'True',
         }.items())
 
-    nav2_delayed = TimerAction(period=12.0, actions=[
+    nav2_delayed = TimerAction(period=20.0, actions=[
         LogInfo(msg='Starting Nav2 (3D-LiDAR obstacle avoidance)...'), nav2])
 
     # ------------------------------------------------------------------
@@ -109,24 +110,23 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time}],
         output='screen',
         condition=IfCondition(use_rviz))
-    rviz_delayed = TimerAction(period=12.0, actions=[rviz])
+    rviz_delayed = TimerAction(period=20.0, actions=[rviz])
 
     # ------------------------------------------------------------------
-    # 5) Optional: LiDAR person-follow pipeline (walk on a person's right).
-    #    Starts after Nav2 so the navigate_to_pose action server is up.
+    # 5) Teleop / 自動巡回 GUI。矢印ボタン + テンキーで手動操縦し、ON/OFF トグルで
+    #    Nav2 経由の部屋自動巡回を行う。navigate_to_pose アクションサーバが存在する
+    #    よう Nav2 の後に起動する。
     # ------------------------------------------------------------------
-    follow_pipeline = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(susumu_pkg, 'launch', 'follow_person.launch.py')),
-        condition=IfCondition(follow),
-        launch_arguments={'use_sim_time': use_sim_time}.items())
-    follow_delayed = TimerAction(period=18.0, actions=[
-        LogInfo(msg='Starting LiDAR person-follow (walk on person\'s right)...'),
-        follow_pipeline])
+    gui_node = Node(
+        package='susumu_sim', executable='teleop_gui_node.py',
+        name='teleop_gui', output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
+        condition=IfCondition(use_gui))
+    gui_delayed = TimerAction(period=24.0, actions=[gui_node])
 
     ld = LaunchDescription()
     for a in (declare_use_sim_time, declare_use_nav2, declare_use_rviz,
-              declare_follow, declare_map, declare_params,
+              declare_gui, declare_map, declare_params,
               declare_x, declare_y, declare_yaw):
         ld.add_action(a)
 
@@ -134,5 +134,5 @@ def generate_launch_description():
     ld.add_action(spawn_robot_delayed)
     ld.add_action(nav2_delayed)
     ld.add_action(rviz_delayed)
-    ld.add_action(follow_delayed)
+    ld.add_action(gui_delayed)
     return ld

@@ -1,5 +1,5 @@
-# Phase B test: launch an empty Gazebo world and spawn the 3D-LiDAR TurtleBot3.
-# Used to verify /velodyne_points (PointCloud2) and TF independently of HuNav/Nav2.
+# 動作確認用: 空の Gazebo world を起動して 3D-LiDAR TurtleBot3 を spawn する。
+# HuNav/Nav2 とは独立に /velodyne_points（PointCloud2）と TF を確認するために使う。
 
 import os
 
@@ -17,7 +17,7 @@ def generate_launch_description():
     gazebo_ros = get_package_share_directory('gazebo_ros')
     tb3_gazebo = get_package_share_directory('turtlebot3_gazebo')
 
-    # Resolve model:// meshes (turtlebot3_common) and our 3D model.
+    # model:// メッシュ（turtlebot3_common）と本パッケージの 3D モデルを解決する。
     set_model_path = SetEnvironmentVariable(
         name='GAZEBO_MODEL_PATH',
         value=os.path.join(tb3_gazebo, 'models') + os.pathsep
@@ -36,10 +36,10 @@ def generate_launch_description():
 
     spawn = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(susumu_pkg, 'launch', 'spawn_robot.launch.py')),
+            os.path.join(susumu_pkg, 'launch', 'include', 'spawn_robot.launch.py')),
         launch_arguments={'x_pose': '0.0', 'y_pose': '0.0'}.items())
 
     return LaunchDescription([
         DeclareLaunchArgument('gui', default_value='true',
-                              description='Launch the Gazebo client GUI'),
+                              description='Gazebo クライアント GUI を起動する'),
         set_model_path, gzserver, gzclient, spawn])

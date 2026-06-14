@@ -1,6 +1,6 @@
 hunav_loader:
   ros__parameters:
-    map: house
+    map: cafe
     publish_people: true
     agents:
       - agent1
@@ -15,7 +15,7 @@ hunav_loader:
       max_vel: 1.5
       radius: 0.4
       behavior: 
-        type: 1 # REGULAR=1, IMPASSIVE=2, SURPRISED=3, SCARED=4, CURIOUS=5, THREATENING=6
+        type: 4 # REGULAR=1, IMPASSIVE=2, SURPRISED=3, SCARED=4, CURIOUS=5, THREATENING=6
         configuration: 0 # def: 0, custom:1, random_normal:2, random_uniform:3
         duration: 40.0  # seg
         once: true
@@ -26,10 +26,10 @@ hunav_loader:
         social_force_factor: 5.0
         other_force_factor: 20.0
       init_pose:
-        x: 1.452
-        y: 3.467
-        z: 0.0
-        h: 1.250000
+        x: 3.484565
+        y: 6.934117
+        z: 1.250000
+        h: 0.0
       goal_radius: 0.3
       cyclic_goals: true
       goals:
@@ -37,16 +37,16 @@ hunav_loader:
         - g1
         - g2
       g0:
-        x: 1.150
-        y: 0.980
+        x: 3.378858
+        y: -4.586833
         h: 1.250000
       g1:
-        x: 5.03
-        y: -1.71
+        x: -3.588942
+        y: -4.796917
         h: 1.250000
       g2:
-        x: 4.17
-        y: -3.05
+        x: -2.574025
+        y: 1.435859
         h: 1.250000
     agent2:
       id: 2
@@ -55,7 +55,7 @@ hunav_loader:
       max_vel: 1.5
       radius: 0.4
       behavior: 
-        type: 3 # REGULAR=1, IMPASSIVE=2, SURPRISED=3, SCARED=4, CURIOUS=5, THREATENING=6
+        type: 6 # REGULAR=1, IMPASSIVE=2, SURPRISED=3, SCARED=4, CURIOUS=5, THREATENING=6
         configuration: 2   # def: 0, custom:1, random_normal:2, random_uniform:3
         duration: 40.0  # seg
         once: true
@@ -66,10 +66,10 @@ hunav_loader:
         social_force_factor: 5.0
         other_force_factor: 20.0
       init_pose:
-        x: 2.933737
-        y: -3.760854721069336
-        z: 0.0
-        h: 1.25
+        x: 3.308198
+        y: -10.327183
+        z: 1.250000
+        h: 0.0
       goal_radius: 0.3
       cyclic_goals: true
       goals:
@@ -77,16 +77,16 @@ hunav_loader:
         - g1
         - g2
       g0:
-        x: 5.9688920974731445
-        y: -2.6787490844726562
+        x: 1.558424
+        y: 6.163660
         h: 1.250000
       g1:
-        x: 0.8091512322425842
-        y: 1.1181720495224
+        x: -1.873610
+        y: -1.645975
         h: 1.250000
       g2:
-        x: -2.5563764572143555
-        y: -1.0830262899398804
+        x: 0.052511
+        y: -10.047120
         h: 1.250000
     agent7:
       id: 3
@@ -106,10 +106,10 @@ hunav_loader:
         social_force_factor: 5.0
         other_force_factor: 20.0
       init_pose:
-        x: -2.3611209392547607
-        y: -1.0479099750518799
-        z: 0.0
-        h: 1.25
+        x: -4.183384
+        y: -9.522011
+        z: 1.250000
+        h: 0.0
       goal_radius: 0.3
       cyclic_goals: true
       goals:
@@ -117,16 +117,16 @@ hunav_loader:
         - g1
         - g2
       g0:
-        x: -4.864727973937988
-        y: -3.6727828979492188
+        x: -1.662852
+        y: -7.631603
         h: 1.250000
       g1:
-        x: -7.917893409729004
-        y: -2.818157911300659
+        x: -4.079139
+        y: -4.761907
         h: 1.250000
       g2:
-        x: -8.655570030212402
-        y: -2.7183213233947754
+        x: 0.717925
+        y: 1.400831
         h: 1.250000
     agent4:
       id: 4
@@ -146,10 +146,10 @@ hunav_loader:
         social_force_factor: 5.0
         other_force_factor: 20.0
       init_pose:
-        x: -7.854982852935791
-        y: -0.11368653923273087
-        z: 0.0
-        h: 1.250000
+        x: -3.554606
+        y: 5.953529
+        z: 1.250000
+        h: 0.0
       goal_radius: 0.3
       cyclic_goals: true
       goals:
@@ -157,16 +157,16 @@ hunav_loader:
         - g1
         - g2
       g0:
-        x: -4.109762668609619
-        y: -0.011960649862885475
+        x: -2.643059
+        y: -9.592029
         h: 1.250000
       g1:
-        x: -1.7079464197158813
-        y: -2.7385916709899902
+        x: 1.838239
+        y: -3.501402
         h: 1.250000
       g2:
-        x: 0.5717478394508362
-        y: -4.081562519073486
+        x: -3.7
+        y: 2.766649
         h: 1.250000
     agent5:
       id: 5
@@ -186,8 +186,8 @@ hunav_loader:
         social_force_factor: 5.0
         other_force_factor: 20.0
       init_pose:
-        x: 7.3533830642700195
-        y: -3.4841134548187256
+        x: 1.067725
+        y: -8.156725
         z: 1.250000
         h: 0.0
       goal_radius: 0.3
@@ -197,14 +197,14 @@ hunav_loader:
         - g1
         - g2
       g0:
-        x: 4.51926851272583
-        y: -1.7739657163619995
+        x: 1.348298
+        y: -1.225715
         h: 1.250000
       g1:
-        x: 1.5064270496368408
-        y: 0.497720867395401
-        h: -0.001434326171875
+        x: -0.717789
+        y: -3.326329
+        h: 1.250000
       g2:
-        x: -0.9957631230354309
-        y: 2.4631121158599854
+        x: -1.522822
+        y: -5.986265
         h: 1.250000

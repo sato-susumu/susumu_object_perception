@@ -5,13 +5,12 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclpy REQUIRED)
 
-# Python module (susumu_sim/*.py)
+# Python モジュール（susumu_sim/*.py）
 ament_python_install_package(${PROJECT_NAME})
 
-# Python node executables
+# Teleop / 自動巡回 GUI ノード
 install(PROGRAMS
-  susumu_sim/person_detector_node.py
-  susumu_sim/follow_person_node.py
+  susumu_sim/teleop_gui_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

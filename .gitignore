@@ -1,19 +1,64 @@
-# ROS 2 / colcon build artifacts
+# ===== ROS 2 / colcon build artifacts =====
 build/
 install/
 log/
 
-# Python
+# ===== Python: byte-compiled / optimized / cache =====
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
 
-# Personal notes (not part of the package)
-指示内容.md
+# ===== Python: packaging / distribution =====
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+sdist/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Editor / OS
+# ===== Python: virtual environments =====
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ===== Python: test / coverage / type-check caches =====
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.cache
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ===== Jupyter =====
+.ipynb_checkpoints/
+
+# ===== Editor / OS =====
 *.swp
+*.swo
 *~
 .vscode/
 .idea/
+*.code-workspace
 .DS_Store
+Thumbs.db
+
+# ===== Personal notes (not part of the package) =====
+指示内容.md

@@ -8,7 +8,7 @@
     multi-room house, with a 3D-LiDAR TurtleBot3 navigating around them via Nav2.
   </description>
   <maintainer email="taro@js5.so-net.ne.jp">taro</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
@@ -17,15 +17,11 @@
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
 
-  <!-- LiDAR person-follow nodes -->
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>sensor_msgs_py</exec_depend>
+  <!-- Teleop / auto-explore GUI node -->
   <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>nav2_msgs</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
-  <exec_depend>python3-numpy</exec_depend>
-  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>action_msgs</exec_depend>
+  <exec_depend>python3-tk</exec_depend>
 
   <!-- HuNavSim stack -->
   <exec_depend>hunav_agent_manager</exec_depend>
@@ -41,7 +37,9 @@
 
   <!-- Navigation -->
   <exec_depend>nav2_bringup</exec_depend>
+  <!-- slam:=True に切り替えたとき nav2_bringup が使う（既定は slam:=False で AMCL） -->
   <exec_depend>slam_toolbox</exec_depend>
+  <!-- 3D LiDAR の /velodyne_points を 2D /scan に変換（2D LiDAR の代替） -->
   <exec_depend>pointcloud_to_laserscan</exec_depend>
 
   <export>
