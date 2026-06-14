@@ -1,0 +1,24 @@
+# Autoware crop_box_filter（autoware_crop_box_filter / CropBoxFilterNode）用パラメータ。
+#
+# 役割: 入力点群 /velodyne_points から ROI（関心領域）を切り出す。屋内 cafe world
+# 向けに、velodyne_link を基準とした前後左右 ±15m・高さ -0.5〜2.0m に限定し、
+# 遠方ノイズと天井を落とす。
+#
+# 注意:
+#  - このノードの param file は範囲と negative のみを受け付ける。
+#    input_frame / output_frame / input_pointcloud_frame は launch でノードパラメータ
+#    として個別に渡す（velodyne_link 基準でクロップさせるため）。
+#  - negative: false = 範囲内を残す（true は範囲内を捨てる＝自車除去用途）。
+/**:
+  ros__parameters:
+    # ROI(関心領域) 範囲 [m]（velodyne_link 基準＝ロボット中心の相対範囲）。
+    # cafe 店内は約 9.7(x) × 23.6(y) m。±15m だと店より広く建物外の壁・床の点まで
+    # 拾って物体検出してしまう（地図範囲外の赤ボックス／壁上の緑ボックスの一因）。
+    # 店の長辺の半分強＋余白で ±13m に絞り、建物外の点を ROI 段階で落とす。
+    min_x: -13.0
+    max_x: 13.0
+    min_y: -13.0
+    max_y: 13.0
+    min_z: -0.5   # 床面はやや下まで残し ground_filter に判定させる
+    max_z: 2.0    # 天井・高所の点を落とす（人の身長は十分カバー）
+    negative: false  # false = 範囲内を残す

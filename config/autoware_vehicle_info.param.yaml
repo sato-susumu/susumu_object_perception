@@ -1,0 +1,18 @@
+# Autoware vehicle_info（autoware_vehicle_info_utils）パラメータ。
+#
+# ground_filter など一部の Autoware ノードは vehicle_info を要求する（自車サイズで
+# 足元の点を除外するなどに使う）。デフォルトは乗用車サイズなので、TurtleBot3 waffle
+# （直径 ~0.28m、車高 ~0.2m）に合わせて極小値にする。値を大きいままにすると自車
+# 周辺の人の点まで除外されかねない。
+/**:
+  ros__parameters:
+    wheel_radius: 0.033
+    wheel_width: 0.018
+    wheel_base: 0.16     # waffle のホイール間（前後輪相当として近似）
+    wheel_tread: 0.16
+    front_overhang: 0.05
+    rear_overhang: 0.05
+    left_overhang: 0.05
+    right_overhang: 0.05
+    vehicle_height: 0.2
+    max_steer_angle: 0.70

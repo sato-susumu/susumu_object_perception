@@ -28,6 +28,7 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_nav2 = LaunchConfiguration('use_nav2')
+    use_perception = LaunchConfiguration('use_perception')
     use_rviz = LaunchConfiguration('use_rviz')
     use_gui = LaunchConfiguration('gui')
     map_yaml = LaunchConfiguration('map')
@@ -39,6 +40,8 @@ def generate_launch_description():
     declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
     declare_use_nav2 = DeclareLaunchArgument('use_nav2', default_value='True',
         description='Nav2 スタックを起動する')
+    declare_use_perception = DeclareLaunchArgument('use_perception', default_value='True',
+        description='Autoware sensing/perception パイプライン（物体検出・追跡・可視化）を起動する')
     declare_use_rviz = DeclareLaunchArgument('use_rviz', default_value='True',
         description='RViz2 を起動する')
     declare_gui = DeclareLaunchArgument('gui', default_value='True',
@@ -101,6 +104,24 @@ def generate_launch_description():
         LogInfo(msg='Starting Nav2 (3D-LiDAR obstacle avoidance)...'), nav2])
 
     # ------------------------------------------------------------------
+    # 3.5) Autoware sensing/perception パイプライン。
+    #      /velodyne_points → crop_box → ground_filter → euclidean_cluster
+    #      （ここまで Autoware 純正）→ object_tracker → perception_marker（自作）。
+    #      追跡は odom←velodyne_link の TF を使うため、robot spawn の後に起動する。
+    #      Nav2 とは連携せず（生センサで動く Nav2 はそのまま）、検出結果は可視化のみ。
+    # ------------------------------------------------------------------
+    perception = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(susumu_pkg, 'launch', 'include', 'autoware_perception.launch.py')),
+        condition=IfCondition(use_perception),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'input_pointcloud': '/velodyne_points',
+        }.items())
+    perception_delayed = TimerAction(period=18.0, actions=[
+        LogInfo(msg='Starting Autoware perception pipeline...'), perception])
+
+    # ------------------------------------------------------------------
     # 4) RViz2
     # ------------------------------------------------------------------
     rviz_config = os.path.join(susumu_pkg, 'rviz', 'simulation.rviz')
@@ -125,13 +146,14 @@ def generate_launch_description():
     gui_delayed = TimerAction(period=24.0, actions=[gui_node])
 
     ld = LaunchDescription()
-    for a in (declare_use_sim_time, declare_use_nav2, declare_use_rviz,
-              declare_gui, declare_map, declare_params,
+    for a in (declare_use_sim_time, declare_use_nav2, declare_use_perception,
+              declare_use_rviz, declare_gui, declare_map, declare_params,
               declare_x, declare_y, declare_yaw):
         ld.add_action(a)
 
     ld.add_action(hunav_world)
     ld.add_action(spawn_robot_delayed)
+    ld.add_action(perception_delayed)
     ld.add_action(nav2_delayed)
     ld.add_action(rviz_delayed)
     ld.add_action(gui_delayed)

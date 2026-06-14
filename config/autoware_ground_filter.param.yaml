@@ -1,0 +1,29 @@
+# Autoware ground_filter（autoware_ground_filter / ScanGroundFilter）用パラメータ。
+#
+# 役割: crop_box 後の点群から「地面」を除去し、障害物候補点だけを残す。HD 地図は
+# 使わず、Scan Ground Filter のジオメトリ（放射状に高さ勾配を見る）だけで地面判定する。
+#
+# 屋内・平坦・近距離前提でデフォルト（屋外20m級）から調整:
+#   - grid_mode_switch_radius を小さく（屋内は近距離のみ）
+#   - non_ground_height_threshold をやや下げ、低い人の足元も拾う
+#   - detection_range_z_max を人の身長帯に
+/**:
+  ros__parameters:
+    global_slope_max_angle_deg: 10.0
+    local_slope_max_angle_deg: 13.0
+    split_points_distance_tolerance: 0.2
+    use_virtual_ground_point: true
+    split_height_distance: 0.2
+    non_ground_height_threshold: 0.15   # これ以上高い点を非地面（障害物）とする [m]
+    grid_size_m: 0.3                     # 屋内向けに細かめ
+    grid_mode_switch_radius: 8.0         # この半径内は密モード（屋内は近距離中心）
+    ground_grid_buffer_size: 4
+    detection_range_z_max: 2.0           # 人の身長帯まで
+    elevation_grid_mode: true
+    low_priority_region_x: -15.0
+    center_pcl_shift: 0.0
+    radial_divider_angle_deg: 1.0
+    use_recheck_ground_cluster: true
+    use_lowest_point: true
+
+    publish_processing_time_detail: false

@@ -67,7 +67,11 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'target_frame': 'velodyne_link',  # /scan の出力フレーム
             'transform_tolerance': 0.01,
-            'min_height': -0.20,   # velodyne_link 基準の高さ帯 [m]
+            # velodyne_link 基準の高さ帯 [m]（velodyne_link は地面 +0.21m）。
+            # 地面(z≈-0.21)を拾うと costmap obstacle_layer が床を障害物化して
+            # 自動巡回できなくなるため、地面より明確に上(0.0=地面+0.21m)から取る。
+            # 上端 1.0(地面+1.21m) は壁・人の胴体をカバーし AMCL の自己位置にも十分。
+            'min_height': 0.0,
             'max_height': 1.0,
             'angle_min': -3.14159,  # -180°
             'angle_max': 3.14159,   # +180°

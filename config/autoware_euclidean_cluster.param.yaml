@@ -1,0 +1,28 @@
+# Autoware euclidean_cluster（autoware_euclidean_cluster_object_detector /
+# EuclideanClusterNode）用パラメータ。
+#
+# 役割: ground_filter 後の非地面点を距離ベースで連結成分クラスタリングし、
+# autoware_perception_msgs/DetectedObjects（各クラスタ = 1 物体）として出力する。
+#
+# 屋内の人（直径〜0.6m）を 1 クラスタに収めるための調整:
+#   - tolerance（同一クラスタとみなす点間距離）を人サイズに合わせ小さめ
+#   - min_cluster_size を下げ、まばらな遠方の人も拾う
+#   - use_height: false（XY 距離のみで連結。屋内の人検出はこれで十分）
+#
+# low height crop box param は launch で use_low_height_cropbox:=false にするため
+# 実質未使用だが、ノードがパラメータを要求するので一通り定義しておく。
+/**:
+  ros__parameters:
+    tolerance: 0.4          # 点間がこの距離以内なら同一クラスタ [m]
+    min_cluster_size: 5     # クラスタとみなす最小点数（まばらな人も拾う）
+    max_cluster_size: 2000
+    use_height: false       # XY 距離のみで連結
+
+    # low height crop box filter param（use_low_height_cropbox:=false 時は未使用）
+    max_x: 15.0
+    min_x: -15.0
+    max_y: 15.0
+    min_y: -15.0
+    max_z: 2.0
+    min_z: -0.5
+    negative: false

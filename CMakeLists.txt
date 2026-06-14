@@ -8,9 +8,13 @@ find_package(rclpy REQUIRED)
 # Python モジュール（susumu_sim/*.py）
 ament_python_install_package(${PROJECT_NAME})
 
-# Teleop / 自動巡回 GUI ノード
+# Teleop / 自動巡回 GUI ノード、Autoware perception の自作補完ノード
 install(PROGRAMS
   susumu_sim/teleop_gui_node.py
+  susumu_sim/pointcloud_to_autoware_node.py
+  susumu_sim/map_roi_filter_node.py
+  susumu_sim/object_tracker_node.py
+  susumu_sim/perception_marker_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

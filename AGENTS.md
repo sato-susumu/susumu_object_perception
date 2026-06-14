@@ -15,11 +15,20 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 - **Nav2** で自律移動（`/scan` + `/velodyne_points` を costmap の障害物に使用。
   `/scan` は 3D 点群から pointcloud_to_laserscan で生成）
 - **Teleop / 自動巡回 GUI**（`teleop_gui_node.py`）で手動操縦・自動巡回
+- **Autoware LiDAR sensing/perception パイプライン**（既定 ON）。`/velodyne_points` を
+  Autoware 純正の crop_box → ground_filter → euclidean_cluster で検出し、Python 自作の
+  `object_tracker_node.py`（追跡）→ `perception_marker_node.py`（可視化）で補完する。
+  詳細は [`docs/autoware_perception.md`](docs/autoware_perception.md)。
 
-> このパッケージは**純粋なシミュレーター**。LiDARで人を検知して右隣を歩く追従機能
-> （旧 `person_detector_node` / `follow_person_node`）は削除され、別パッケージ
-> `susumu_lidar_perception` へ分離された。Nav2 は人を除去した `*_filtered` ではなく
-> **生のセンサトピック**を使う。
+> シミュレーターに **Autoware 互換の perception** を載せた構成。検出までは Autoware
+> モジュール、apt に無い追跡/形状推定は Python で自作補完する（自作時は Autoware
+> 公式ソースを参照し設計・既定値を踏襲する方針）。**現状 Nav2 とは連携しない**
+> （perception 結果は RViz 可視化のみ。Nav2 は従来どおり生センサ `/scan`
+> `/velodyne_points` で動く）。HD 地図は使わず点群ジオメトリのみで検出する。
+>
+> 旧来の追従機能（`person_detector_node` / `follow_person_node`）は削除済みで、別
+> パッケージ `susumu_lidar_perception` にあったが、**他ブランチ・別パッケージの過去
+> 実装は参照しない**（本 perception は main からクリーンに再実装したもの）。
 
 ビルド種別は **`ament_cmake`**（Pythonノードは `install(PROGRAMS)` +
 `ament_python_install_package` で同梱）。
@@ -99,6 +108,16 @@ simulation.launch.py は上記を **TimerActionで段階起動**（gazebo→+8s 
   `vel:0.6`〜`0.8`, 各3ゴール）、**`once:true`+`cyclic_goals:true`** で巡回し続ける。
 - `susumu_sim/teleop_gui_node.py` … tkinter GUI。矢印/テンキー手動操縦、AUTOトグルで
   `PATROL_WAYPOINTS` を Nav2 で巡回、WARPで原点へワープ＋AMCL再初期化。
+- `launch/include/autoware_perception.launch.py` … Autoware 3 モジュール（crop_box →
+  ground_filter → euclidean_cluster）を 1 component_container にまとめ、自作 tracker /
+  marker を起動する perception パイプライン。plugin 名・remap は実体検証済み。
+- `config/autoware_*.param.yaml` … 上記 Autoware モジュールの屋内向けパラメータ。
+  ground/cluster を調整したら `docs/autoware_perception.md` のパラメータ表も更新する。
+- `susumu_sim/object_tracker_node.py` … DetectedObjects→TrackedObjects の自作トラッカー。
+  Autoware multi_object_tracker のソースを踏襲（ハンガリアン法 + マハラノビス χ²ゲート
+  11.62 + existence_probability の Bayes 更新/半減期 decay + CV 速度クランプ）。
+- `susumu_sim/perception_marker_node.py` … Detected/Tracked を MarkerArray 可視化
+  （検出=青 / 移動=赤 / 静止=緑、ID・速度ベクトル付き）。
 
 ## 変更時の検証手順（サンドボックスでGazebo実起動が不安定な場合）
 
