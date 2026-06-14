@@ -2,18 +2,19 @@
 """perception パイプラインの DetectedObjects / TrackedObjects を RViz 用 MarkerArray に
 変換する自作可視化ノード。
 
-Autoware には autoware_perception_rviz_plugin という専用プラグインがあるが、RViz の
-設定が重いのと、検出（瞬間）と追跡（ID・速度付き）を色分けして直感的に見せたいので、
-標準の visualization_msgs/MarkerArray で軽量に可視化する。
+Autoware 純正の autoware_perception_rviz_plugin もあるが、表示方法・色を自由に
+作り込みたいので、標準の visualization_msgs/MarkerArray で軽量に可視化する。
 
-  /perception/detected_objects (DetectedObjects) → 青の枠（その瞬間の検出クラスタ）
-  /perception/tracked_objects  (TrackedObjects)  → 移動=赤 / 静止=緑 の枠
-                                                   + ID テキスト + 速度ベクトル矢印
+  /perception/detected_objects_in_map (DetectedObjects) → 青の枠（その瞬間の検出クラスタ）
+  /perception/tracked_objects         (TrackedObjects)  → 移動=赤 / 静止=緑 の枠
+                                                   + ラベル/速度テキスト + 速度ベクトル矢印
 
 色の意味:
   青  : 検出（まだ追跡 ID なし）
   赤  : 追跡中かつ移動物体（人など）
   緑  : 追跡中だが静止（壁・什器）
+
+テキストは純正プラグインと同じ見た目（`<ラベル名>  <速度>[km/h]`）にしてある。
 """
 
 import math
@@ -22,7 +23,8 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 
-from autoware_perception_msgs.msg import DetectedObjects, TrackedObjects
+from autoware_perception_msgs.msg import (
+    DetectedObjects, TrackedObjects, ObjectClassification)
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 from std_msgs.msg import ColorRGBA
@@ -37,12 +39,32 @@ def uuid_to_int(uuid_bytes):
     return int.from_bytes(bytes(uuid_bytes[0:4]), 'little')
 
 
+# classification label → 表示名（Autoware 純正プラグインと同じ文字列）。
+_LABEL_NAME = {
+    ObjectClassification.UNKNOWN: 'UNKNOWN',
+    ObjectClassification.CAR: 'CAR',
+    ObjectClassification.TRUCK: 'TRUCK',
+    ObjectClassification.BUS: 'BUS',
+    ObjectClassification.TRAILER: 'TRAILER',
+    ObjectClassification.MOTORCYCLE: 'MOTORCYCLE',
+    ObjectClassification.BICYCLE: 'CYCLIST',
+    ObjectClassification.PEDESTRIAN: 'PEDESTRIAN',
+}
+
+
+def label_name(classification):
+    """classification 配列から表示ラベル名を返す（先頭を採用、無ければ UNKNOWN）。"""
+    if classification:
+        return _LABEL_NAME.get(classification[0].label, 'UNKNOWN')
+    return 'UNKNOWN'
+
+
 class PerceptionMarkerNode(Node):
 
     def __init__(self):
         super().__init__('perception_marker')
 
-        self.declare_parameter('detected_topic', '/perception/detected_objects')
+        self.declare_parameter('detected_topic', '/perception/detected_objects_in_map')
         self.declare_parameter('tracked_topic', '/perception/tracked_objects')
         self.declare_parameter('marker_topic', '/perception/markers')
         self.declare_parameter('marker_lifetime_sec', 0.3)
@@ -101,7 +123,11 @@ class PerceptionMarkerNode(Node):
             arr.markers.append(self._box(
                 'tracked', tid, msg.header, pose, obj.shape.dimensions, col))
 
-            # ID テキスト（物体の上に表示）
+            # ラベル/速度テキスト（物体の上に表示）。
+            # 文字列は Autoware 純正プラグインと同じ `<ラベル名>  <速度>[km/h]`。
+            vx = obj.kinematics.twist_with_covariance.twist.linear.x
+            vy = obj.kinematics.twist_with_covariance.twist.linear.y
+            speed_kmph = math.hypot(vx, vy) * 3.6
             txt = Marker()
             txt.header = msg.header
             txt.ns = 'tracked_id'
@@ -114,15 +140,12 @@ class PerceptionMarkerNode(Node):
             txt.pose.orientation.w = 1.0
             txt.scale.z = 0.3
             txt.color = color(1.0, 1.0, 1.0, 1.0)
-            vx = obj.kinematics.twist_with_covariance.twist.linear.x
-            vy = obj.kinematics.twist_with_covariance.twist.linear.y
-            speed = math.hypot(vx, vy)
-            txt.text = f'#{tid} {speed:.2f}m/s'
+            txt.text = f'{label_name(obj.classification)}  {speed_kmph:.0f}[km/h]'
             txt.lifetime = self._lifetime_msg()
             arr.markers.append(txt)
 
             # 速度ベクトル矢印（移動物体のみ）
-            if moving and speed > 1e-2:
+            if moving and math.hypot(vx, vy) > 1e-2:
                 arrow = Marker()
                 arrow.header = msg.header
                 arrow.ns = 'tracked_vel'

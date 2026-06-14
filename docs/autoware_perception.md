@@ -41,8 +41,10 @@
   └─[自作Py] perception_marker_node.py             RViz 可視化       │
         → /perception/markers (MarkerArray)                         │
                                                                     ▼
-  Nav2 costmap voxel_layer は地面除去済み /perception/no_ground/pointcloud を使う
-  （生 /velodyne_points は地面 46% を含み costmap を埋め尽くすため。下「自動巡回」参照）
+  Nav2 costmap の 3D 障害物層（STVL=stvl_layer）は mark に地面除去済み
+  /perception/no_ground/pointcloud を使う（生 /velodyne_points は地面 46% を含み
+  costmap を埋め尽くすため。下「自動巡回」参照）。clear は STVL の frustum 用に生
+  /velodyne_points を使う。詳細は docs/nav2_tuning.md。
 ```
 
 上 3 つの Autoware モジュールは composable node なので 1 つの `component_container`
@@ -125,16 +127,23 @@ ground truth 検証（cafe world, 歩行者5・机5）: 当初 壁 FP 10個 → 
 壁 1.4m 地点のゴーストで、机の最寄り壁 1.51m と差が小さく、これ以上 margin を上げると机を
 巻き込むため現状で許容する。
 
-### perception_marker_node.py（autoware_perception_rviz_plugin の代替）
+### perception_marker_node.py（自作可視化）
 
-Autoware には専用 RViz プラグインがあるが、検出（瞬間）と追跡（ID・速度付き）を
-色分けして直感的に見せたいので標準 `visualization_msgs/MarkerArray` で軽量可視化する。
+可視化は自作の `perception_marker_node.py`（標準 `visualization_msgs/MarkerArray`）で行う。
+Autoware 純正 `autoware_perception_rviz_plugin` も使えるが、表示方法・色を自由に
+作り込みたいので自作する。RViz では `/perception/markers` を MarkerArray Display で表示。
 
-- 青（半透明）: 検出クラスタ `/perception/detected_objects`
+- 青（半透明）: 検出クラスタ `/perception/detected_objects_in_map`（壁除去後）
 - 赤: 追跡中かつ**移動**物体（`is_stationary=false`）
 - 緑: 追跡中だが**静止**物体（壁・什器）
-- 白テキスト: `#ID 速度[m/s]`
+- 白テキスト: `<ラベル名>  <速度>[km/h]`（Autoware 純正プラグインと同じ文字列。
+  ラベル名は classification を `UNKNOWN`/`PEDESTRIAN`/`CAR` 等に対応づけ）
 - 黄矢印: 速度ベクトル（移動物体のみ）
+
+> 純正プラグインを使う場合は `autoware_perception_rviz_plugin/DetectedObjects`・
+> `/TrackedObjects` を .rviz に置き、`Object Fill Type: Fill`（既定 skeleton は細線で
+> 見えにくい）、クラス色は `UNKNOWN: {Color, Alpha}` で .rviz 上書き可能（実機検証済み）。
+> 本構成では自作マーカーを採用しているため未使用。
 
 ### shape_estimation について
 
@@ -284,7 +293,8 @@ ros2 topic echo /perception/tracked_objects --once    # ID・速度付き追跡
   - `/perception/tracked_objects` で 30+ トラックを追跡、`frame_id=odom`。
   - 定常状態で **移動 4〜5 / 静止 29 前後**に分離（cafe の歩行者5人に一致）。移動
     トラックの速度 1.0〜2.5m/s は HuNav の歩行速度（vel 0.6〜0.8, max_vel 1.5）と整合。
-  - `/perception/markers` 18Hz、namespace = detected / tracked / tracked_id / tracked_vel。
+  - `/perception/markers`（自作可視化）で検出=青 / 移動=赤 / 静止=緑、テキストは
+    `<ラベル名>  <速度>[km/h]`。
   - **ライブで判明した実問題と対処:** (1) ground_filter が PointXYZI を拒否 →
     `pointcloud_to_autoware_node.py` で PointXYZIRC へ変換（上記「落とし穴」参照）。
     (2) 静止什器がクラスタの揺れで「移動」と誤判定 → 移動判定を初期位置からの累積

@@ -5,12 +5,14 @@
 #     └→ [Autoware] crop_box_filter   ROI クロップ        → cropped/pointcloud
 #        └→ [Autoware] ground_filter  地面除去(Scan Ground) → no_ground/pointcloud
 #           └→ [Autoware] euclidean_cluster クラスタ化      → /perception/detected_objects
-#              └→ [自作Py] object_tracker_node  追跡        → /perception/tracked_objects
-#                 └→ [自作Py] perception_marker_node 可視化 → /perception/markers
+#              └→ [自作Py] map_roi_filter_node 壁除去       → /perception/detected_objects_in_map
+#                 └→ [自作Py] object_tracker_node  追跡        → /perception/tracked_objects
+#                    └→ [自作Py] perception_marker_node 可視化 → /perception/markers
 #
 # Autoware の 3 モジュールは composable node なので 1 つの component_container に
 # まとめてロードする（プロセス間コピーを避け、ゼロコピー intra-process 通信にできる）。
 # 自作 Python ノードは通常の Node として別途起動する（rclpy はコンポーネント化しない）。
+# 可視化は自作 MarkerArray ノード（表示方法・色を自由に作り込むため。純正プラグインは不使用）。
 
 import os
 
@@ -141,6 +143,7 @@ def generate_launch_description():
     )
 
     # 5) 自作 Python: 可視化（Detected/Tracked → MarkerArray）
+    #    表示方法・色を自由に作り込むため自作する（純正プラグインは使わない）。
     #    検出マーカー(青)も地図照合後を見せる（生検出だと壁だらけになるため）。
     marker = Node(
         package='susumu_sim',
