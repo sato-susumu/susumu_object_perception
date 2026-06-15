@@ -5,8 +5,13 @@
 #     └→ [Autoware] crop_box_filter   ROI クロップ        → cropped/pointcloud
 #        └→ [Autoware] ground_filter  地面除去(Scan Ground) → no_ground/pointcloud
 #           └→ [Autoware] euclidean_cluster クラスタ化      → /perception/detected_objects
+#              └→ [自作Py] shape_estimation_node OBB推定    → /perception/detected_objects_shaped
+#                 （Autoware L字フィット bounding_box.cpp を踏襲、型は標準で自作）
+#              └→ [自作Py] detection_by_tracker_node 過分割統合 → /perception/detected_objects_merged
+#                 （Autoware Cluster Merger を踏襲、tracker 出力を参照する循環）
 #              └→ [自作Py] map_roi_filter_node 壁除去       → /perception/detected_objects_in_map
 #                 └→ [自作Py] object_tracker_node  追跡        → /perception/tracked_objects
+#                    └→ [自作Py] prediction_node 将来軌跡予測 → /perception/predicted_objects
 #                    └→ [自作Py] perception_marker_node 可視化 → /perception/markers
 #
 # Autoware の 3 モジュールは composable node なので 1 つの component_container に
@@ -112,18 +117,54 @@ def generate_launch_description():
         output='screen',
     )
 
+    # 3.3) 自作 Python: 形状推定（OBB）
+    #      euclidean_cluster の DetectedObjects は位置のみで shape が空。no_ground 点群から
+    #      各検出近傍の点を集め、Autoware の L字フィット（bounding_box.cpp を踏襲）で
+    #      OBB の寸法・向きを推定して shape を埋める。apt 版 shape_estimation は無く、
+    #      universe 版は型（tier4_perception_msgs）が世代不整合なため、アルゴリズムのみ
+    #      公式踏襲して標準型で自作した。
+    shape_est = Node(
+        package='susumu_sim',
+        executable='shape_estimation_node.py',
+        name='shape_estimation',
+        output='screen',
+        parameters=[sim_time_param, {
+            'input_objects': '/perception/detected_objects',
+            'input_cloud': '/perception/no_ground/pointcloud',
+            'output_objects': '/perception/detected_objects_shaped',
+        }],
+    )
+
+    # 3.4) 自作 Python: detection_by_tracker（過分割統合）
+    #      euclidean クラスタリングが 1 人を複数に割る over-segmentation を、前フレームの
+    #      tracker の位置・サイズを参照して 1 つに統合する（Autoware Cluster Merger 踏襲）。
+    #      tracker 出力を購読する循環構造。tracker 未起動/TF 不在時は素通し。
+    det_by_trk = Node(
+        package='susumu_sim',
+        executable='detection_by_tracker_node.py',
+        name='detection_by_tracker',
+        output='screen',
+        parameters=[sim_time_param, {
+            'input_objects': '/perception/detected_objects_shaped',
+            'input_tracks': '/perception/tracked_objects',
+            'output_objects': '/perception/detected_objects_merged',
+        }],
+    )
+
     # 3.5) 自作 Python: 2D 地図照合 ROI フィルタ
     #      DetectedObjects のうち、2D 占有格子地図で壁/地図外/未知に当たるものを除外し、
     #      地図内フリースペースの物体（＝動的に現れた人など）だけ通す。HD 地図の無い
     #      本環境で Autoware の map-based ROI フィルタを 2D 地図で代替する。
     #      map<-velodyne_link の TF（map->odom は AMCL/Nav2 提供）が要るため、Nav2 無し
     #      のときは TF 不在で素通しになる（perception は止めない設計）。
+    #      入力は detection_by_tracker で過分割統合した検出。
     map_filter = Node(
         package='susumu_sim',
         executable='map_roi_filter_node.py',
         name='map_roi_filter',
         output='screen',
         parameters=[sim_time_param, {
+            'input_topic': '/perception/detected_objects_merged',
             # 壁セルの周囲 ±3 セル（地図 res 0.05m なら ±15cm）も占有扱いにし、
             # 壁に貼り付いて検出される静止クラスタ（緑ボックス）を落とす。人は壁から
             # 多少離れるので残る。消し過ぎるなら下げる。
@@ -142,7 +183,21 @@ def generate_launch_description():
         }],
     )
 
-    # 5) 自作 Python: 可視化（Detected/Tracked → MarkerArray）
+    # 4.5) 自作 Python: 将来軌跡予測（2D map_based_prediction の 2D 占有格子版）
+    #      tracked_objects を等速(CV)で予測しつつ、予測点が 2D 地図の occupied セルに
+    #      入ったら打ち切る（壁めり込み予測を防ぐ）。Autoware の map_based_prediction の
+    #      基本部（CV 予測）を踏襲し、HD 地図要素の代わりに 2D 占有格子を使う。
+    prediction = Node(
+        package='susumu_sim',
+        executable='prediction_node.py',
+        name='prediction',
+        output='screen',
+        parameters=[sim_time_param, {
+            'input_topic': '/perception/tracked_objects',
+        }],
+    )
+
+    # 5) 自作 Python: 可視化（Detected/Tracked/Predicted → MarkerArray）
     #    表示方法・色を自由に作り込むため自作する（純正プラグインは使わない）。
     #    検出マーカー(青)も地図照合後を見せる（生検出だと壁だらけになるため）。
     marker = Node(
@@ -160,7 +215,10 @@ def generate_launch_description():
     ld.add_action(declare_input)
     ld.add_action(pc_convert)
     ld.add_action(container)
+    ld.add_action(shape_est)
+    ld.add_action(det_by_trk)
     ld.add_action(map_filter)
     ld.add_action(tracker)
+    ld.add_action(prediction)
     ld.add_action(marker)
     return ld

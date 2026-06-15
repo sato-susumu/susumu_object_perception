@@ -49,15 +49,20 @@
 | `inflation_layer.inflation_radius` | 0.35 | 障害物膨張半径 [m]。大きいほど壁から離れる／狭所を通れなくなる |
 | `inflation_layer.cost_scaling_factor` | 3.0 | 膨張コストの減衰。大きいほど壁際コストが急減 |
 | `obstacle_layer` 入力 | `/scan` | 2D 障害物。高さ帯 `min_height 0.0`（地面+0.21m以上）で地面を除外 |
-| **3D 障害物層** | **`stvl_layer`（STVL）** | **`spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer`。従来の `voxel_layer`（Nav2 標準）から置換。動的オブジェクト（歩く人）の跡を時間減衰で自動消去する** |
-| `stvl_layer.voxel_decay` | 3.0 | **マーク寿命 [s]（`decay_model:0`=線形）。小さいほど人の跡が早く消える。屋内動的環境で 2〜4s が目安** |
-| `stvl_layer` mark 入力 | `/perception/no_ground/pointcloud` | 3D 障害物の **mark**。**Autoware で地面除去済み**の点群（生 `/velodyne_points` だと地面が焼かれ自動巡回不可） |
-| `stvl_layer` clear 入力 | `/velodyne_points` | 3D 障害物の **clear**。STVL は frustum（視錐台）クリアなので生点群（地面含む全点・360度 FOV）を VLP16 モデル（`model_type:1`）で使うのが設計通り。clear はマークしないので地面は焼かれない |
-| `stvl_layer.min/max_obstacle_height` | -0.18 / 1.8 | mark 側の velodyne_link 基準の障害物高さ帯 [m] |
-| `stvl_layer.voxel_size` | 0.05 | voxel 一辺 [m] |
+| **3D 障害物層（STVL）** | **廃止** | 以前は `stvl_layer`（`spatio_temporal_voxel_layer`、`voxel_decay:3.0`）で 3D 点群を動的障害物化していたが、**人の通過跡が voxel_decay 秒残り「移動軌跡のコスト」が出る**ため廃止。人の現在位置は下記 `predicted_layer`（予測層）が毎フレーム焼き直すので軌跡は残らない |
 | `obstacle_layer.observation_persistence` | 0.0 | 2D scan は**最新フレームの観測だけ**で costmap を作る（古い観測を貯めない） |
 | `obstacle_layer.raytrace/obstacle_max_range` | 6.0 / 5.0 | raytrace（clear）距離 ≥ mark 距離。人が動いて空いた空間を確実に clear するため clear を mark より広く取る |
 | `global_costmap.update/publish_frequency` | 3.0 / 2.0 | 動的障害物（人）の跡を早く消すため global を高頻度更新（既定 1.0/1.0 から引き上げ） |
+| **予測コストマップ層** | **`predicted_layer`（自作 `susumu_sim::PredictedCostmapLayer`）** | **perception 連携。`prediction_node` の予測 OccupancyGrid `/perception/predicted_costmap`(map) を `max` 合成で costmap に乗せる。STVL 廃止後、人の**現在位置**（全トラック）と**進路先**（移動トラック）の両方をこの層が担う** |
+| `predicted_layer` 入力 | `/perception/predicted_costmap` | prediction が毎フレーム作り直す予測格子。現在位置（全トラック）+ 最有力予測パス（移動トラック、近傍2s、confidence しきい無し＝移動なら必ず焼く）。点列は**線分補間**で繋ぎ（飛び石防止）、人幅+方向ズレ吸収ぶん **8 セル円盤膨張** |
+| `predicted_layer.occupied_threshold` | 50 | 予測格子のこの値以上のセルを LETHAL で焼く |
+
+> **なぜ自作 C++ 層か（標準層は不可だった）**: ObstacleLayer/STVL（点群方式）は古い予測が
+> 蓄積し costmap が **LETHAL 55% でぐちゃぐちゃ**になり、StaticLayer（OccupancyGrid 方式）は
+> 他層を上書きして **壁が消失（LETHAL 0%）** した。自作層は予測の占有セルだけを **max 合成**で
+> 乗せる（壁を壊さない）＋毎フレーム最新格子で置換（蓄積しない）。
+> **真値検証**: 壁 LETHAL 100%維持・costmap 全体 22%（健全）・移動中の人の進路 0.5m 先占有 58%・
+> NavigateToPose ゴール受理 OK（ナビ可能）。詳細は `docs/autoware_perception.md`「Nav2 連携」。
 
 > 障害物層は**人を除去しない**（人も普通の障害物として避ける）が、**地面は除去する**。
 > 生 `/velodyne_points` は地面点を 46% 含み、costmap の ~90% が LETHAL になって経路が
@@ -77,7 +82,7 @@
 | ゴール手前で止まる・到達しない | `xy_goal_tolerance` / `yaw_goal_tolerance` | 上げる（判定を緩める） |
 | カクついて方向転換が多い | `sim_time` | 上げる（先読みを長く） |
 | `No valid trajectories`（立ち往生） | `inflation_radius` / スポーン位置 | 膨張を下げる／開けた場所へ |
-| 動的障害物（人）の軌跡が残る | `stvl_layer.voxel_decay` / `stvl_layer` clear 設定 | 3D 障害物は **STVL（時間減衰 voxel）** で扱う。`voxel_decay` を下げると人の跡が早く消える（既定 3.0s）。frustum クリアを効かせるため clear 入力は生 `/velodyne_points`（VLP16 `model_type:1`）。壁は static_layer（地図）で持つので動的層は積極的に減衰させてよい |
+| 動的障害物（人）の軌跡が残る | （STVL 廃止で解決済み） | 旧 STVL は `voxel_decay`(3s) 人の跡を残す問題があり**廃止**。現在は人の現在位置 + 進路先を `predicted_layer`（予測 OccupancyGrid を毎フレーム作り直し）で焼くので軌跡が残らない。なお 2D `/scan` の obstacle_layer は raytrace clearing で消える |
 | 自己位置がずれて誤計画 | AMCL（`/initialpose`） | GUI の「原点へワープ」で再初期化 |
 
 > **歩行者（HuNav）が動かない問題は Nav2 ではない。** これは `config/agents_house.yaml`
@@ -104,6 +109,8 @@
 
 | 日付 | 変更 | 理由 / 結果 |
 |---|---|---|
+| 2026-06-15 | **STVL 層（`stvl_layer`）を local/global から削除**。人の現在位置の障害物化を `predicted_layer`（予測層）に統合し、`prediction_node` が全トラックの現在位置 + 移動トラックの進路先を予測 OccupancyGrid に焼く。予測パスは confidence しきい撤廃（移動なら必ず焼く）、点列を**線分補間**で連続描画、膨張 6→8 セル | **STVL は人の通過跡を `voxel_decay`(3s) 残すので「移動軌跡のコスト」が出る**問題。予測層は毎フレーム全消去するので軌跡が残らない。これで現在位置・進路先を一括で担う。検証: 進路が出るフレーム 95%→**100%**、進路上の連続性 60%→**77%**、costmap 全体 LETHAL 25%（健全）、壁 100% 維持、ナビ可能 |
+| 2026-06-15 | **予測コストマップ層を自作 C++ プラグイン `susumu_sim::PredictedCostmapLayer` に確定**（local/global）。`prediction_node` の予測 OccupancyGrid `/perception/predicted_costmap`(map) を `max` 合成で乗せる。`occupied_threshold:50` | **perception を Nav2 に連携する初の層**。当初 ObstacleLayer 点群方式 → **古い予測が蓄積し costmap が LETHAL 55% でぐちゃぐちゃ**になりナビ不能。次に StaticLayer(OccupancyGrid)方式 → **他層を上書きして壁が消失(LETHAL 0%)**。最終的に **max 合成の自作 C++ 層**で「他層を壊さず(壁100%維持)・蓄積せず(全体22%健全)」を両立。真値検証で移動中の人の進路 0.5m 先占有 58%、NavigateToPose ゴール受理 OK。**標準層では毎フレーム入れ替えデータを costmap に入れられない（ObstacleLayer=蓄積/StaticLayer=上書き）のが教訓** |
 | 2026-06-15 | **3D 障害物層を Nav2 標準 `voxel_layer` → STVL（`spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer`）に置換**（local/global 両方）。`voxel_decay:3.0`(線形)。mark=`/perception/no_ground/pointcloud`、clear=生 `/velodyne_points`(VLP16 frustum, `model_type:1`)。`ros-humble-spatio-temporal-voxel-layer` を apt 導入。2D `obstacle_layer`（/scan）と static_layer は未変更 | **persistence:0 + raytrace だけでは歩く人の跡が消えきらない**（人がレイを遮った背後はクリアされず残る）問題への対策。STVL は voxel に観測時刻を持たせ `voxel_decay` 秒で**時間減衰により自動消去**するため、レイが当たらない領域も寿命切れで消える。動的環境向けの定番手法を既存パッケージ（新規開発なし）で採用 |
 | 2026-06-14 | voxel_layer 入力を `/velodyne_points` → `/perception/no_ground/pointcloud`（Autoware 地面除去済み）に変更、高さ帯 min/max=-0.18/1.8。`/scan` の生成高さ帯 min_height -0.20→0.0 | **自動巡回が動かなかった**原因が、生点群の地面（46%）を costmap が障害物化し local_costmap の 90% が LETHAL だったこと。地面除去点群に切替で 90%→37% になり経路生成・ゴール到達を確認 |
 | 2026-06-14 | obstacle_layer/voxel_layer の入力を生 `/scan`・`/velodyne_points` に設定 | 純粋シミュレーター化に伴い、人も普通の障害物として costmap に乗せる |

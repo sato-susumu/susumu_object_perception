@@ -439,8 +439,20 @@ class ObjectTrackerNode(Node):
             to.existence_probability = float(tr.existence)
 
             cls = ObjectClassification()
-            cls.label = tr.label
-            cls.probability = 1.0
+            # 2D 地図ベースの classification（Autoware の HD マップ walkable-area で
+            # 歩行者を推定する処理の 2D 占有格子版）。ここまで来たトラックは
+            # _track_blocked_on_map を通過済み = 地図の free space にいる。検出器が
+            # ラベルを付けていれば尊重し、UNKNOWN のときだけ地図+運動で推定する:
+            #   free space で移動 → PEDESTRIAN / 静止 → UNKNOWN（什器の可能性を残す）
+            if tr.label != ObjectClassification.UNKNOWN:
+                cls.label = tr.label
+                cls.probability = 1.0
+            elif not self._is_stationary(tr):
+                cls.label = ObjectClassification.PEDESTRIAN
+                cls.probability = 0.7
+            else:
+                cls.label = ObjectClassification.UNKNOWN
+                cls.probability = 1.0
             to.classification = [cls]
 
             kin = TrackedObjectKinematics()

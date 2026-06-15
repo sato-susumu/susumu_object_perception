@@ -199,12 +199,23 @@ local_costmap:
       height: 3
       resolution: 0.05
       robot_radius: 0.22
-      plugins: ["obstacle_layer", "stvl_layer", "inflation_layer"]
+      plugins: ["obstacle_layer", "predicted_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
         inflation_radius: 0.35
-      # 2D scan は従来どおり ObstacleLayer。3D LiDAR は STVL（時間減衰 voxel）。
+      # === 予測コストマップ層（perception 連携、自作 C++ プラグイン）===
+      # prediction_node が「人がこれから行く先」を OccupancyGrid /perception/predicted_costmap
+      # として毎フレーム作り直して publish する。それを自作 susumu_sim::PredictedCostmapLayer が
+      # **max 合成**で costmap に乗せる。標準層では両立できなかった「他層を壊さず・蓄積せず」を
+      # 満たす（StaticLayer は壁を上書き消去、ObstacleLayer/STVL は古い予測が蓄積した）。
+      # max なので壁・人の現在位置は消えず、毎フレーム最新格子で置換するので古い予測は残らない。
+      predicted_layer:
+        plugin: "susumu_sim::PredictedCostmapLayer"
+        enabled: True
+        topic: /perception/predicted_costmap
+        occupied_threshold: 50
+      # 2D scan は ObstacleLayer。3D 障害物層（STVL）は廃止（人の通過跡が残るため）。
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -220,60 +231,6 @@ local_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 5.0
           obstacle_min_range: 0.0
-      # === Spatio-Temporal Voxel Layer（動的オブジェクト対応の本命）===
-      # 歩く人の通過跡を残さないため、voxel に観測時刻を持たせ時間減衰で自動消去する。
-      #  - voxel_decay: マークが消えるまでの寿命[s]（decay_model:0=線形）。
-      #    小さいほど人の跡が早く消える。屋内動的環境では 2〜4s 程度が目安。
-      #  - mark: 地面を障害物化しないため Autoware 地面除去済み点群を使う。
-      #  - clear: STVL は frustum（視錐台）クリアなので、生 /velodyne_points
-      #    （地面含む全点・360度 FOV）を VLP16 モデルで使うのが設計通り。clear は
-      #    マークしないので地面が焼かれることはなく、人が去った空間を能動クリアする。
-      # 壁は static_layer（地図）で別途持つので、この動的層は積極的に減衰させてよい。
-      stvl_layer:
-        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
-        enabled: true
-        voxel_decay: 3.0             # マーク寿命[s]。人の跡を短時間で消す
-        decay_model: 0               # 0=線形, 1=指数, -1=永続
-        voxel_size: 0.05             # voxel 一辺[m]
-        track_unknown_space: true
-        mark_threshold: 0
-        update_footprint_enabled: true
-        combination_method: 1        # 1=max
-        origin_z: 0.0
-        publish_voxel_map: true
-        transform_tolerance: 0.2
-        mapping_mode: false
-        observation_sources: ptcloud_mark ptcloud_clear
-        ptcloud_mark:
-          data_type: PointCloud2
-          # Autoware 地面除去済み点群（地面を障害物化しない）
-          topic: /perception/no_ground/pointcloud
-          marking: true
-          clearing: false
-          obstacle_range: 6.0
-          # 高さは velodyne_link フレーム基準（地面 +0.21m）
-          min_obstacle_height: -0.18
-          max_obstacle_height: 1.8
-          expected_update_rate: 0.0
-          observation_persistence: 0.0
-          inf_is_valid: false
-          filter: "voxel"
-          voxel_min_points: 0
-          clear_after_reading: true
-        ptcloud_clear:
-          enabled: true
-          data_type: PointCloud2
-          # 生 /velodyne_points で frustum クリア（clear はマークしない）
-          topic: /velodyne_points
-          marking: false
-          clearing: true
-          max_z: 8.0
-          min_z: 0.0
-          vertical_fov_angle: 0.523    # VLP16 の対称 FOV[rad]
-          vertical_fov_padding: 0.05
-          horizontal_fov_angle: 6.29   # 360度[rad]
-          decay_acceleration: 5.0      # frustum クリア加速度[1/s^2]
-          model_type: 1                # 1=3D LiDAR(VLP16)
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
@@ -292,9 +249,9 @@ global_costmap:
       robot_radius: 0.22
       resolution: 0.05
       track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "stvl_layer", "inflation_layer"]
-      # 壁は static_layer（地図）で固定。2D scan は ObstacleLayer、3D LiDAR は
-      # STVL（時間減衰 voxel）で、歩く人の跡を時間経過とともに自動消去する。
+      plugins: ["static_layer", "obstacle_layer", "predicted_layer", "inflation_layer"]
+      # 壁は static_layer（地図）で固定。2D scan は ObstacleLayer。人の現在位置 + 進路先は
+      # predicted_layer（自作）が予測 OccupancyGrid から焼く。3D STVL 層は廃止。
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -310,51 +267,14 @@ global_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 5.0
           obstacle_min_range: 0.0
-      # === Spatio-Temporal Voxel Layer（動的オブジェクト対応の本命）===
-      # local_costmap 側と同じ思想。mark=地面除去点群 / clear=生点群の frustum。
-      # voxel_decay[s] で人の通過跡を時間経過とともに自動消去する。
-      stvl_layer:
-        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
-        enabled: true
-        voxel_decay: 3.0             # マーク寿命[s]。人の跡を短時間で消す
-        decay_model: 0               # 0=線形, 1=指数, -1=永続
-        voxel_size: 0.05
-        track_unknown_space: true
-        mark_threshold: 0
-        update_footprint_enabled: true
-        combination_method: 1        # 1=max
-        origin_z: 0.0
-        publish_voxel_map: true
-        transform_tolerance: 0.2
-        mapping_mode: false
-        observation_sources: ptcloud_mark ptcloud_clear
-        ptcloud_mark:
-          data_type: PointCloud2
-          topic: /perception/no_ground/pointcloud
-          marking: true
-          clearing: false
-          obstacle_range: 6.0
-          min_obstacle_height: -0.18
-          max_obstacle_height: 1.8
-          expected_update_rate: 0.0
-          observation_persistence: 0.0
-          inf_is_valid: false
-          filter: "voxel"
-          voxel_min_points: 0
-          clear_after_reading: true
-        ptcloud_clear:
-          enabled: true
-          data_type: PointCloud2
-          topic: /velodyne_points
-          marking: false
-          clearing: true
-          max_z: 8.0
-          min_z: 0.0
-          vertical_fov_angle: 0.523    # VLP16 の対称 FOV[rad]
-          vertical_fov_padding: 0.05
-          horizontal_fov_angle: 6.29   # 360度[rad]
-          decay_acceleration: 5.0
-          model_type: 1                # 1=3D LiDAR(VLP16)
+      # === 予測コストマップ層（perception 連携、自作 C++ プラグイン）===
+      # local_costmap 側と同じ。自作 susumu_sim::PredictedCostmapLayer が予測 OccupancyGrid を
+      # max 合成で costmap に乗せる（他層を壊さず・蓄積せず）。
+      predicted_layer:
+        plugin: "susumu_sim::PredictedCostmapLayer"
+        enabled: True
+        topic: /perception/predicted_costmap
+        occupied_threshold: 50
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True

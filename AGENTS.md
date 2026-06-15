@@ -22,9 +22,16 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 
 > シミュレーターに **Autoware 互換の perception** を載せた構成。検出までは Autoware
 > モジュール、apt に無い追跡/形状推定は Python で自作補完する（自作時は Autoware
-> 公式ソースを参照し設計・既定値を踏襲する方針）。**現状 Nav2 とは連携しない**
-> （perception 結果は RViz 可視化のみ。Nav2 は従来どおり生センサ `/scan`
-> `/velodyne_points` で動く）。HD 地図は使わず点群ジオメトリのみで検出する。
+> 公式ソースを参照し設計・既定値を踏襲する方針）。検出・追跡結果は RViz 可視化が主だが、
+> **prediction の予測のみ Nav2 costmap に連携する**（`prediction_node` が「人がこれから行く先」を
+> OccupancyGrid `/perception/predicted_costmap` として毎フレーム作り直して出し、**自作 C++
+> costmap 層 `susumu_sim::PredictedCostmapLayer` が max 合成で costmap に乗せる**）。検出・追跡
+> そのものは costmap に焼かず、Nav2 は現在位置の障害物回避を従来どおり生センサ `/scan`
+> `/velodyne_points`（STVL層）で行う。HD 地図は使わず点群ジオメトリのみで検出する。
+> （※ 標準層では実現できず自作 C++ 層が必要だった: 点群方式=ObstacleLayer/STVL は古い予測が
+> 蓄積し costmap がぐちゃぐちゃ、StaticLayer は壁を上書き消去。max 合成の自作層で「他層を
+> 壊さず・蓄積せず」を両立。真値検証で壁 LETHAL 100%維持・全体 22%・進路前方占有 58%(0.5m)・
+> ナビ可能。詳細は docs/autoware_perception.md「Nav2 連携」。）
 >
 > 旧来の追従機能（`person_detector_node` / `follow_person_node`）は削除済みで、別
 > パッケージ `susumu_lidar_perception` にあったが、**他ブランチ・別パッケージの過去
@@ -79,8 +86,11 @@ include/hunav_house.launch.py : hunav_loader → hunav_gazebo_world_generator
 include/spawn_robot.launch.py : robot_state_publisher(URDF) + spawn_entity(SDF: 3D LiDAR等のプラグイン)
                        + pointcloud_to_laserscan(/velodyne_points → /scan)
 nav2_bringup         : AMCL(/scan) + costmap(obstacle_layer=/scan,
-                       stvl_layer=STVL: mark=/perception/no_ground/pointcloud,
-                       clear=/velodyne_points) + planner/controller
+                       predicted_layer=自作PredictedCostmapLayer: prediction の予測
+                       OccupancyGrid /perception/predicted_costmap を max 合成）
+                       + planner/controller
+                       ※ STVL層は廃止（人の通過跡が voxel_decay 秒残り「移動軌跡の
+                         コスト」が出たため。人の現在位置は予測層が焼く）
 teleop_gui_node.py   : Twist→/cmd_vel（手動）/ NavigateToPose（部屋自動巡回）
                        / /initialpose（原点ワープ時のAMCL再初期化）
 ```
@@ -97,7 +107,7 @@ simulation.launch.py は上記を **TimerActionで段階起動**（gazebo→+8s 
 | オドメトリ | frame/topic `odom`（`publish_odom_tf:true`） | SDF diff_drive ↔ amcl odom_frame |
 | ベース | `base_footprint`(amcl) / `base_link`(costmap) | SDF / URDF / nav2_params |
 | 2D スキャン | `/scan`, frame `velodyne_link` | **pointcloud_to_laserscan が /velodyne_points から生成**（2D LiDAR は非搭載）↔ amcl scan_topic ↔ nav2 obstacle_layer |
-| 3D LiDAR | `/velodyne_points`, frame `velodyne_link` | SDF gpu_ray ↔ nav2 stvl_layer(STVL, clear 入力) ↔ pointcloud_to_laserscan |
+| 3D LiDAR | `/velodyne_points`, frame `velodyne_link` | SDF gpu_ray ↔ Autoware perception 入力 ↔ pointcloud_to_laserscan（→ /scan）。※ Nav2 costmap には現在 STVL を使わない（廃止） |
 | HuNav追跡対象 | robot_name=`turtlebot3`（spawn entity名と一致必須） | hunav_house / spawn_robot |
 
 ## 重要ファイル
@@ -105,10 +115,12 @@ simulation.launch.py は上記を **TimerActionで段階起動**（gazebo→+8s 
 - `models/turtlebot3_waffle_3d/model.sdf` … Gazeboプラグイン本体。3D LiDARは `gpu_ray`
   センサ + `libgazebo_ros_ray_sensor.so`（`output_type: PointCloud2`）。
   変更後は `gz sdf -k model.sdf` で spec 検証する。
-- `config/nav2_params.yaml` … waffle.yaml ベース。3D 障害物層は **STVL（時間減衰 voxel,
-  `stvl_layer`）** に置換済み。mark=`/perception/no_ground/pointcloud`（地面除去済み）、
-  clear=生 `/velodyne_points`（VLP16 frustum）。obstacle_layer は生 `/scan`。
-  歩く人の跡は `voxel_decay` で時間減衰消去する。詳細は `docs/nav2_tuning.md`。
+- `config/nav2_params.yaml` … waffle.yaml ベース。costmap の動的障害物層は自作
+  **`predicted_layer`（`susumu_sim::PredictedCostmapLayer`）**。prediction が出す予測
+  OccupancyGrid `/perception/predicted_costmap`（人の現在位置 + 進路先）を max 合成で焼く。
+  obstacle_layer は生 `/scan`。**STVL（`stvl_layer`）は廃止**（人の通過跡が `voxel_decay`
+  秒残り「移動軌跡のコスト」が出たため。人の現在位置は予測層が毎フレーム焼き直すので軌跡は
+  残らない）。詳細は `docs/nav2_tuning.md`。
 - `config/agents_house.yaml` … HuNav 5人。**公式 `hunav_gazebo_wrapper/scenarios/
   agents_house.yaml` のコピー**（動作実績あり）。通常歩行速度（`max_vel:1.5`,
   `vel:0.6`〜`0.8`, 各3ゴール）、**`once:true`+`cyclic_goals:true`** で巡回し続ける。
@@ -119,13 +131,44 @@ simulation.launch.py は上記を **TimerActionで段階起動**（gazebo→+8s 
   marker を起動する perception パイプライン。plugin 名・remap は実体検証済み。
 - `config/autoware_*.param.yaml` … 上記 Autoware モジュールの屋内向けパラメータ。
   ground/cluster を調整したら `docs/autoware_perception.md` のパラメータ表も更新する。
+- `susumu_sim/shape_estimation_node.py` … OBB 形状推定。euclidean_cluster の検出は
+  位置のみで shape が空なので、no_ground 点群から各検出近傍を集めて **Autoware の
+  L字フィット（bounding_box.cpp の closeness criterion / 1°grid search）を踏襲**して
+  OBB の寸法・向きを埋める。apt に shape_estimation は無く、universe 版は型
+  （tier4_perception_msgs）が世代不整合なため、アルゴリズムのみ公式踏襲し型は標準で自作。
+  入力 `/perception/detected_objects` → 出力 `/perception/detected_objects_shaped`。
+- `susumu_sim/detection_by_tracker_node.py` … 過分割統合。euclidean が 1 人を複数に割る
+  over-segmentation を、前フレームの tracker 位置・サイズを参照して統合（**Autoware
+  Cluster Merger 踏襲**）。tracker 出力を購読する循環構造。**統合後 shape は包含 BBox では
+  なく点群を L字フィット再推定**（包含だと巨大化する。`shape_estimation_node.fit_l_shape`
+  を再利用）。入力 `detected_objects_shaped` → 出力 `detected_objects_merged`。
 - `susumu_sim/object_tracker_node.py` … DetectedObjects→TrackedObjects の自作トラッカー。
   Autoware multi_object_tracker のソースを踏襲（ハンガリアン法 + マハラノビス χ²ゲート
   11.62 + existence_probability の Bayes 更新/半減期 decay + CV 速度クランプ）。
-- `susumu_sim/perception_marker_node.py` … Detected/Tracked を MarkerArray 可視化
-  （検出=青 / 移動=赤 / 静止=緑、テキストは純正プラグインと同じ `<ラベル名>  <速度>[km/h]`、
-  速度ベクトル矢印付き）。表示方法・色を自由に作り込むため自作（純正プラグインは不使用）。
-  RViz では `/perception/markers` を MarkerArray Display で表示。
+  **classification も 2D 地図で推定**: 出力段に来たトラック（=地図 free space に居る）が
+  移動なら `PEDESTRIAN`、静止なら `UNKNOWN`（Autoware の HD マップ walkable-area 推定の
+  2D 占有格子版）。
+- `susumu_sim/prediction_node.py` … 将来軌跡予測。Autoware `map_based_prediction` の
+  **2D 占有格子版**。tracked_objects を等速(CV)で予測し、予測点が 2D 地図の occupied
+  セルに入ったら打ち切る（壁めり込み回避）。HD 地図要素の代わりに `/map` を使う。
+  入力 `/perception/tracked_objects` → 出力 `/perception/predicted_objects`
+  （PredictedObjects）。マルチモーダル通路追従は今後の拡張。
+  **Nav2 連携**: 「人がこれから行く先」を OccupancyGrid `/perception/predicted_costmap`(map)
+  として**毎フレーム作り直して**出す（最有力1本・近傍2s・人幅6セル円盤膨張、confidence 0.25
+  以上）。これを自作 C++ 層 `susumu_sim::PredictedCostmapLayer` が max 合成で costmap に乗せる。
+  詳細・標準層が使えなかった経緯は docs/autoware_perception.md「Nav2 連携」。
+- `src/predicted_costmap_layer.cpp` / `include/susumu_sim/predicted_costmap_layer.hpp` …
+  自作 C++ costmap_2d::Layer プラグイン（`susumu_sim::PredictedCostmapLayer`）。予測
+  OccupancyGrid `/perception/predicted_costmap` を購読し、占有セルを **max 合成**で costmap に
+  乗せる（他層を壊さず・毎フレーム置換で蓄積せず）。pluginlib 登録は `predicted_costmap_layer.xml`、
+  CMakeLists で SHARED lib をビルド。nav2_params の `predicted_layer` で local/global 両 costmap に
+  適用。**標準層（ObstacleLayer/STVL=蓄積、StaticLayer=他層上書き）では両立できなかったため自作**
+  （リポジトリ初の C++ ノード。他は全て rclpy）。
+- `susumu_sim/perception_marker_node.py` … Detected/Tracked/Predicted を MarkerArray 可視化
+  （検出=青 / 移動=赤 / 静止=緑のボックス、`#ID 速度[km/h]` テキスト、速度矢印、
+  予測パス=黄の LINE_STRIP）。spencer/leg_tracker の作法に倣う（トラック識別色・背景なし）。
+  表示方法・色を自由に作り込むため自作（純正プラグインは不使用）。RViz では
+  `/perception/markers` を MarkerArray Display で表示。
 
 ## 変更時の検証手順
 

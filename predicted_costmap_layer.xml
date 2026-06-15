@@ -1,0 +1,9 @@
+<library path="predicted_costmap_layer">
+  <class type="susumu_sim::PredictedCostmapLayer" base_class_type="nav2_costmap_2d::Layer">
+    <description>
+      予測コストマップ層。prediction_node の予測 OccupancyGrid
+      /perception/predicted_costmap を購読し、占有セルを max 合成で costmap に焼く。
+      他層を上書きせず（max）、毎フレーム最新格子で置換するので蓄積しない。
+    </description>
+  </class>
+</library>
