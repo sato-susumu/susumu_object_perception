@@ -1,0 +1,48 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/robots/robotis/turtlebot/protos/TurtleBot3Burger.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/devices/robotis/protos/RobotisLds01.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/plants/protos/PottedTree.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/buildings/protos/SimpleBuilding.proto"
+
+WorldInfo {
+  info [ "TurtleBot3 in an outdoor environment (ROS2 + Nav2)." ]
+  title "ROS2 outdoor simulation of the TurtleBot3 Burger robot"
+  basicTimeStep 20
+}
+Viewpoint {
+  orientation -0.3 -0.16 0.94 4.17
+  position 9.1 4.9 3.8
+  follow "TurtleBot3Burger:LDS-01"
+}
+TexturedBackground {
+  texture "noon_cloudy_countryside"
+}
+TexturedBackgroundLight {
+}
+Floor {
+  translation 0 0 0
+  name "ground"
+  size 20 20
+  tileSize 4 4
+}
+TurtleBot3Burger {
+  translation 0 0 0
+  controller "<extern>"
+  controllerArgs [ "" ]
+  extensionSlot [
+    Solid { name "imu_link" }
+    GPS { }
+    InertialUnit { name "inertial_unit" }
+    RobotisLds01 { }
+  ]
+}
+PottedTree { translation 3 2 0 name "tree1" }
+PottedTree { translation -3 -2 0 name "tree2" }
+PottedTree { translation 2 -3 0 name "tree3" }
+PottedTree { translation -2 3 0 name "tree4" }
+SimpleBuilding { translation 6 0 0 name "building1" }
+SimpleBuilding { translation -6 3 0 name "building2" rotation 0 0 1 1.5708 }
