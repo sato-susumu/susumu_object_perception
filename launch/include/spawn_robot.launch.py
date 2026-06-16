@@ -14,7 +14,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    pkg = get_package_share_directory('susumu_sim')
+    pkg = get_package_share_directory('susumu_object_perception')
 
     xacro_file = os.path.join(pkg, 'urdf', 'turtlebot3_waffle_3d.urdf.xacro')
     sdf_file = os.path.join(pkg, 'models', 'turtlebot3_waffle_3d', 'model.sdf')

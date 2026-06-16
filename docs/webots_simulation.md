@@ -173,7 +173,7 @@ Goal finished with status: SUCCEEDED    （ゴール到達）
 > Gazebo/Isaac でも難しく、**world を分けて切り替える**のが現実解（後述の事例でも実機は
 > マルチセンサ融合で対応し、シミュは環境を分けるのが一般的）。
 
-### 用意した world（`susumu_sim/webots_worlds/` に保存、`webots_ros2_turtlebot/worlds/` に配置）
+### 用意した world（`susumu_object_perception/webots_worlds/` に保存、`webots_ros2_turtlebot/worlds/` に配置）
 
 - `indoor.wbt`: 同梱デモ（`turtlebot3_burger_example.wbt`）のコピー = 壁・窓・家具のある屋内
 - `outdoor.wbt`: TurtleBot3 + 地面20×20 + 木4本 + 建物2棟（屋外）。屋外なので `/gps` も出る
@@ -185,8 +185,8 @@ Goal finished with status: SUCCEEDED    （ゴール到達）
 
 ```bash
 WDIR=/opt/ros/humble/share/webots_ros2_turtlebot/worlds
-sudo cp ~/ros2_ws/src/susumu_sim/webots_worlds/indoor.wbt  $WDIR/
-sudo cp ~/ros2_ws/src/susumu_sim/webots_worlds/outdoor.wbt $WDIR/
+sudo cp ~/ros2_ws/src/susumu_object_perception/webots_worlds/indoor.wbt  $WDIR/
+sudo cp ~/ros2_ws/src/susumu_object_perception/webots_worlds/outdoor.wbt $WDIR/
 ```
 
 ### 切替コマンド

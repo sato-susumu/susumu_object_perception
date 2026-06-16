@@ -13,7 +13,7 @@ from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
-    susumu_pkg = get_package_share_directory('susumu_sim')
+    susumu_pkg = get_package_share_directory('susumu_object_perception')
     gazebo_ros = get_package_share_directory('gazebo_ros')
     tb3_gazebo = get_package_share_directory('turtlebot3_gazebo')
 

@@ -32,7 +32,7 @@ def generate_launch_description():
     # ------------------------------------------------------------------
     declare_agents_conf = DeclareLaunchArgument(
         'configuration_file', default_value='agents_cafe.yaml',
-        description='susumu_sim/config 内のエージェント（歩行者）設定ファイル')
+        description='susumu_object_perception/config 内のエージェント（歩行者）設定ファイル')
     declare_base_world = DeclareLaunchArgument(
         'base_world', default_value='cafe.world',
         description='ベースとなる world ファイル（hunav_gazebo_wrapper/worlds から取得）')
@@ -84,7 +84,7 @@ def generate_launch_description():
     # 1) hunav_loader: エージェント設定を読み込む
     # ------------------------------------------------------------------
     agent_conf_file = PathJoinSubstitution([
-        FindPackageShare('susumu_sim'), 'config', agents_conf])
+        FindPackageShare('susumu_object_perception'), 'config', agents_conf])
 
     hunav_loader_node = Node(
         package='hunav_agent_manager',

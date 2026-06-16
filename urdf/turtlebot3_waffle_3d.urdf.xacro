@@ -4,7 +4,7 @@
   robot_state_publisher to provide TF (including base_link -> velodyne_link).
 
   The Gazebo sensor itself lives in the SDF model
-  (susumu_sim/models/turtlebot3_waffle_3d/model.sdf); this file only adds the
+  (susumu_object_perception/models/turtlebot3_waffle_3d/model.sdf); this file only adds the
   matching velodyne_link frame so TF and the SDF agree.
 -->
 <robot name="turtlebot3_waffle_3d" xmlns:xacro="http://ros.org/wiki/xacro">

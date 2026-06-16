@@ -1,4 +1,4 @@
-# ソフトウェアデザイン — susumu_sim
+# ソフトウェアデザイン — susumu_object_perception
 
 ROS 2 Humble + Gazebo Classic 11 上で、HuNavSim 制御の歩行者が動く家を 3D-LiDAR
 TurtleBot3 が走り回る**シミュレーター**の設計ドキュメント。Nav2 自律移動と、手動操縦
@@ -122,8 +122,8 @@ flowchart LR
 | `robot_state_publisher` | robot_state_publisher | URDF から TF を publish（`base_link → velodyne_link` 等） |
 | `spawn_entity.py` | gazebo_ros | SDF モデルを spawn（diff_drive / laser / 3D velodyne gpu_ray / imu / camera プラグイン） |
 | Nav2 スタック | nav2_bringup | AMCL + costmap + planner + controller + bt_navigator |
-| `teleop_gui` | susumu_sim | Teleop / 部屋自動巡回 GUI（[6章](#6-teleop-gui-の状態遷移)） |
-| Autoware perception | autoware_* + susumu_sim | crop_box / ground_filter / euclidean_cluster（純正）+ 自作 4 ノード（[8章](#8-autoware-perception-パイプラインとの違い)） |
+| `teleop_gui` | susumu_object_perception | Teleop / 部屋自動巡回 GUI（[6章](#6-teleop-gui-の状態遷移)） |
+| Autoware perception | autoware_* + susumu_object_perception | crop_box / ground_filter / euclidean_cluster（純正）+ 自作 4 ノード（[8章](#8-autoware-perception-パイプラインとの違い)） |
 
 ### teleop_gui_node の内部構造
 
@@ -171,7 +171,7 @@ tkinter のウィンドウをメインスレッドで動かし、rclpy を別ス
 
 ## 5. 主なパラメータ
 
-### Teleop GUI（`susumu_sim/teleop_gui_node.py`、モジュール定数）
+### Teleop GUI（`susumu_object_perception/teleop_gui_node.py`、モジュール定数）
 
 | 定数 | 既定 | 意味 |
 |---|---|---|
@@ -206,7 +206,7 @@ tkinter のウィンドウをメインスレッドで動かし、rclpy を別ス
 | 項目 | 値 | 意味 |
 |---|---|---|
 | obstacle_layer.scan.topic | `/scan` | 2D 障害物入力（3D 点群から生成した /scan） |
-| 予測コストマップ層 | `predicted_layer`（自作 `susumu_sim::PredictedCostmapLayer`） | perception の予測 OccupancyGrid `/perception/predicted_costmap`（人の現在位置 + 進路先）を max 合成で焼く。毎フレーム作り直すので軌跡が残らない。※ 旧 3D STVL 層は廃止（[`nav2_tuning.md`](nav2_tuning.md)） |
+| 予測コストマップ層 | `predicted_layer`（自作 `susumu_object_perception::PredictedCostmapLayer`） | perception の予測 OccupancyGrid `/perception/predicted_costmap`（人の現在位置 + 進路先）を max 合成で焼く。毎フレーム作り直すので軌跡が残らない。※ 旧 3D STVL 層は廃止（[`nav2_tuning.md`](nav2_tuning.md)） |
 | planner | `nav2_navfn_planner/NavfnPlanner` | Nav2 1.1.20 と整合する `/` 形式のプラグイン名 |
 | amcl.scan_topic | `scan` | AMCL は /scan（3D 点群から生成）で自己位置推定 |
 
@@ -336,7 +336,7 @@ flowchart TB
         A_trk -.-> A_viz
     end
 
-    subgraph SS["本実装 (susumu_sim)"]
+    subgraph SS["本実装 (susumu_object_perception)"]
         direction LR
         S_pre["crop_box →\nground_filter"]:::aw
         S_det["euclidean_cluster +\nshape_estimation_node.py\n(自作 / L字フィット踏襲)"]:::own
@@ -391,7 +391,7 @@ flowchart TB
 ## 9. ディレクトリ構成
 
 ```
-susumu_sim/
+susumu_object_perception/
 ├── launch/
 │   ├── simulation.launch.py        # 全部入り エントリポイント（gui:=false でGUI無効）
 │   └── include/                    # simulation が取り込む部品 launch
@@ -399,7 +399,7 @@ susumu_sim/
 │       ├── spawn_robot.launch.py      # 3D LiDAR TB3 spawn + robot_state_publisher
 │       ├── autoware_perception.launch.py # Autoware perception パイプライン（8章）
 │       └── test_robot_empty.launch.py # 空world + ロボット単体（3D LiDAR確認用）
-├── susumu_sim/
+├── susumu_object_perception/
 │   ├── teleop_gui_node.py            # Teleop / 部屋自動巡回 GUI
 │   ├── pointcloud_to_autoware_node.py # PointXYZI → PointXYZIRC（ground_filter 用）
 │   ├── shape_estimation_node.py      # OBB 推定（Autoware L字フィット踏襲、自作）
@@ -433,10 +433,10 @@ susumu_sim/
 | 項目 | 内容 |
 |---|---|
 | source は `local_setup.bash` | `install/setup.bash` は古いスナップショットを指す prefix-chain で、新規パッケージが見えず `package not found` になる |
-| Python ノードはファイル名で起動 | console_scripts ではない。`ros2 run susumu_sim teleop_gui_node.py`。ノード追加時は CMakeLists の `install(PROGRAMS ...)` に追加し実行ビットを立てる |
+| Python ノードはファイル名で起動 | console_scripts ではない。`ros2 run susumu_object_perception teleop_gui_node.py`。ノード追加時は CMakeLists の `install(PROGRAMS ...)` に追加し実行ビットを立てる |
 | HuNavSim は `v1.0-humble` 必須 | `v2.0` は Gazebo Sim 依存でビルド／起動に失敗する |
 | Nav2 params のベース | `turtlebot3_navigation2` の waffle.yaml は `::` 形式で Nav2 1.1.20 と不整合。同梱バージョンと一致する `nav2_bringup/params/nav2_params.yaml` をベースにする |
 | 歩行者が動かない | `agents_house.yaml` の `once: false` だと HuNav の behavior 駆動が回らず数十秒で停止する。**`once: true` + `cyclic_goals: true`**（公式 house シナリオと同じ）が正解。HuNav はロボット必須で、人だけ起動すると T ポーズ・床埋まりになる |
 | GUI(tkinter) はヘッドレス不可 | X 環境がないと import に失敗し GUI は起動しない。不要時は `gui:=false` |
-| `--symlink-install` の削除漏れ | colcon は削除ファイルを install から消さない。ノード／launch を消したら `rm -rf build/susumu_sim install/susumu_sim` してから再ビルドする |
+| `--symlink-install` の削除漏れ | colcon は削除ファイルを install から消さない。ノード／launch を消したら `rm -rf build/susumu_object_perception install/susumu_object_perception` してから再ビルドする |
 ```

@@ -48,7 +48,7 @@ from geometry_msgs.msg import Quaternion
 
 # 統合後の shape は包含 BBox ではなく、点群を L字フィットで再推定する（Autoware
 # 本家と同じ）。shape_estimation_node の L字フィット実装を再利用する。
-from susumu_sim.shape_estimation_node import fit_l_shape
+from susumu_object_perception.shape_estimation_node import fit_l_shape
 
 
 def yaw_of(q: Quaternion):

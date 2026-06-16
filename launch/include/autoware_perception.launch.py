@@ -30,7 +30,7 @@ from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
-    pkg = get_package_share_directory('susumu_sim')
+    pkg = get_package_share_directory('susumu_object_perception')
     cfg = os.path.join(pkg, 'config')
 
     use_sim_time = LaunchConfiguration('use_sim_time')
@@ -53,7 +53,7 @@ def generate_launch_description():
     #    生 /velodyne_points (PointXYZI) では "layout not compatible ... Aborting" で
     #    止まる。この前処理で channel(ring) を付与して互換にする（ライブ起動で判明）。
     pc_convert = Node(
-        package='susumu_sim',
+        package='susumu_object_perception',
         executable='pointcloud_to_autoware_node.py',
         name='pointcloud_to_autoware',
         output='screen',
@@ -124,7 +124,7 @@ def generate_launch_description():
     #      universe 版は型（tier4_perception_msgs）が世代不整合なため、アルゴリズムのみ
     #      公式踏襲して標準型で自作した。
     shape_est = Node(
-        package='susumu_sim',
+        package='susumu_object_perception',
         executable='shape_estimation_node.py',
         name='shape_estimation',
         output='screen',
@@ -140,7 +140,7 @@ def generate_launch_description():
     #      tracker の位置・サイズを参照して 1 つに統合する（Autoware Cluster Merger 踏襲）。
     #      tracker 出力を購読する循環構造。tracker 未起動/TF 不在時は素通し。
     det_by_trk = Node(
-        package='susumu_sim',
+        package='susumu_object_perception',
         executable='detection_by_tracker_node.py',
         name='detection_by_tracker',
         output='screen',
@@ -159,7 +159,7 @@ def generate_launch_description():
     #      のときは TF 不在で素通しになる（perception は止めない設計）。
     #      入力は detection_by_tracker で過分割統合した検出。
     map_filter = Node(
-        package='susumu_sim',
+        package='susumu_object_perception',
         executable='map_roi_filter_node.py',
         name='map_roi_filter',
         output='screen',
@@ -174,7 +174,7 @@ def generate_launch_description():
 
     # 4) 自作 Python: 追跡（地図照合後の DetectedObjects → TrackedObjects）
     tracker = Node(
-        package='susumu_sim',
+        package='susumu_object_perception',
         executable='object_tracker_node.py',
         name='object_tracker',
         output='screen',
@@ -188,7 +188,7 @@ def generate_launch_description():
     #      入ったら打ち切る（壁めり込み予測を防ぐ）。Autoware の map_based_prediction の
     #      基本部（CV 予測）を踏襲し、HD 地図要素の代わりに 2D 占有格子を使う。
     prediction = Node(
-        package='susumu_sim',
+        package='susumu_object_perception',
         executable='prediction_node.py',
         name='prediction',
         output='screen',
@@ -201,7 +201,7 @@ def generate_launch_description():
     #    表示方法・色を自由に作り込むため自作する（純正プラグインは使わない）。
     #    検出マーカー(青)も地図照合後を見せる（生検出だと壁だらけになるため）。
     marker = Node(
-        package='susumu_sim',
+        package='susumu_object_perception',
         executable='perception_marker_node.py',
         name='perception_marker',
         output='screen',

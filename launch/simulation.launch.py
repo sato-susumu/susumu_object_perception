@@ -23,7 +23,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    susumu_pkg = get_package_share_directory('susumu_sim')
+    susumu_pkg = get_package_share_directory('susumu_object_perception')
     nav2_bringup = get_package_share_directory('nav2_bringup')
 
     use_sim_time = LaunchConfiguration('use_sim_time')
@@ -139,7 +139,7 @@ def generate_launch_description():
     #    よう Nav2 の後に起動する。
     # ------------------------------------------------------------------
     gui_node = Node(
-        package='susumu_sim', executable='teleop_gui_node.py',
+        package='susumu_object_perception', executable='teleop_gui_node.py',
         name='teleop_gui', output='screen',
         parameters=[{'use_sim_time': use_sim_time}],
         condition=IfCondition(use_gui))

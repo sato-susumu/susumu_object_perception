@@ -25,7 +25,7 @@
 #include "nav2_costmap_2d/layered_costmap.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 
-namespace susumu_sim
+namespace susumu_object_perception
 {
 
 class PredictedCostmapLayer : public nav2_costmap_2d::Layer
@@ -56,6 +56,6 @@ private:
   unsigned char cost_value_{254};  // 焼くコスト（254=LETHAL_OBSTACLE）
 };
 
-}  // namespace susumu_sim
+}  // namespace susumu_object_perception
 
 #endif  // SUSUMU_SIM__PREDICTED_COSTMAP_LAYER_HPP_

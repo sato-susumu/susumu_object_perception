@@ -1,11 +1,11 @@
-#include "susumu_sim/predicted_costmap_layer.hpp"
+#include "susumu_object_perception/predicted_costmap_layer.hpp"
 
 #include <algorithm>
 
 #include "nav2_costmap_2d/costmap_math.hpp"
 #include "pluginlib/class_list_macros.hpp"
 
-namespace susumu_sim
+namespace susumu_object_perception
 {
 
 void PredictedCostmapLayer::onInitialize()
@@ -121,6 +121,6 @@ void PredictedCostmapLayer::updateCosts(
   }
 }
 
-}  // namespace susumu_sim
+}  // namespace susumu_object_perception
 
-PLUGINLIB_EXPORT_CLASS(susumu_sim::PredictedCostmapLayer, nav2_costmap_2d::Layer)
+PLUGINLIB_EXPORT_CLASS(susumu_object_perception::PredictedCostmapLayer, nav2_costmap_2d::Layer)

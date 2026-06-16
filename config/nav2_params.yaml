@@ -206,12 +206,12 @@ local_costmap:
         inflation_radius: 0.35
       # === 予測コストマップ層（perception 連携、自作 C++ プラグイン）===
       # prediction_node が「人がこれから行く先」を OccupancyGrid /perception/predicted_costmap
-      # として毎フレーム作り直して publish する。それを自作 susumu_sim::PredictedCostmapLayer が
+      # として毎フレーム作り直して publish する。それを自作 susumu_object_perception::PredictedCostmapLayer が
       # **max 合成**で costmap に乗せる。標準層では両立できなかった「他層を壊さず・蓄積せず」を
       # 満たす（StaticLayer は壁を上書き消去、ObstacleLayer/STVL は古い予測が蓄積した）。
       # max なので壁・人の現在位置は消えず、毎フレーム最新格子で置換するので古い予測は残らない。
       predicted_layer:
-        plugin: "susumu_sim::PredictedCostmapLayer"
+        plugin: "susumu_object_perception::PredictedCostmapLayer"
         enabled: True
         topic: /perception/predicted_costmap
         occupied_threshold: 50
@@ -268,10 +268,10 @@ global_costmap:
           obstacle_max_range: 5.0
           obstacle_min_range: 0.0
       # === 予測コストマップ層（perception 連携、自作 C++ プラグイン）===
-      # local_costmap 側と同じ。自作 susumu_sim::PredictedCostmapLayer が予測 OccupancyGrid を
+      # local_costmap 側と同じ。自作 susumu_object_perception::PredictedCostmapLayer が予測 OccupancyGrid を
       # max 合成で costmap に乗せる（他層を壊さず・蓄積せず）。
       predicted_layer:
-        plugin: "susumu_sim::PredictedCostmapLayer"
+        plugin: "susumu_object_perception::PredictedCostmapLayer"
         enabled: True
         topic: /perception/predicted_costmap
         occupied_threshold: 50

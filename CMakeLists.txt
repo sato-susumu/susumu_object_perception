@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(susumu_sim)
+project(susumu_object_perception)
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
@@ -12,7 +12,7 @@ find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
-# Python モジュール（susumu_sim/*.py）
+# Python モジュール（susumu_object_perception/*.py）
 ament_python_install_package(${PROJECT_NAME})
 
 # === 予測コストマップ層プラグイン（perception 連携、costmap_2d::Layer）===
@@ -43,14 +43,14 @@ install(DIRECTORY include/
 
 # Teleop / 自動巡回 GUI ノード、Autoware perception の自作補完ノード
 install(PROGRAMS
-  susumu_sim/teleop_gui_node.py
-  susumu_sim/pointcloud_to_autoware_node.py
-  susumu_sim/shape_estimation_node.py
-  susumu_sim/detection_by_tracker_node.py
-  susumu_sim/map_roi_filter_node.py
-  susumu_sim/object_tracker_node.py
-  susumu_sim/prediction_node.py
-  susumu_sim/perception_marker_node.py
+  susumu_object_perception/teleop_gui_node.py
+  susumu_object_perception/pointcloud_to_autoware_node.py
+  susumu_object_perception/shape_estimation_node.py
+  susumu_object_perception/detection_by_tracker_node.py
+  susumu_object_perception/map_roi_filter_node.py
+  susumu_object_perception/object_tracker_node.py
+  susumu_object_perception/prediction_node.py
+  susumu_object_perception/perception_marker_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
