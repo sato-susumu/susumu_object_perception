@@ -1,0 +1,61 @@
+# Webots Nav2 フルスタック launch（robot + Nav2 + SLAM を1コマンドで）。
+#
+# docs/webots_simulation.md §4「推奨手順」の端末1（robot+Nav2）と端末2（slam_toolbox を
+# 1個だけ）を 1 launch にまとめたもの。TF 二重起動を避けるため:
+#   - webots_simulation.launch.py を nav:=True slam:=False で include（Nav2 のみ。SLAM は起動しない）
+#   - slam_toolbox は webots_slam.launch.py 経由で「1個だけ」起動（map->odom を供給）
+# あとは別端末で NavigateToPose にゴールを送れば自律走行する（§4 端末3 参照）:
+#   ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+#     "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 0.8, y: 0.0}, orientation: {w: 1.0}}}}" --feedback
+#
+# 使い方:
+#   ros2 launch susumu_object_perception webots_nav.launch.py world:=outdoor
+#   ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor
+#
+# 罠: nav/slam の小文字 true は launch 評価時に NameError でクラッシュする（大文字必須）。
+#     本 launch は内部で大文字 True/False を固定で渡すので、利用者は world だけ意識すればよい。
+
+import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
+
+
+def generate_launch_description():
+    pkg = get_package_share_directory('susumu_object_perception')
+
+    world = LaunchConfiguration('world')
+    use_sim_time = LaunchConfiguration('use_sim_time')
+
+    # robot + Webots + Nav2（SLAM はここでは起動しない＝二重起動回避）。
+    robot_nav = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg, 'launch', 'webots_simulation.launch.py')),
+        launch_arguments=[
+            ('world', world),
+            ('nav', 'True'),
+            ('slam', 'False'),
+            ('use_sim_time', use_sim_time),
+        ],
+    )
+
+    # map->odom を供給する SLAM を 1 個だけ。
+    slam = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg, 'launch', 'webots_slam.launch.py')),
+        launch_arguments=[('use_sim_time', use_sim_time)],
+    )
+
+    return LaunchDescription([
+        DeclareLaunchArgument(
+            'world', default_value='outdoor.wbt',
+            description='webots_worlds/ の world ファイル名（outdoor.wbt / indoor.wbt、拡張子込み）'),
+        DeclareLaunchArgument(
+            'use_sim_time', default_value='true',
+            description='Webots はシミュレーション時刻のため true 必須'),
+        robot_nav,
+        slam,
+    ])

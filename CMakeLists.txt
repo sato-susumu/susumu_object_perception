@@ -55,7 +55,7 @@ install(PROGRAMS
 )
 
 install(
-  DIRECTORY launch config urdf maps rviz models
+  DIRECTORY launch config urdf maps rviz models webots_worlds
   DESTINATION share/${PROJECT_NAME}
 )
 

@@ -47,6 +47,14 @@
   <!-- 3D LiDAR の /velodyne_points を 2D /scan に変換（2D LiDAR の代替） -->
   <exec_depend>pointcloud_to_laserscan</exec_depend>
 
+  <!-- Webots シミュレーション（webots_simulation.launch.py が同梱 world を起動）。
+       driver/urdf/ros2control/nav2 resource は webots_ros2_turtlebot を流用する。 -->
+  <exec_depend>webots_ros2_driver</exec_depend>
+  <exec_depend>webots_ros2_turtlebot</exec_depend>
+  <exec_depend>turtlebot3_navigation2</exec_depend>
+  <exec_depend>turtlebot3_cartographer</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+
   <!-- Autoware sensing/perception パイプライン（検出まで純正、追跡/可視化は自作） -->
   <exec_depend>autoware_crop_box_filter</exec_depend>
   <exec_depend>autoware_ground_filter</exec_depend>
