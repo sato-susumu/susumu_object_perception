@@ -2,7 +2,6 @@
 
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/backgrounds/protos/TexturedBackground.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/robots/robotis/turtlebot/protos/TurtleBot3Burger.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/devices/robotis/protos/RobotisLds01.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/plants/protos/PottedTree.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/floors/protos/Floor.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/appearances/protos/CementTiles.proto"
@@ -32,7 +31,7 @@ WorldInfo {
 Viewpoint {
   orientation -0.2878951570967451 -0.16506369377382343 0.9433293992651676 4.177335774513749
   position 9.141595121588473 4.8923306199482335 3.8476210861955575
-  follow "TurtleBot3Burger:LDS-01"
+  follow "TurtleBot3Burger:velodyne"
 }
 TexturedBackground {
   texture "empty_office"
@@ -53,7 +52,29 @@ TurtleBot3Burger {
     InertialUnit {
       name "inertial_unit"
     }
-    RobotisLds01 {
+    # RGB カメラ（Gazebo の Intel RealSense R200 相当）。前方を向け +0.10m に置く。
+    # /camera/image_raw を出す（device 名 "camera"）。2D LiDAR は廃止。
+    Camera {
+      translation 0.05 0 0.10
+      name "camera"
+      width 1920
+      height 1080
+      fieldOfView 1.02974
+    }
+    # 3D LiDAR（VLP-16 相当）。Gazebo の models/turtlebot3_waffle_3d/model.sdf に合わせ
+    # 16 層・水平 1°・垂直 ±15°・+0.20m に置き、PointCloud2 を出す。perception 入力用。
+    Lidar {
+      translation 0 0 0.20
+      name "velodyne"
+      horizontalResolution 360
+      fieldOfView 6.283185
+      verticalFieldOfView 0.5236
+      numberOfLayers 16
+      near 0.3
+      minRange 0.3
+      maxRange 30.0
+      type "rotating"
+      pointCloud TRUE
     }
   ]
 }

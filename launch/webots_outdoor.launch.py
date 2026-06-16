@@ -22,6 +22,8 @@ def generate_launch_description():
     mode = LaunchConfiguration('mode')
     use_nav = LaunchConfiguration('nav')
     use_slam = LaunchConfiguration('slam')
+    use_rviz = LaunchConfiguration('rviz')
+    use_perception = LaunchConfiguration('perception')
     use_sim_time = LaunchConfiguration('use_sim_time')
 
     sim = IncludeLaunchDescription(
@@ -32,6 +34,8 @@ def generate_launch_description():
             ('mode', mode),
             ('nav', use_nav),
             ('slam', use_slam),
+            ('rviz', use_rviz),
+            ('perception', use_perception),
             ('use_sim_time', use_sim_time),
         ],
     )
@@ -39,10 +43,14 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('mode', default_value='realtime',
                               description='Webots 起動モード（realtime / fast / pause）'),
-        DeclareLaunchArgument('nav', default_value='False',
-                              description='Nav2 を起動する（大文字 True/False）'),
+        DeclareLaunchArgument('nav', default_value='True',
+                              description='Nav2 を起動する（既定 True。見るだけなら nav:=False）'),
         DeclareLaunchArgument('slam', default_value='False',
                               description='Cartographer SLAM を起動する（大文字 True/False）'),
+        DeclareLaunchArgument('rviz', default_value='True',
+                              description='RViz2 を起動する（既定 True）'),
+        DeclareLaunchArgument('perception', default_value='True',
+                              description='Autoware perception を起動する（既定 True）'),
         DeclareLaunchArgument('use_sim_time', default_value='True',
                               description='Webots はシミュレーション時刻のため True'),
         sim,

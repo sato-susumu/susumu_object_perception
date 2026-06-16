@@ -97,9 +97,10 @@ export SUMO_HOME=/usr/share/sumo   # city_traffic 用。未設定だと「SUMO n
 
 | launch | 役割 | 主な引数（既定） | 起動例 |
 |---|---|---|---|
-| `webots_simulation.launch.py` | TurtleBot3 + Webots 同梱 world を起動。ROS2 連携の基本 | `world`(outdoor / indoor、拡張子不要), `mode`(realtime / fast / pause), `nav`(False), `slam`(False), `use_sim_time`(True) | `ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor` |
+| `webots_simulation.launch.py` | TurtleBot3 + Webots 同梱 world を起動。ROS2 連携の基本 | `world`(`outdoor.wbt` 拡張子込み), `mode`(realtime / fast / pause), `nav`(**True**), `slam`(False), `use_sim_time`(True) | `ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt` |
+| `webots_outdoor.launch.py` / `webots_indoor.launch.py` | 上記の world 固定ショートカット（`world` 引数不要）。`nav`(**True**) / `slam`(False) / `mode` は渡せる | `mode`, `nav`(True), `slam`(False), `use_sim_time` | `ros2 launch susumu_object_perception webots_outdoor.launch.py` |
 | `webots_slam.launch.py` | `slam_toolbox`(online_async) を「1個だけ」起動。`map->odom` を供給（§4 端末2） | `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_slam.launch.py` |
-| `webots_nav.launch.py` | robot + Nav2 + SLAM フルスタック。内部で simulation を `nav:=True slam:=False` で include + slam_toolbox 1個。大文字罠を内部吸収 | `world`(outdoor / indoor), `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_nav.launch.py world:=outdoor` |
+| `webots_nav.launch.py` | robot + Nav2 + SLAM フルスタック。内部で simulation を `nav:=True slam:=False` で include + slam_toolbox 1個。大文字罠を内部吸収 | `world`(outdoor.wbt / indoor.wbt), `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor.wbt` |
 | `webots_city.launch.py` | `city_traffic.wbt`（車+SUMO+信号+歩行者）の街デモ。ROS2 連携なし。`SUMO_HOME` を内部既定 `/usr/share/sumo` に設定 | `world`(city_traffic / city / village / village_realistic / highway), `mode`(realtime / fast / pause) | `ros2 launch susumu_object_perception webots_city.launch.py mode:=fast` |
 
 > `webots_simulation.launch.py` は外部 `webots_ros2_turtlebot/robot_launch.py` の driver 配線

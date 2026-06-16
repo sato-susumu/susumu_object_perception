@@ -157,15 +157,49 @@ ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor
 
 ## launch（エントリポイント）
 
-| ファイル | 役割 |
-|---|---|
-| `simulation.launch.py` | 全部入り（カフェ + 5人 + ロボット + Nav2 + RViz2 + GUI）。エントリポイント |
-| `webots_simulation.launch.py` | Webots 版（`world:=outdoor.wbt`/`indoor.wbt`、`nav:`/`slam:` 付き）（[`docs/webots_simulation.md`](docs/webots_simulation.md)） |
-| `webots_outdoor.launch.py` / `webots_indoor.launch.py` | 上記の world 固定ショートカット（引数 world 不要） |
-| `webots_nav.launch.py` | Webots robot + Nav2 + SLAM フルスタック |
-| `webots_city.launch.py` | Webots city_traffic（車 + SUMO、ROS2 連携なしの街デモ） |
+### 何が起動するか一覧
 
-`simulation.launch.py` の主な引数:
+✅=既定で起動 / ○=引数で起動可 / —=起動しない。Sim 列は使うシミュレータ。
+
+| launch | Sim | robot | Nav2 | SLAM | RViz | GUI | perception | 備考 |
+|---|---|---|---|---|---|---|---|---|
+| `simulation.launch.py` | Gazebo | ✅ | ✅ | — | ✅ | ✅ | ✅ | カフェ+5人歩行者。全部入りエントリ |
+| `webots_simulation.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | `world:=outdoor.wbt`/`indoor.wbt` 指定 |
+| `webots_outdoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=outdoor 固定ショートカット |
+| `webots_indoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=indoor 固定ショートカット |
+| `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
+| `webots_slam.launch.py` | — | — | — | ✅ | — | — | — | slam_toolbox を1個だけ起動する補助 |
+| `webots_city.launch.py` | Webots | —※ | — | — | — | — | — | city_traffic（車+SUMO）。ROS2 連携なしの街デモ |
+
+※ `webots_city` の「robot」は SUMO 制御の車であり ROS2 連携しない（`/scan` 等は出ない）。
+
+> **Webots のセンサ構成**: indoor/outdoor.wbt は **3D LiDAR（VLP-16 相当）+ RGB カメラ**を搭載
+> （2D LiDAR LDS-01 は廃止）。
+> - 3D LiDAR → `/velodyne_points/point_cloud`(PointCloud2, frame `velodyne_link`)
+> - カメラ → `/camera/image_raw/image_color`(Image, 1920×1080, Intel RealSense R200 相当)
+> - `/scan` は `pointcloud_to_laserscan` が 3D 点群から生成（2D LiDAR の代替、Nav2/AMCL 用）
+>
+> **Webots の perception**: 上記 3D LiDAR を入力に Gazebo と同じ Autoware perception パイプライン
+> （検出・追跡・予測・可視化）が既定 `perception:=True` で動く。RViz2 も既定 `rviz:=True`。
+> 見るだけにしたいときは `perception:=False rviz:=False` を付ける。
+>
+> **Webots の nav/SLAM の住み分け**: `webots_simulation`/`outdoor`/`indoor` は `nav` 既定 `True`
+> で Nav2(AMCL ベース)が立つが、自律走行には初期位置指定が要る。SLAM で地図を作りながら
+> 完全自走したいときは `webots_nav.launch.py`（slam_toolbox 同梱）を使う。
+> Webots を見るだけなら `nav:=False` を付ける。詳細は [`docs/webots_simulation.md`](docs/webots_simulation.md)。
+
+### Webots 系 launch の引数
+
+| 引数 | 既定 | 対象 | 意味 |
+|---|---|---|---|
+| `world` | `outdoor.wbt` | webots_simulation | `webots_worlds/` の world ファイル名（拡張子込み） |
+| `nav` | `True` | simulation/outdoor/indoor | Nav2 を起動（大文字必須。小文字 `true` は NameError） |
+| `slam` | `False` | simulation/outdoor/indoor | Cartographer SLAM を起動（大文字必須） |
+| `perception` | `True` | simulation/outdoor/indoor | Autoware perception を起動（3D LiDAR `/velodyne_points/point_cloud` 入力） |
+| `rviz` | `True` | simulation/outdoor/indoor | RViz2 を起動 |
+| `mode` | `realtime` | webots 全般 | Webots 起動モード（realtime / fast / pause） |
+
+### `simulation.launch.py`（Gazebo）の主な引数:
 
 | 引数 | 既定 | 意味 |
 |---|---|---|

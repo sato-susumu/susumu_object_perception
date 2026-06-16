@@ -1,0 +1,65 @@
+<?xml version="1.0" ?>
+<!-- webots_ros2_turtlebot の turtlebot_webots.urdf を拡張したセンサ構成。
+     2D LiDAR(LDS-01) は廃止し、代わりに 3D LiDAR（device "velodyne"）と RGB カメラ
+     （device "camera"）を載せる。
+       - 3D LiDAR: /velodyne_points(PointCloud2, frame velodyne_link)。perception 入力。
+         numberOfLayers>1 の Lidar は webots_ros2_driver が自動で PointCloud2 を出す
+         （実トピックは <topicName>/point_cloud サフィックス付き）。
+       - カメラ: RGB 画像（Gazebo の Intel RealSense R200 相当）。driver は実画像を
+         <topicName>/image_color に出すので、実トピックは /camera/image_raw/image_color、
+         camera_info は /camera/image_raw/camera_info になる。
+     ※ /scan が要る Nav2/SLAM 向けには launch 側で pointcloud_to_laserscan が
+        /velodyne_points/point_cloud → /scan を生成する（2D LiDAR の代替）。
+     IMU・ros2_control は upstream と同一。 -->
+<robot name="TurtleBot3 Burger Webots 3D">
+    <webots>
+        <!-- 3D LiDAR。perception の入力 /velodyne_points を出す。 -->
+        <device reference="velodyne" type="Lidar">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>10</updateRate>
+                <topicName>/velodyne_points</topicName>
+                <alwaysOn>true</alwaysOn>
+                <frameName>velodyne_link</frameName>
+            </ros>
+        </device>
+
+        <!-- RGB カメラ（Intel RealSense R200 相当）。/camera/image_raw を出す。 -->
+        <device reference="camera" type="Camera">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>30</updateRate>
+                <topicName>/camera/image_raw</topicName>
+                <alwaysOn>true</alwaysOn>
+                <frameName>camera_link</frameName>
+            </ros>
+        </device>
+
+        <plugin type="webots_ros2_driver::Ros2IMU">
+            <enabled>true</enabled>
+            <updateRate>20</updateRate>
+            <topicName>/imu</topicName>
+            <alwaysOn>false</alwaysOn>
+            <frameName>imu_link</frameName>
+            <inertialUnitName>inertial_unit</inertialUnitName>
+            <gyroName>gyro</gyroName>
+            <accelerometerName>accelerometer</accelerometerName>
+        </plugin>
+
+        <plugin type="webots_ros2_control::Ros2Control" />
+    </webots>
+
+    <ros2_control name="WebotsControl" type="system">
+        <hardware>
+            <plugin>webots_ros2_control::Ros2ControlSystem</plugin>
+        </hardware>
+        <joint name="right wheel motor">
+            <state_interface name="position"/>
+            <command_interface name="velocity"/>
+        </joint>
+        <joint name="left wheel motor">
+            <state_interface name="position"/>
+            <command_interface name="velocity"/>
+        </joint>
+    </ros2_control>
+</robot>

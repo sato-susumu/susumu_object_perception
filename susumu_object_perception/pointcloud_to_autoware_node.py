@@ -83,23 +83,36 @@ class PointcloudToAutowareNode(Node):
             f'{self.num_rings} rings)')
 
     def on_cloud(self, msg: PointCloud2):
-        # x,y,z,intensity を一括取り出し（numpy 構造化配列）。
-        pts = pc2.read_points_numpy(
-            msg, field_names=('x', 'y', 'z', 'intensity'),
-            skip_nans=True)
-        if pts.shape[0] == 0:
-            return
+        # intensity フィールドの有無を見る。Gazebo gpu_ray は PointXYZI で intensity 付き
+        # だが、Webots Lidar の PointCloud2 は x,y,z のみで intensity を持たない。
+        has_intensity = any(f.name == 'intensity' for f in msg.fields)
 
-        x = pts[:, 0].astype(np.float32)
-        y = pts[:, 1].astype(np.float32)
-        z = pts[:, 2].astype(np.float32)
-        inten_f = pts[:, 3]
-
-        # intensity を uint8 に丸める（Gazebo は 0..1 か 0..255 のことがあるので
-        # 1.0 以下なら 255 倍してスケールを合わせる）。
-        if np.nanmax(inten_f) <= 1.0 + 1e-6:
-            inten_f = inten_f * 255.0
-        intensity = np.clip(inten_f, 0, 255).astype(np.uint8)
+        if has_intensity:
+            # x,y,z,intensity を一括取り出し（numpy 構造化配列）。
+            pts = pc2.read_points_numpy(
+                msg, field_names=('x', 'y', 'z', 'intensity'),
+                skip_nans=True)
+            if pts.shape[0] == 0:
+                return
+            x = pts[:, 0].astype(np.float32)
+            y = pts[:, 1].astype(np.float32)
+            z = pts[:, 2].astype(np.float32)
+            inten_f = pts[:, 3]
+            # intensity を uint8 に丸める（Gazebo は 0..1 か 0..255 のことがあるので
+            # 1.0 以下なら 255 倍してスケールを合わせる）。
+            if np.nanmax(inten_f) <= 1.0 + 1e-6:
+                inten_f = inten_f * 255.0
+            intensity = np.clip(inten_f, 0, 255).astype(np.uint8)
+        else:
+            # intensity 無し（Webots 等）: x,y,z だけ読み、intensity は 0 で埋める。
+            pts = pc2.read_points_numpy(
+                msg, field_names=('x', 'y', 'z'), skip_nans=True)
+            if pts.shape[0] == 0:
+                return
+            x = pts[:, 0].astype(np.float32)
+            y = pts[:, 1].astype(np.float32)
+            z = pts[:, 2].astype(np.float32)
+            intensity = np.zeros(x.shape[0], dtype=np.uint8)
 
         # 仰角 → ring 番号(0..num_rings-1)。
         rng_xy = np.sqrt(x * x + y * y)
