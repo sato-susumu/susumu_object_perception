@@ -1,15 +1,12 @@
 # Webots 用 SLAM 補助 launch（slam_toolbox を「1個だけ」起動する）。
 #
-# webots_ros2_turtlebot の robot_launch.py（や本パッケージの webots_simulation.launch.py
-# / webots_nav.launch.py）で slam:=True にすると、同梱の Cartographer 等と二重起動して
-# map->odom TF が競合し壊れることがある（docs/webots_simulation.md「ハマりどころ」）。
-# そのため Nav2 側は slam:=False で起動し、map->odom を供給する SLAM はこの launch で
-# 1 プロセスだけ立てる、という分離運用にする。
+# 通常は webots_simulation/outdoor/indoor の slam:=True を使えば Nav2 の bringup が
+# slam_toolbox を 1 個起動するので、この launch は不要。
+# この launch は「robot+nav を別 launch で起動済みで、SLAM だけ後から足したい」等の
+# 単独運用向けの補助。robot_launch.py 直叩き等で map->odom を供給する SLAM が要るときに使う。
 #
-# 使い方（別端末で robot+nav を起動済みの状態で）:
+# 使い方（別端末で robot を起動済みの状態で）:
 #   ros2 launch susumu_object_perception webots_slam.launch.py
-#
-# docs/webots_simulation.md §4「推奨手順」の端末2に相当する。
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription

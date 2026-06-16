@@ -30,23 +30,19 @@ def generate_launch_description():
     world = LaunchConfiguration('world')
     use_sim_time = LaunchConfiguration('use_sim_time')
 
-    # robot + Webots + Nav2（SLAM はここでは起動しない＝二重起動回避）。
+    # robot + Webots + Nav2 + SLAM。webots_simulation を nav:=True slam:=True で呼ぶだけ。
+    # Nav2 の bringup が slam:=True のとき slam_toolbox を 1 個起動し map->odom を供給する
+    # （AMCL は起動しない）。以前は別途 webots_slam を足していたが、bringup に委譲して
+    # slam_toolbox を一本化したので不要になった（二重起動・TF 競合の根絶）。
     robot_nav = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg, 'launch', 'webots_simulation.launch.py')),
         launch_arguments=[
             ('world', world),
             ('nav', 'True'),
-            ('slam', 'False'),
+            ('slam', 'True'),
             ('use_sim_time', use_sim_time),
         ],
-    )
-
-    # map->odom を供給する SLAM を 1 個だけ。
-    slam = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg, 'launch', 'webots_slam.launch.py')),
-        launch_arguments=[('use_sim_time', use_sim_time)],
     )
 
     return LaunchDescription([
@@ -57,5 +53,4 @@ def generate_launch_description():
             'use_sim_time', default_value='true',
             description='Webots はシミュレーション時刻のため true 必須'),
         robot_nav,
-        slam,
     ])

@@ -46,7 +46,7 @@ def generate_launch_description():
         DeclareLaunchArgument('nav', default_value='True',
                               description='Nav2 を起動する（既定 True。見るだけなら nav:=False）'),
         DeclareLaunchArgument('slam', default_value='False',
-                              description='Cartographer SLAM を起動する（大文字 True/False）'),
+                              description='SLAM(slam_toolbox)で地図生成しつつ自律走行（AMCL無効。大文字）'),
         DeclareLaunchArgument('rviz', default_value='True',
                               description='RViz2 を起動する（既定 True）'),
         DeclareLaunchArgument('perception', default_value='True',

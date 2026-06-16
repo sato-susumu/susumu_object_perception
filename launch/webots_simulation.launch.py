@@ -13,7 +13,7 @@
 #
 #   world:=outdoor （既定）/ world:=indoor          … webots_worlds/<world>.wbt を読む
 #   nav:=True   … Nav2（turtlebot3_navigation2）を起動（大文字必須）
-#   slam:=True  … Cartographer SLAM（turtlebot3_cartographer）を起動（大文字必須）
+#   slam:=True  … SLAM(slam_toolbox)で地図生成しつつ自律走行（AMCL は起動しない。大文字必須）
 #   rviz:=False … （webots_ros2_turtlebot 既定の RViz は本 launch では起動しない）
 #
 # 罠: nav:=true / slam:=true の小文字は launch 評価時に NameError でクラッシュする。
@@ -22,8 +22,7 @@
 import os
 
 import launch
-from ament_index_python.packages import (get_package_share_directory,
-                                          get_packages_with_prefixes)
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -154,35 +153,29 @@ def generate_launch_description():
         respawn=True,
     )
 
-    # Nav2（turtlebot3_navigation2）— webots_ros2_turtlebot の map/params を流用。
+    # Nav2 は nav2_bringup の bringup_launch.py を直接呼び、slam 引数を渡す。
+    # こうすると localization が排他的に切り替わる:
+    #   slam:=False → AMCL（事前地図 + 初期位置で自己位置推定）
+    #   slam:=True  → slam_toolbox（地図を作りながら map->odom を供給。AMCL は起動しない）
+    # 以前は turtlebot3_navigation2(AMCL固定) + 別途 Cartographer/slam_toolbox を足しており、
+    # slam:=True で AMCL と SLAM が両方 map->odom を出して競合した。bringup に slam を委ねて
+    # 一本化することで二重起動・TF 競合を根絶する（slam_toolbox に統一）。
     navigation_nodes = []
     os.environ['TURTLEBOT3_MODEL'] = 'burger'
+    nav2_bringup_dir = get_package_share_directory('nav2_bringup')
     nav2_map = os.path.join(tb3_pkg, 'resource', 'turtlebot3_burger_example_map.yaml')
     nav2_params = os.path.join(tb3_pkg, 'resource', 'nav2_params.yaml')
-    if 'turtlebot3_navigation2' in get_packages_with_prefixes():
-        turtlebot_navigation = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(
-                get_package_share_directory('turtlebot3_navigation2'),
-                'launch', 'navigation2.launch.py')),
-            launch_arguments=[
-                ('map', nav2_map),
-                ('params_file', nav2_params),
-                ('use_sim_time', use_sim_time),
-            ],
-            condition=launch.conditions.IfCondition(use_nav))
-        navigation_nodes.append(turtlebot_navigation)
-
-    # SLAM（turtlebot3_cartographer）。slam:=True で起動。
-    if 'turtlebot3_cartographer' in get_packages_with_prefixes():
-        turtlebot_slam = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(
-                get_package_share_directory('turtlebot3_cartographer'),
-                'launch', 'cartographer.launch.py')),
-            launch_arguments=[
-                ('use_sim_time', use_sim_time),
-            ],
-            condition=launch.conditions.IfCondition(use_slam))
-        navigation_nodes.append(turtlebot_slam)
+    turtlebot_navigation = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            nav2_bringup_dir, 'launch', 'bringup_launch.py')),
+        launch_arguments=[
+            ('slam', use_slam),
+            ('map', nav2_map),
+            ('params_file', nav2_params),
+            ('use_sim_time', use_sim_time),
+        ],
+        condition=launch.conditions.IfCondition(use_nav))
+    navigation_nodes.append(turtlebot_navigation)
 
     # Autoware perception パイプライン（perception:=True で起動）。
     # world に追加した 3D LiDAR が /velodyne_points を出すので、Gazebo 同様に検出できる。
@@ -226,7 +219,7 @@ def generate_launch_description():
             description='Nav2 を起動する（既定 True。見るだけなら nav:=False。大文字必須、小文字は NameError）'),
         DeclareLaunchArgument(
             'slam', default_value='False',
-            description='Cartographer SLAM を起動する（大文字 True/False）'),
+            description='SLAM(slam_toolbox)で地図生成しつつ自律走行（AMCL は無効。大文字 True/False）'),
         DeclareLaunchArgument(
             'rviz', default_value='True',
             description='RViz2 を起動する（既定 True）'),

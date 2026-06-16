@@ -25,7 +25,8 @@
 最重要のハマりどころ（詳細は §6）:
 
 1. **`nav:=true`(小文字)は launch がクラッシュ → `nav:=True`(大文字)が必須**
-2. **`slam:=True` は SLAM が二重起動して TF が壊れる → slam は別プロセスで1個だけ起動**
+2. **SLAM/AMCL の二重起動に注意 → 本パッケージの launch は `slam:=True` で Nav2 bringup に
+   slam_toolbox を 1 個だけ任せ、AMCL は起動しない（排他切替）よう統一済み**
 3. **`SUMO_HOME` 未設定だと `city_traffic` で「SUMO not found」になる**
 
 > 罠 1・2 は同梱 `webots_nav.launch.py` を使えば内部で吸収される（大文字固定で渡し、
@@ -99,8 +100,8 @@ export SUMO_HOME=/usr/share/sumo   # city_traffic 用。未設定だと「SUMO n
 |---|---|---|---|
 | `webots_simulation.launch.py` | TurtleBot3 + Webots 同梱 world を起動。ROS2 連携の基本 | `world`(`outdoor.wbt` 拡張子込み), `mode`(realtime / fast / pause), `nav`(**True**), `slam`(False), `use_sim_time`(True) | `ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt` |
 | `webots_outdoor.launch.py` / `webots_indoor.launch.py` | 上記の world 固定ショートカット（`world` 引数不要）。`nav`(**True**) / `slam`(False) / `mode` は渡せる | `mode`, `nav`(True), `slam`(False), `use_sim_time` | `ros2 launch susumu_object_perception webots_outdoor.launch.py` |
-| `webots_slam.launch.py` | `slam_toolbox`(online_async) を「1個だけ」起動。`map->odom` を供給（§4 端末2） | `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_slam.launch.py` |
-| `webots_nav.launch.py` | robot + Nav2 + SLAM フルスタック。内部で simulation を `nav:=True slam:=False` で include + slam_toolbox 1個。大文字罠を内部吸収 | `world`(outdoor.wbt / indoor.wbt), `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor.wbt` |
+| `webots_slam.launch.py` | `slam_toolbox` を単独起動する補助（robot を別 launch で起動済みのとき用）。通常は `slam:=True` で足りるので不要 | `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_slam.launch.py` |
+| `webots_nav.launch.py` | robot + Nav2 + SLAM フルスタック。内部で simulation を `nav:=True slam:=True` で呼ぶだけ（bringup が slam_toolbox を1個起動・AMCL は無効。二重起動なし） | `world`(outdoor.wbt / indoor.wbt), `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor.wbt` |
 | `webots_city.launch.py` | `city_traffic.wbt`（車+SUMO+信号+歩行者）の街デモ。ROS2 連携なし。`SUMO_HOME` を内部既定 `/usr/share/sumo` に設定 | `world`(city_traffic / city / village / village_realistic / highway), `mode`(realtime / fast / pause) | `ros2 launch susumu_object_perception webots_city.launch.py mode:=fast` |
 
 > `webots_simulation.launch.py` は外部 `webots_ros2_turtlebot/robot_launch.py` の driver 配線
