@@ -1,10 +1,13 @@
 <?xml version="1.0" ?>
 <!-- webots_ros2_turtlebot の turtlebot_webots.urdf を拡張したセンサ構成。
-     2D LiDAR(LDS-01) は廃止し、代わりに 3D LiDAR（device "velodyne"）と RGB カメラ
-     （device "camera"）を載せる。
+     2D LiDAR(LDS-01) は廃止し、代わりに 3D LiDAR（device "velodyne"）、
+     全天球カメラ（device "omni_camera"）、RGB カメラ（device "camera"）を載せる。
        - 3D LiDAR: /velodyne_points(PointCloud2, frame velodyne_link)。perception 入力。
          numberOfLayers>1 の Lidar は webots_ros2_driver が自動で PointCloud2 を出す
          （実トピックは <topicName>/point_cloud サフィックス付き）。
+       - 全天球カメラ: Webots cylindrical projection（水平360度の正距円筒画像）。driver は実画像を
+         <topicName>/image_color に出すので、実トピックは /omni_camera/image_raw/image_color、
+         camera_info は /omni_camera/image_raw/camera_info になる。
        - カメラ: RGB 画像（Gazebo の Intel RealSense R200 相当）。driver は実画像を
          <topicName>/image_color に出すので、実トピックは /camera/image_raw/image_color、
          camera_info は /camera/image_raw/camera_info になる。
@@ -21,6 +24,17 @@
                 <topicName>/velodyne_points</topicName>
                 <alwaysOn>true</alwaysOn>
                 <frameName>velodyne_link</frameName>
+            </ros>
+        </device>
+
+        <!-- Webots の全天球カメラ（projection "cylindrical"）。 -->
+        <device reference="omni_camera" type="Camera">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>15</updateRate>
+                <topicName>/omni_camera/image_raw</topicName>
+                <alwaysOn>true</alwaysOn>
+                <frameName>omni_camera_link</frameName>
             </ros>
         </device>
 

@@ -379,6 +379,91 @@
 
     <link name="camera_link"/>
 
+    <!-- ============================================================ -->
+    <!-- 360-degree RGB rig. Gazebo Classic has no robust single       -->
+    <!-- ROS2 omnidirectional camera path, so the robot carries six    -->
+    <!-- 90-degree rectilinear cameras. omni_image_node.py stitches    -->
+    <!-- them into /omni_camera/image_raw (equirectangular).           -->
+    <!-- ============================================================ -->
+    <link name="omni_camera_link">
+      <pose>0 0 0.75 0 0 0</pose>
+      <inertial>
+        <mass>0.12</mass>
+        <inertia>
+          <ixx>0.0002</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.0002</iyy>
+          <iyz>0</iyz>
+          <izz>0.0002</izz>
+        </inertia>
+      </inertial>
+      <visual name="omni_camera_visual">
+        <geometry>
+          <sphere><radius>0.045</radius></sphere>
+        </geometry>
+        <material>
+          <ambient>0.02 0.02 0.02 1</ambient>
+          <diffuse>0.02 0.02 0.02 1</diffuse>
+        </material>
+      </visual>
+
+      <sensor name="omni_front" type="camera">
+        <always_on>true</always_on><visualize>false</visualize><update_rate>15</update_rate>
+        <pose>0 0 0 0 0 0</pose>
+        <camera><horizontal_fov>1.57079632679</horizontal_fov><image><width>1024</width><height>1024</height><format>R8G8B8</format></image><clip><near>0.02</near><far>80</far></clip></camera>
+        <plugin name="omni_front_driver" filename="libgazebo_ros_camera.so">
+          <ros><remapping>image_raw:=/omni_camera/front/image_raw</remapping><remapping>camera_info:=/omni_camera/front/camera_info</remapping></ros>
+          <camera_name>omni_camera_front</camera_name><frame_name>omni_front_frame</frame_name>
+        </plugin>
+      </sensor>
+      <sensor name="omni_left" type="camera">
+        <always_on>true</always_on><visualize>false</visualize><update_rate>15</update_rate>
+        <pose>0 0 0 0 0 1.57079632679</pose>
+        <camera><horizontal_fov>1.57079632679</horizontal_fov><image><width>1024</width><height>1024</height><format>R8G8B8</format></image><clip><near>0.02</near><far>80</far></clip></camera>
+        <plugin name="omni_left_driver" filename="libgazebo_ros_camera.so">
+          <ros><remapping>image_raw:=/omni_camera/left/image_raw</remapping><remapping>camera_info:=/omni_camera/left/camera_info</remapping></ros>
+          <camera_name>omni_camera_left</camera_name><frame_name>omni_left_frame</frame_name>
+        </plugin>
+      </sensor>
+      <sensor name="omni_back" type="camera">
+        <always_on>true</always_on><visualize>false</visualize><update_rate>15</update_rate>
+        <pose>0 0 0 0 0 3.14159265359</pose>
+        <camera><horizontal_fov>1.57079632679</horizontal_fov><image><width>1024</width><height>1024</height><format>R8G8B8</format></image><clip><near>0.02</near><far>80</far></clip></camera>
+        <plugin name="omni_back_driver" filename="libgazebo_ros_camera.so">
+          <ros><remapping>image_raw:=/omni_camera/back/image_raw</remapping><remapping>camera_info:=/omni_camera/back/camera_info</remapping></ros>
+          <camera_name>omni_camera_back</camera_name><frame_name>omni_back_frame</frame_name>
+        </plugin>
+      </sensor>
+      <sensor name="omni_right" type="camera">
+        <always_on>true</always_on><visualize>false</visualize><update_rate>15</update_rate>
+        <pose>0 0 0 0 0 -1.57079632679</pose>
+        <camera><horizontal_fov>1.57079632679</horizontal_fov><image><width>1024</width><height>1024</height><format>R8G8B8</format></image><clip><near>0.02</near><far>80</far></clip></camera>
+        <plugin name="omni_right_driver" filename="libgazebo_ros_camera.so">
+          <ros><remapping>image_raw:=/omni_camera/right/image_raw</remapping><remapping>camera_info:=/omni_camera/right/camera_info</remapping></ros>
+          <camera_name>omni_camera_right</camera_name><frame_name>omni_right_frame</frame_name>
+        </plugin>
+      </sensor>
+      <sensor name="omni_up" type="camera">
+        <always_on>true</always_on><visualize>false</visualize><update_rate>15</update_rate>
+        <pose>0 0 0 0 -1.57079632679 0</pose>
+        <camera><horizontal_fov>1.57079632679</horizontal_fov><image><width>1024</width><height>1024</height><format>R8G8B8</format></image><clip><near>0.02</near><far>80</far></clip></camera>
+        <plugin name="omni_up_driver" filename="libgazebo_ros_camera.so">
+          <ros><remapping>image_raw:=/omni_camera/up/image_raw</remapping><remapping>camera_info:=/omni_camera/up/camera_info</remapping></ros>
+          <camera_name>omni_camera_up</camera_name><frame_name>omni_up_frame</frame_name>
+        </plugin>
+      </sensor>
+      <sensor name="omni_down" type="camera">
+        <always_on>true</always_on><visualize>false</visualize><update_rate>15</update_rate>
+        <pose>0 0 0 0 1.57079632679 0</pose>
+        <camera><horizontal_fov>1.57079632679</horizontal_fov><image><width>1024</width><height>1024</height><format>R8G8B8</format></image><clip><near>0.02</near><far>80</far></clip></camera>
+        <plugin name="omni_down_driver" filename="libgazebo_ros_camera.so">
+          <ros><remapping>image_raw:=/omni_camera/down/image_raw</remapping><remapping>camera_info:=/omni_camera/down/camera_info</remapping></ros>
+          <camera_name>omni_camera_down</camera_name><frame_name>omni_down_frame</frame_name>
+        </plugin>
+      </sensor>
+    </link>
+
     <link name="camera_rgb_frame">
       <inertial>
         <pose>0.069 -0.047 0.107 0 0 0</pose>
@@ -477,6 +562,14 @@
     <joint name="velodyne_joint" type="fixed">
       <parent>base_link</parent>
       <child>velodyne_link</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <joint name="omni_camera_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>omni_camera_link</child>
       <axis>
         <xyz>0 0 1</xyz>
       </axis>

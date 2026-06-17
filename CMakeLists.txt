@@ -53,6 +53,20 @@ install(PROGRAMS
   susumu_object_perception/perception_marker_node.py
   susumu_object_perception/traffic_light_detector_node.py
   susumu_object_perception/traffic_light_marker_node.py
+  susumu_object_perception/omni_image_node.py
+  susumu_object_perception/colorized_pointcloud_node.py
+  susumu_object_perception/object_image_crop_node.py
+  susumu_object_perception/equirect_camera_info_node.py
+  susumu_object_perception/pointcloud_intensity_node.py
+  susumu_object_perception/omni_image_compress_node.py
+  susumu_object_perception/omni_sensor_tf_node.py
+  susumu_object_perception/colorized_pointcloud_mapper_node.py
+  susumu_object_perception/pose_stamped_tf_bridge_node.py
+  scripts/validate_omni_colorization.py
+  scripts/record_omni_calibration_bag.sh
+  scripts/run_direct_visual_lidar_calibration_docker.sh
+  scripts/direct_calib_to_tf.py
+  scripts/validate_colorized_pointcloud_quality.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

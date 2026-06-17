@@ -41,4 +41,70 @@
     </inertial>
   </link>
 
+  <!-- 360-degree RGB rig frame (matches model.sdf). The six face frames are
+       published for calibration bookkeeping; omni_image_node.py stitches their
+       images into one equirectangular image. -->
+  <joint name="omni_camera_joint" type="fixed">
+    <origin xyz="0 0 0.75" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="omni_camera_link"/>
+  </joint>
+
+  <link name="omni_camera_link">
+    <visual>
+      <geometry>
+        <sphere radius="0.045"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <inertial>
+      <mass value="0.12"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0002" ixy="0" ixz="0"
+               iyy="0.0002" iyz="0" izz="0.0002"/>
+    </inertial>
+  </link>
+
+  <joint name="omni_front_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="omni_camera_link"/>
+    <child link="omni_front_frame"/>
+  </joint>
+  <link name="omni_front_frame"/>
+
+  <joint name="omni_left_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 1.57079632679"/>
+    <parent link="omni_camera_link"/>
+    <child link="omni_left_frame"/>
+  </joint>
+  <link name="omni_left_frame"/>
+
+  <joint name="omni_back_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 3.14159265359"/>
+    <parent link="omni_camera_link"/>
+    <child link="omni_back_frame"/>
+  </joint>
+  <link name="omni_back_frame"/>
+
+  <joint name="omni_right_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 -1.57079632679"/>
+    <parent link="omni_camera_link"/>
+    <child link="omni_right_frame"/>
+  </joint>
+  <link name="omni_right_frame"/>
+
+  <joint name="omni_up_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 -1.57079632679 0"/>
+    <parent link="omni_camera_link"/>
+    <child link="omni_up_frame"/>
+  </joint>
+  <link name="omni_up_frame"/>
+
+  <joint name="omni_down_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 1.57079632679 0"/>
+    <parent link="omni_camera_link"/>
+    <child link="omni_down_frame"/>
+  </joint>
+  <link name="omni_down_frame"/>
+
 </robot>

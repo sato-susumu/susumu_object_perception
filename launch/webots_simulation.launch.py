@@ -44,6 +44,14 @@ def generate_launch_description():
     use_slam = LaunchConfiguration('slam', default=False)
     use_rviz = LaunchConfiguration('rviz', default=True)
     use_perception = LaunchConfiguration('perception', default=True)
+    use_omni_perception = LaunchConfiguration('omni_perception', default=True)
+    use_colored_slam = LaunchConfiguration('colored_slam', default=True)
+    colored_slam_target_frame = LaunchConfiguration('colored_slam_target_frame')
+    colored_slam_fallback_frame = LaunchConfiguration('colored_slam_fallback_frame')
+    colored_slam_source_frame_override = LaunchConfiguration(
+        'colored_slam_source_frame_override')
+    colored_slam_output_cloud = LaunchConfiguration('colored_slam_output_cloud')
+    omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
 
     # 本パッケージ同梱の world を直接指す（sudo cp 不要）。
@@ -75,14 +83,22 @@ def generate_launch_description():
         arguments=['0', '0', '0', '0', '0', '0', 'base_link', 'base_footprint'],
     )
 
-    # 3D LiDAR の frame。world で Lidar を +0.20m に置いたので base_link→velodyne_link を
-    # 同じ +0.20m で publish（perception の crop_box が velodyne_link 基準で処理するため）。
-    velodyne_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
+    # LiDAR/camera TF。未キャリブレーション時は base->lidar と lidar->camera の
+    # 初期値を出し、calib.json 指定時は direct_visual_lidar_calibration の結果を使う。
+    omni_sensor_tf = Node(
+        package='susumu_object_perception',
+        executable='omni_sensor_tf_node.py',
+        name='omni_sensor_tf',
         output='screen',
-        arguments=['0', '0', '0.20', '0', '0', '0', 'base_link', 'velodyne_link'],
-    )
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'base_frame': 'base_link',
+            'lidar_frame': 'velodyne_link',
+            'camera_frame': 'omni_camera_link',
+            'lidar_xyz': [0.0, 0.0, 0.20],
+            'camera_xyz_initial': [0.0, 0.0, 0.75],
+            'calibration_json': omni_calibration_json,
+        }])
 
     # 2D LiDAR(LDS-01) を廃止したので /scan は 3D 点群から生成する（Gazebo 側と同構成）。
     # Nav2 の AMCL / costmap obstacle_layer がこの /scan を使う。Webots の PointCloud2 は
@@ -190,6 +206,90 @@ def generate_launch_description():
         ],
         condition=launch.conditions.IfCondition(use_perception))
 
+    colorized_points = Node(
+        package='susumu_object_perception',
+        executable='colorized_pointcloud_node.py',
+        name='colorized_pointcloud',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_cloud': '/velodyne_points/point_cloud',
+            'input_image': '/omni_camera/image_raw/image_color',
+            'output_cloud': '/perception/colorized_points',
+            'camera_frame': 'omni_camera_link',
+        }],
+        condition=launch.conditions.IfCondition(use_omni_perception))
+
+    pointcloud_intensity = Node(
+        package='susumu_object_perception',
+        executable='pointcloud_intensity_node.py',
+        name='pointcloud_intensity',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_cloud': '/velodyne_points/point_cloud',
+            'output_cloud': '/velodyne_points/point_cloud_intensity',
+        }],
+        condition=launch.conditions.IfCondition(use_omni_perception))
+
+    equirect_camera_info = Node(
+        package='susumu_object_perception',
+        executable='equirect_camera_info_node.py',
+        name='equirect_camera_info',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_image': '/omni_camera/image_raw/image_color',
+            'output_camera_info': '/omni_camera/equirect/camera_info',
+            'camera_frame': 'omni_camera_link',
+        }],
+        condition=launch.conditions.IfCondition(use_omni_perception))
+
+    omni_image_compress = Node(
+        package='susumu_object_perception',
+        executable='omni_image_compress_node.py',
+        name='omni_image_compress',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_image': '/omni_camera/image_raw/image_color',
+            'output_image': '/omni_camera/image_raw/compressed',
+            'jpeg_quality': 80,
+        }],
+        condition=launch.conditions.IfCondition(use_omni_perception))
+
+    object_crops = Node(
+        package='susumu_object_perception',
+        executable='object_image_crop_node.py',
+        name='object_image_crop',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_image': '/omni_camera/image_raw/image_color',
+            'input_objects': '/perception/tracked_objects',
+            'object_type': 'tracked',
+            'output_image': '/perception/object_crops/image_rect',
+            'camera_frame': 'omni_camera_link',
+        }],
+        condition=launch.conditions.IfCondition(use_omni_perception))
+
+    colorized_mapper = Node(
+        package='susumu_object_perception',
+        executable='colorized_pointcloud_mapper_node.py',
+        name='colorized_pointcloud_mapper',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_cloud': '/perception/colorized_points',
+            'output_cloud': colored_slam_output_cloud,
+            'target_frame': colored_slam_target_frame,
+            'fallback_frame': colored_slam_fallback_frame,
+            'source_frame_override': colored_slam_source_frame_override,
+            'voxel_size': 0.08,
+            'max_voxels': 250000,
+        }],
+        condition=launch.conditions.IfCondition(use_colored_slam))
+
     # RViz2（rviz:=True で起動）。本パッケージの設定を使う。
     rviz_config = os.path.join(pkg, 'rviz', 'simulation.rviz')
     rviz = Node(
@@ -227,14 +327,41 @@ def generate_launch_description():
             'perception', default_value='True',
             description='Autoware perception パイプラインを起動する（既定 True。'
                         '3D LiDAR /velodyne_points を入力に検出・追跡・可視化）'),
+        DeclareLaunchArgument(
+            'omni_perception', default_value='True',
+            description='全天球カメラ連携（色付き点群・物体クロップ）を起動する'),
+        DeclareLaunchArgument(
+            'colored_slam', default_value='True',
+            description='SLAM/odom座標に色付き点群を蓄積して /slam/colorized_points_map を出す'),
+        DeclareLaunchArgument(
+            'colored_slam_target_frame', default_value='map',
+            description='色付き点群マップの目標TFフレーム。GLIMでは glim_map を指定する'),
+        DeclareLaunchArgument(
+            'colored_slam_fallback_frame', default_value='odom',
+            description='target_frame が未接続のときのフォールバックTFフレーム。不要なら空文字'),
+        DeclareLaunchArgument(
+            'colored_slam_source_frame_override', default_value='',
+            description='色付き点群のTF lookup用source frame上書き。GLIMでは glim_lidar を指定する'),
+        DeclareLaunchArgument(
+            'colored_slam_output_cloud', default_value='/slam/colorized_points_map',
+            description='蓄積した色付き点群マップの出力トピック'),
+        DeclareLaunchArgument(
+            'omni_calibration_json', default_value='',
+            description='direct_visual_lidar_calibration の calib.json。空なら初期TFを使う'),
         webots,
         webots._supervisor,
         robot_state_publisher,
         footprint_publisher,
-        velodyne_tf,
+        omni_sensor_tf,
         pointcloud_to_laserscan,
         turtlebot_driver,
         perception,
+        colorized_points,
+        pointcloud_intensity,
+        equirect_camera_info,
+        omni_image_compress,
+        object_crops,
+        colorized_mapper,
         rviz,
         waiting_nodes,
         # Webots 終了時に全ノードを落とす

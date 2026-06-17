@@ -37,6 +37,18 @@ TurtleBot3Burger {
     Solid { name "imu_link" }
     GPS { }
     InertialUnit { name "inertial_unit" }
+    # 全天球カメラ。Webots の球面投影カメラをロボット上部に置き、ROS 2 へ
+    # /omni_camera/image_raw/image_color として出す。
+    Camera {
+      translation 0 0 0.75
+      rotation 0 1 0 1.5708
+      name "omni_camera"
+      fieldOfView 6.283185
+      width 2048
+      height 1024
+      projection "cylindrical"
+      antiAliasing TRUE
+    }
     # RGB カメラ（Gazebo の Intel RealSense R200 相当）。/camera/image_raw を出す。2D LiDAR は廃止。
     Camera { translation 0.05 0 0.10 rotation 0 1 0 -0.15 name "camera" width 1920 height 1080 fieldOfView 1.02974 }
     # 3D LiDAR（VLP-16 相当）。Gazebo の model.sdf に合わせ 16 層・水平 1°・垂直 ±15°・

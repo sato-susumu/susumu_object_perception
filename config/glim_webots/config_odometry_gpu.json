@@ -1,0 +1,29 @@
+{
+  "odometry_estimation": {
+    "so_name": "libodometry_estimation_gpu.so",
+    "initialization_mode": "NAIVE",
+    "initialization_window_size": 1.0,
+    "init_pose_damping_scale": 1e10,
+    "smoother_lag": 5.0,
+    "use_isam2_dogleg": false,
+    "isam2_relinearize_skip": 1,
+    "isam2_relinearize_thresh": 0.1,
+    "fix_imu_bias": false,
+    "voxel_resolution": 0.18,
+    "voxel_resolution_max": 0.4,
+    "voxel_resolution_dmin": 3.0,
+    "voxel_resolution_dmax": 12.0,
+    "voxelmap_levels": 2,
+    "voxelmap_scaling_factor": 2.0,
+    "full_connection_window_size": 3,
+    "keyframe_update_strategy": "DISPLACEMENT",
+    "max_num_keyframes": 20,
+    "keyframe_min_overlap": 0.01,
+    "keyframe_max_overlap": 0.8,
+    "keyframe_delta_trans": 0.35,
+    "keyframe_delta_rot": 0.25,
+    "keyframe_entropy_thresh": 0.99,
+    "save_imu_rate_trajectory": true,
+    "num_threads": 2
+  }
+}

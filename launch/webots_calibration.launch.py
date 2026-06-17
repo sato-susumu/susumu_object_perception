@@ -1,11 +1,8 @@
-# Webots 屋内（indoor.wbt）起動ショートカット launch。
+# Webots LiDAR-camera calibration scene shortcut.
 #
-# webots_simulation.launch.py world:=indoor.wbt と等価。world 指定が面倒なので分離した。
-# nav / slam / mode / use_sim_time はそのまま渡せる（既定は webots_simulation と同じ）。
-#
-#   ros2 launch susumu_object_perception webots_indoor.launch.py
-#   ros2 launch susumu_object_perception webots_indoor.launch.py nav:=True   # Nav2 付き
-#   ros2 launch susumu_object_perception webots_indoor.launch.py mode:=fast
+# High-contrast panels and colored 3D landmarks are placed around the robot so
+# /perception/colorized_points alignment and object crop projection can be
+# checked from all bearings.
 
 import os
 
@@ -21,7 +18,6 @@ def generate_launch_description():
 
     mode = LaunchConfiguration('mode')
     use_nav = LaunchConfiguration('nav')
-    use_slam = LaunchConfiguration('slam')
     use_rviz = LaunchConfiguration('rviz')
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
@@ -33,10 +29,10 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(pkg, 'launch', 'webots_simulation.launch.py')),
         launch_arguments=[
-            ('world', 'indoor.wbt'),
+            ('world', 'calibration.wbt'),
             ('mode', mode),
             ('nav', use_nav),
-            ('slam', use_slam),
+            ('slam', 'False'),
             ('rviz', use_rviz),
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
@@ -49,16 +45,14 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('mode', default_value='realtime',
                               description='Webots 起動モード（realtime / fast / pause）'),
-        DeclareLaunchArgument('nav', default_value='True',
-                              description='Nav2 を起動する（既定 True。見るだけなら nav:=False）'),
-        DeclareLaunchArgument('slam', default_value='False',
-                              description='SLAM(slam_toolbox)で地図生成しつつ自律走行（AMCL無効。大文字）'),
+        DeclareLaunchArgument('nav', default_value='False',
+                              description='キャリブレーション時は既定でNav2を起動しない'),
         DeclareLaunchArgument('rviz', default_value='True',
-                              description='RViz2 を起動する（既定 True）'),
+                              description='RViz2 を起動する'),
         DeclareLaunchArgument('perception', default_value='True',
-                              description='Autoware perception を起動する（既定 True）'),
+                              description='Autoware perception を起動する'),
         DeclareLaunchArgument('omni_perception', default_value='True',
-                              description='全天球カメラ連携を起動する（色付き点群・物体クロップ）'),
+                              description='全天球カメラ連携を起動する'),
         DeclareLaunchArgument('colored_slam', default_value='True',
                               description='色付き点群SLAMマップを /slam/colorized_points_map に出す'),
         DeclareLaunchArgument('omni_calibration_json', default_value='',

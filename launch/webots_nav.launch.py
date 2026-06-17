@@ -28,6 +28,12 @@ def generate_launch_description():
     pkg = get_package_share_directory('susumu_object_perception')
 
     world = LaunchConfiguration('world')
+    mode = LaunchConfiguration('mode')
+    use_rviz = LaunchConfiguration('rviz')
+    use_perception = LaunchConfiguration('perception')
+    use_omni_perception = LaunchConfiguration('omni_perception')
+    use_colored_slam = LaunchConfiguration('colored_slam')
+    omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
 
     # robot + Webots + Nav2 + SLAM。webots_simulation を nav:=True slam:=True で呼ぶだけ。
@@ -39,8 +45,14 @@ def generate_launch_description():
             os.path.join(pkg, 'launch', 'webots_simulation.launch.py')),
         launch_arguments=[
             ('world', world),
+            ('mode', mode),
             ('nav', 'True'),
             ('slam', 'True'),
+            ('rviz', use_rviz),
+            ('perception', use_perception),
+            ('omni_perception', use_omni_perception),
+            ('colored_slam', use_colored_slam),
+            ('omni_calibration_json', omni_calibration_json),
             ('use_sim_time', use_sim_time),
         ],
     )
@@ -49,6 +61,24 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'world', default_value='outdoor.wbt',
             description='webots_worlds/ の world ファイル名（outdoor.wbt / indoor.wbt、拡張子込み）'),
+        DeclareLaunchArgument(
+            'mode', default_value='realtime',
+            description='Webots 起動モード（realtime / fast / pause）'),
+        DeclareLaunchArgument(
+            'rviz', default_value='True',
+            description='RViz2 を起動する'),
+        DeclareLaunchArgument(
+            'perception', default_value='True',
+            description='Autoware perception を起動する'),
+        DeclareLaunchArgument(
+            'omni_perception', default_value='True',
+            description='全天球カメラ連携を起動する'),
+        DeclareLaunchArgument(
+            'colored_slam', default_value='True',
+            description='色付き点群SLAMマップを /slam/colorized_points_map に出す'),
+        DeclareLaunchArgument(
+            'omni_calibration_json', default_value='',
+            description='direct_visual_lidar_calibration の calib.json。空なら初期TF'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='true',
             description='Webots はシミュレーション時刻のため true 必須'),
