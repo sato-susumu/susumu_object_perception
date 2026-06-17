@@ -6,6 +6,7 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projec
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/floors/protos/Floor.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/plants/protos/PottedTree.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/buildings/protos/SimpleBuilding.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/traffic/protos/GenericTrafficLight.proto"
 
 WorldInfo {
   info [ "TurtleBot3 in an outdoor environment (ROS2 + Nav2)." ]
@@ -37,7 +38,7 @@ TurtleBot3Burger {
     GPS { }
     InertialUnit { name "inertial_unit" }
     # RGB カメラ（Gazebo の Intel RealSense R200 相当）。/camera/image_raw を出す。2D LiDAR は廃止。
-    Camera { translation 0.05 0 0.10 name "camera" width 1920 height 1080 fieldOfView 1.02974 }
+    Camera { translation 0.05 0 0.10 rotation 0 1 0 -0.15 name "camera" width 1920 height 1080 fieldOfView 1.02974 }
     # 3D LiDAR（VLP-16 相当）。Gazebo の model.sdf に合わせ 16 層・水平 1°・垂直 ±15°・
     # +0.20m に置き PointCloud2 を出す。perception 入力用。
     Lidar {
@@ -61,3 +62,13 @@ PottedTree { translation 2 -3 0 name "tree3" }
 PottedTree { translation -2 3 0 name "tree4" }
 SimpleBuilding { translation 6 0 0 name "building1" }
 SimpleBuilding { translation -6 3 0 name "building2" rotation 0 0 1 1.5708 }
+# 交通信号（traffic_light_detector の認識対象）。TB3 前方(+X)に置き、カメラに映るようにする。
+# controller が greenTime/redTime で赤⇄青を自動遷移する。short にして遷移を観察しやすく。
+GenericTrafficLight {
+  translation 4.5 0 0
+  rotation 0 0 1 3.14159
+  startGreen FALSE
+  greenTime 8
+  redTime 8
+  state "red"
+}

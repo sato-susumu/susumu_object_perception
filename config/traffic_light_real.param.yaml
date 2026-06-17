@@ -1,0 +1,20 @@
+# 交通信号 色プロファイル: 実環境（純赤・純黄の信号）用。
+# 日本/一般的な LED 信号を想定し、赤は純赤、黄は橙〜黄に分ける。
+# 発光色が機種で異なる場合はここを調整する（コード変更不要）。
+/traffic_light_detector:
+  ros__parameters:
+    color_profile: "real"
+    # 赤: 純赤のみ（H 0..10, 160..179）。
+    classic.red1_lo: [0, 100, 100]
+    classic.red1_hi: [10, 255, 255]
+    classic.red2_lo: [160, 100, 100]
+    classic.red2_hi: [179, 255, 255]
+    # 黄(amber): 橙〜黄（H 15..35）。
+    classic.amber_lo: [15, 100, 100]
+    classic.amber_hi: [35, 255, 255]
+    # 緑: H 40..90。
+    classic.green_lo: [40, 80, 80]
+    classic.green_hi: [90, 255, 255]
+    classic.min_area: 20
+    classic.min_circularity: 0.55
+    classic.min_confidence: 0.5

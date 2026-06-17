@@ -67,7 +67,7 @@ flowchart LR
 
 | 方針 | 内容 |
 |---|---|
-| メッセージは標準型のみ | `Twist` / `LaserScan` / `PointCloud2` / `PoseWithCovarianceStamped` / `nav2_msgs/NavigateToPose`。独自 msg は持たない |
+| メッセージ型は自作せず既存を使う | **独自 `.msg` を定義しない**。標準型（`Twist` / `LaserScan` / `PointCloud2` / `PoseWithCovarianceStamped` / `nav2_msgs/NavigateToPose`）や、用途に合う既存型（`autoware_perception_msgs` / `visualization_msgs` 等）が既にあればそれを使う。無い場合も「まず既存型で表現できないか」を優先する |
 | Gazebo は Classic 11 | Ignition/Gazebo Sim ではない。HuNavSim は `v1.0-humble` ブランチ必須（`v2.0` は Gazebo Sim 用） |
 | Nav2 の障害物層 | 現在位置は `/scan`（obstacle_layer, 2D）。人の現在位置 + 進路先は perception の予測 OccupancyGrid を自作 `predicted_layer`（`PredictedCostmapLayer`）が max 合成で焼く。AMCL も生 `/scan`。※ 旧 3D 障害物層（STVL）は人の通過跡が残るため廃止（[`nav2_tuning.md`](nav2_tuning.md)） |
 | 段階起動 | プロセス間に順序依存があるため `TimerAction` で遅延起動する（[2章](#2-launch-構成と起動順序)） |

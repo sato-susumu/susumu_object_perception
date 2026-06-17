@@ -1,0 +1,20 @@
+# 交通信号 色プロファイル: Webots GenericTrafficLight 用。
+# 実測で赤灯が HSV H≈23 の橙色に発光するため、赤レンジに橙(H 11..30)を含める。
+# traffic_light_detector_node の classic.* パラメータ（OpenCV HSV, H は 0..179）。
+/traffic_light_detector:
+  ros__parameters:
+    color_profile: "webots"
+    # 赤: 純赤(0..10, 160..179) に加え、橙赤(11..30) も赤として拾う。
+    classic.red1_lo: [0, 80, 80]
+    classic.red1_hi: [30, 255, 255]
+    classic.red2_lo: [160, 80, 80]
+    classic.red2_hi: [179, 255, 255]
+    # 黄(amber): Webots は赤が橙なので、純黄に絞る（赤レンジと重なるが位置判定で確証）。
+    classic.amber_lo: [31, 80, 80]
+    classic.amber_hi: [39, 255, 255]
+    # 緑: 実測 H≈72。
+    classic.green_lo: [45, 80, 80]
+    classic.green_hi: [95, 255, 255]
+    classic.min_area: 20
+    classic.min_circularity: 0.5
+    classic.min_confidence: 0.45

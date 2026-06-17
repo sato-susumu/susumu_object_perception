@@ -71,6 +71,11 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>sensor_msgs_py</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <!-- 交通信号認識（traffic_light_detector_node）: カメラ画像 → 信号状態。
+       出力型は既存 autoware_perception_msgs/TrafficSignalArray + vision_msgs。 -->
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>vision_msgs</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-scipy</exec_depend>
 

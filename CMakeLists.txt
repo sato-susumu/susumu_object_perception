@@ -51,6 +51,8 @@ install(PROGRAMS
   susumu_object_perception/object_tracker_node.py
   susumu_object_perception/prediction_node.py
   susumu_object_perception/perception_marker_node.py
+  susumu_object_perception/traffic_light_detector_node.py
+  susumu_object_perception/traffic_light_marker_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

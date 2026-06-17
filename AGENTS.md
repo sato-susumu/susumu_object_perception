@@ -34,7 +34,7 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 |---|---|
 | git を勝手に操作しない | **`git commit` / `git push` はユーザーが明示的に指示したときだけ**。それ以外は変更を作業ツリーに残すのみ。ブランチを切る等の判断もユーザーに委ねる |
 | Gazebo は Classic 11 | Ignition/Gazebo Sim ではない。**HuNavSim は必ず `v1.0-humble` ブランチ**（`v2.0` は Gazebo Sim 用で動かない） |
-| 独自メッセージを作らない | 標準型のみ（`Twist` / `PoseWithCovarianceStamped` / `nav2_msgs/NavigateToPose`） |
+| メッセージ型は自作せず既存を使う | **独自 `.msg` を定義しない**。標準型（`Twist` / `PoseWithCovarianceStamped` / `nav2_msgs/NavigateToPose` 等）や、エコシステムの既存型（`autoware_perception_msgs` / `visualization_msgs` 等、用途に合う型が既にあるもの）を使う。「無いから作る」のではなく、まず既存型で表現できないか探す |
 | source は `local_setup.bash` | `install/setup.bash` は古いスナップショットを指す prefix-chain で、新規パッケージが見えず `package not found` になる（既知の罠。SETUP.md「Phase B」） |
 | Nav2 変更時は docs 更新 | `config/nav2_params.yaml` を調整したら、必ず [`docs/nav2_tuning.md`](docs/nav2_tuning.md) の「現在値」表と「調整履歴」を更新する（理由が失われ次の調整で振り出しに戻る） |
 
