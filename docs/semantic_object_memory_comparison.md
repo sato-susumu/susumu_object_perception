@@ -52,24 +52,84 @@ flowchart LR
 
 ## 評判・レビュー軸込みの比較表
 
-| 方式 | 評判/成熟度 | 採用実績 | 精度・頑健性 | 実装運用リスク | 自然語対応 | 判定 |
-|---|---:|---:|---:|---:|---:|---|
-| A. 軽量 self-built object memory | 中 | 低 | 中〜高 | 中 | 中〜高 | **中核に推奨** |
-| B. RTAB-Map + semantic 後処理 | **高** | **高** | 中〜高 | 中 | 低 | **補助基盤として有力** |
-| C. ConceptGraphs 系 open-vocab 3D scene graph | 高 | 中 | 高 | 高 | **高** | 自然語/表現の参考 |
-| D. ReMEmbR 系 VLM/LLM memory | 中 | 低〜中 | 中 | 高 | **高** | クエリ層の参考 |
-| E. Hydra/Kimera など統合 3D scene graph | 高 | 中 | 高 | 高 | 中 | 研究/将来候補 |
-| F. POCD/Perpetua 型 change detection | 中 | 低 | 高 | 中〜高 | 低 | 消去ロジックの参考 |
+| 方式 | 評判/成熟度 | 採用実績 | 開発の活発度 | 精度・頑健性 | 実装運用リスク | 自然語対応 | 判定 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| A. 軽量 self-built object memory | 中 | 低 | 中 | 中〜高 | 中 | 中〜高 | **中核に推奨** |
+| B. RTAB-Map + semantic 後処理 | **高** | **高** | **高** | 中〜高 | 中 | 低 | **補助基盤として有力** |
+| C. ConceptGraphs 系 open-vocab 3D scene graph | 高 | 中 | 中 | 高 | 高 | **高** | 自然語/表現の参考 |
+| D. ReMEmbR 系 VLM/LLM memory | 中 | 低〜中 | 低〜中 | 中 | 高 | **高** | クエリ層の参考 |
+| E. Hydra/Kimera など統合 3D scene graph | 高 | 中 | 中〜高 | 高 | 高 | 中 | 研究/将来候補 |
+| F. POCD/Perpetua 型 change detection | 中 | 低 | 低〜中 | 高 | 中〜高 | 低 | 消去ロジックの参考 |
 
 ## 評判・レビュー情報からの読み取り
 
 | 実装/研究 | ポジティブな評判シグナル | ネガティブ/注意シグナル | この用途での見立て |
 |---|---|---|---|
-| RTAB-Map / `rtabmap_ros` | GitHub 規模が大きい（`rtabmap` 約 3.8k stars / 3,654 commits、`rtabmap_ros` 約 1.4k stars / 1,877 commits）。ROS2 package として RGB-D、3D LiDAR、Nav2 例が公式に揃う。2024 論文でも long-term online operation 向け OSS として整理されている | issue 数も多く、map offset、data drop、LiDAR-only drift、Nav2 連携など実運用系の相談が継続的に出ている。多機能なぶん調整対象が多い | **成熟度は最上位**。ただし「物体が無くなったら消す」「自然語で行く」は中核機能ではないので、座標安定化/SLAM補助として使うのが現実的 |
-| ConceptGraphs | ICRA 2024 系の代表的 open-vocabulary 3D scene graph。GitHub 約 887 stars。自然語・抽象クエリ・CLIP/GPT 系の表現力は強い。real-time/streamlined branch や Jackal 実装も示されている | issue には CUDA/conda、LLaVA 互換、camera trajectory/depth/object point cloud misalignment、frame 不整合、Docker 要望など実装依存の問題が目立つ | **研究評価と表現力は高いが、運用基盤としては重い**。自然語検索・embedding 設計の参考にする |
-| ReMEmbR | NVIDIA-AI-IOT の実装で、LLM/VLM memory から goal pose を返す流れが明確。`Where can I sit?` のようなクエリ例が用途に近い | GitHub は約 342 stars / 13 commits と若い。issue には Jetson/fastattention2、rosbag、NavQA eval、Milvus、依存エラー、Nova 固有パスなど導入・評価まわりの相談が多い | **自然語→場所のデモ設計はかなり参考になる**。ただし object instance の削除/存在確率は別に作る必要がある |
-| Hydra | MIT-SPARK/Carlone 系で研究評価が高く、約 1.1k stars / 588 commits。3D scene graph のリアルタイム構築として論文・実装ともに存在感がある | issue には「scene graph の取り出し方」「実データでの動かし方」「visualizer build」「config/extrinsics」「object bounding-box」など利用ハードルを示す質問が多い | **将来の高機能3D空間表現として強い**。今回の「YOLO物体を覚えて行く」MVPには大きすぎる |
+| RTAB-Map / `rtabmap_ros` | GitHub 規模が大きい（`rtabmap` 約 3.8k stars / 3,654 commits、`rtabmap_ros` 約 1.4k stars / 1,877 commits）。ROS2 package として RGB-D、3D LiDAR、Nav2 例が公式に揃う。2024 論文でも long-term online operation 向け OSS として整理されている | issue 数も多く、map offset、data drop、LiDAR-only drift、Nav2 連携など実運用系の相談が継続的に出ている。多機能なぶん調整対象が多い。commits/issues とも継続的で、開発の活発度は高い | **成熟度は最上位**。ただし「物体が無くなったら消す」「自然語で行く」は中核機能ではないので、座標安定化/SLAM補助として使うのが現実的 |
+| ConceptGraphs | ICRA 2024 系の代表的 open-vocabulary 3D scene graph。GitHub 約 887 stars / 52 commits。自然語・抽象クエリ・CLIP/GPT 系の表現力は強い。real-time/streamlined branch や Jackal 実装も示されている | issue には CUDA/conda、LLaVA 互換、camera trajectory/depth/object point cloud misalignment、frame 不整合、Docker 要望など実装依存の問題が目立つ。研究コードとしては動きがあるが、汎用ライブラリ並みの保守活発度ではない | **研究評価と表現力は高いが、運用基盤としては重い**。自然語検索・embedding 設計の参考にする |
+| ReMEmbR | NVIDIA-AI-IOT の実装で、LLM/VLM memory から goal pose を返す流れが明確。`Where can I sit?` のようなクエリ例が用途に近い | GitHub は約 342 stars / 13 commits と若い。issue には Jetson/fastattention2、rosbag、NavQA eval、Milvus、依存エラー、Nova 固有パスなど導入・評価まわりの相談が多い。開発の活発度はまだ限定的 | **自然語→場所のデモ設計はかなり参考になる**。ただし object instance の削除/存在確率は別に作る必要がある |
+| Hydra | MIT-SPARK/Carlone 系で研究評価が高く、約 1.1k stars / 588 commits。3D scene graph のリアルタイム構築として論文・実装ともに存在感がある | issue には「scene graph の取り出し方」「実データでの動かし方」「visualizer build」「config/extrinsics」「object bounding-box」など利用ハードルを示す質問が多い。研究基盤としては継続的に動いている | **将来の高機能3D空間表現として強い**。今回の「YOLO物体を覚えて行く」MVPには大きすぎる |
 | POCD / Perpetua | object-level change detection / object permanence の研究として筋が良い。誤消去・誤残存の理論面では重要 | 汎用 ROS2 ナビ統合ライブラリというより研究実装寄り。自然語・Nav2 連携は別問題 | **削除判定の理論だけ採用**。中核フレームワークとしては採用しない |
+
+## 実用評価軸
+
+「実際にこのパッケージへ入れて運用できるか」を見るため、次の 5 軸を追加で評価する。
+
+| 評価軸 | 見る内容 |
+|---|---|
+| 導入難易度 | 依存、GPU、Docker、モデル DL、ビルド/設定の重さ |
+| リアルタイム性 | ロボットが走りながら online に使えるか、offline 後処理寄りか |
+| 地図更新能力 | 物体の移動・消失・再出現を扱えるか |
+| デバッグ性 | なぜ登録/統合/削除/選択されたか追跡できるか |
+| Nav2 連携 | object pose から到達可能な approach pose を作りやすいか |
+
+| 方式 | 導入難易度 | リアルタイム性 | 地図更新能力 | デバッグ性 | Nav2 連携 | 実用評価 |
+|---|---:|---:|---:|---:|---:|---|
+| A. 軽量 self-built object memory | **高** | **高** | **高** | **高** | **高** | **最有力** |
+| B. RTAB-Map + semantic 後処理 | 中 | 中〜高 | 低〜中 | 中 | 中 | SLAM 補助向き |
+| C. ConceptGraphs 系 open-vocab 3D scene graph | 低 | 中 | 中 | 低〜中 | 低〜中 | 表現/検索の参考 |
+| D. ReMEmbR 系 VLM/LLM memory | 低〜中 | 中 | 低 | 中 | 中 | クエリ層の参考 |
+| E. Hydra/Kimera など統合 3D scene graph | 低 | 高 | 中 | 低〜中 | 低〜中 | 将来候補 |
+| F. POCD/Perpetua 型 change detection | 低〜中 | 中 | **高** | 中 | 低 | 消去ロジックの参考 |
+
+評価理由:
+
+- **A. 軽量 self-built object memory**: 自作なので導入は最小化できる。SQLite の object DB、
+  association score、hit/miss、existence、negative observation 理由をログ化すれば、
+  登録・削除・自然語選択の説明可能性も高い。Nav2 とは `NavigateToPose` と 2D OccupancyGrid
+  の free cell 探索だけで接続できる。
+- **B. RTAB-Map + semantic 後処理**: SLAM と再訪問整合性は強いが、物体削除や自然語 query は
+  本体機能ではない。リアルタイム SLAM としては実績がある一方、semantic object memory は
+  追加実装が必要。
+- **C. ConceptGraphs**: open-vocabulary 検索は強いが、依存が重く、処理の内訳も foundation
+  model / multi-view association / LLM にまたがる。誤統合や座標ずれを現場で追う難度が高い。
+- **D. ReMEmbR**: 自然語から goal pose を返す形は参考になるが、caption memory 中心なので
+  「その物体が今も存在するか」の地図更新能力は低い。object DB と組み合わせる前提。
+- **E. Hydra/Kimera**: 3D scene graph を online 構築する力はあるが、導入・設定・実データ投入の
+  ハードルが高い。Nav2 の 2D goal へ落とす接続はこのプロジェクト側で設計が要る。
+- **F. POCD/Perpetua**: 地図更新・消去判定の理論は強い。反面、自然語や Nav2 goal generation
+  とは直接つながらないため、change detection 部品として取り込むのが妥当。
+
+## レビュー/比較記事・関連論文
+
+実ユーザーのブログレビューは分野全体で多くないため、ここでは **レビュー寄りの論文、比較評価論文、
+実装紹介論文、周辺方式を比較している記事**を含める。日付は arXiv / 公開ページで確認できる
+公開日を YYYY-MM-DD で記す。
+
+| 対象 | 記事/論文 | 日付 | リンク | 概要 | 評価への反映 |
+|---|---|---:|---|---|---|
+| RTAB-Map | RTAB-Map as an Open-Source Lidar and Visual SLAM Library for Large-Scale and Long-Term Online Operation | 2024-03-10 | https://arxiv.org/abs/2403.06341 | RTAB-Map の実装背景、LiDAR/Visual SLAM 対応、複数実データセットでの定量/定性比較を整理した実装紹介・評価論文。long-term online operation と memory management を明示的に扱う | RTAB-Map の成熟度・採用実績・SLAM 補助としての評価を上げる根拠。ただし semantic object deletion や自然語 query は主題ではない |
+| RTAB-Map | Evaluation of RGB-D SLAM in Large Indoor Environments | 2022-12-12 | https://arxiv.org/abs/2212.05980 | 大規模屋内環境で RTAB-Map と Voxgraph を比較。低オドメトリノイズでは高品質 map を作れる一方、高ノイズでは失敗傾向があること、RTAB-Map は memory 消費が重めであることを報告 | RTAB-Map を「万能中核」ではなく、座標安定化/再訪問整合性の補助に留める根拠 |
+| Hydra | Foundations of Spatial Perception for Robotics: Hierarchical Representations and Real-time Systems | 2023-05-11 | https://arxiv.org/abs/2305.07154 | 3D spatial perception のレビュー/総説寄り論文。階層表現、3D scene graph、loop closure、long-term correction を整理し、Hydra を統合システム例として位置付ける | Hydra の研究評価・将来性を高く見る根拠。一方、今回の MVP には表現が大きいという判断は維持 |
+| Hydra | Hydra: A Real-time Spatial Perception System for 3D Scene Graph Construction and Optimization | 2022-01-31 | https://arxiv.org/abs/2201.13360 | Hydra 本体の実装紹介論文。ESDF、場所/部屋抽出、3D scene graph optimization を online で行い、batch offline 相当の精度を real-time に近づける | リアルタイム性を高めに評価する根拠。ただし導入難易度・Nav2 連携の低さは issue 傾向から別評価 |
+| ConceptGraphs / open-vocab 3D graph | Hierarchical Open-Vocabulary 3D Scene Graphs for Language-Grounded Robot Navigation | 2024-03-26 | https://arxiv.org/abs/2403.17846 | HOV-SG。open-vocabulary map を floor/room/object の階層 3D scene graph にし、language-grounded navigation に使う。dense feature map より表現サイズを抑える比較も示す | ConceptGraphs 系の自然語対応・表現力を高く評価する根拠。長距離ナビには階層化が重要という補助根拠 |
+| ConceptGraphs / open-vocab 3D graph | Open3DSG: Open-Vocabulary 3D Scene Graphs from Point Clouds with Queryable Objects and Open-Set Relationships | 2024-02-19 | https://arxiv.org/abs/2402.12259 | 3D scene graph を open-vocabulary / open-set relationships へ拡張する研究。固定ラベルだけでなく任意クラス・関係問い合わせを扱う | 自然語・関係推論の将来拡張候補として評価。ただし object permanence や Nav2 接続は別問題 |
+| ReMEmbR | ReMEmbR: Building and Reasoning Over Long-Horizon Spatio-Temporal Memory for Robot Navigation | 2024-09-20 | https://arxiv.org/abs/2409.13682 | ロボットの長時間走行履歴を VLM/LLM で検索可能な時空間メモリにし、NaVQA dataset と実機デモで評価。空間・時間・画像を使った質問応答を扱う | 自然語 query 層の評価を高くする根拠。ただし object instance の存在/削除管理ではないため、地図更新能力は低く評価 |
+| object memory / map update | Online Object-Oriented Semantic Mapping and Map Updating | 2020-11-13 | https://arxiv.org/abs/2011.06895 | RGB-D 検出から object-oriented semantic map を online 更新する研究。data association、誤対応の refinement、existence likelihood による false positive/false negative 対応を扱い、10Hz 超の実行を報告 | 軽量 self-built object memory の設計に最も近い参考。existence probability、negative observation、重複/誤対応対策の根拠 |
+| POCD / change detection | POCD: Probabilistic Object-Level Change Detection and Volumetric Mapping in Semi-Static Scenes | 2022-05-02 | https://arxiv.org/abs/2205.01202 | semi-static scene の map maintenance 研究。object state として stationarity score と TSDF change measure を持ち、幾何・意味情報を Bayes 更新する | 地図更新能力・誤消去耐性を評価する理論根拠。Nav2/自然語とは直接つながらないので部品扱い |
+| object-level change detection | LiSTA: Geometric Object-Based Change Detection in Cluttered Environments | 2024-03-04 | https://arxiv.org/abs/2403.02175 | 複数ミッションの LiDAR SLAM、volumetric differencing、object instance descriptor で追加/削除/位置変化を検出する研究。実環境の産業施設データも扱う | 長期運用で「物体が変わる」問題の重要性を補強。RGB-D YOLO memory とはセンサ構成が違うため直接採用ではなく参考 |
+| ROS2 navigation 全般 | From the Desks of ROS Maintainers: A Survey of Modern & Capable Mobile Robotics Algorithms in ROS 2 | 2023-07-28 | https://arxiv.org/abs/2307.15236 | ROS2 mobile robotics/navigation のサーベイ。Navigation maintainers 視点で、実装が研究から製品寄りへ移る際の観点を整理する | Nav2 連携・実装運用リスクを見る補助資料。object memory そのものの比較ではない |
+| open-vocab 3D scene understanding | OGScene3D: Incremental Open-Vocabulary 3D Gaussian Scene Graph Mapping for Scene Understanding | 2026-03-17 | https://arxiv.org/abs/2603.16301 | incremental open-vocabulary 3D semantic mapping / scene graph construction の新しめの研究。confidence-based Gaussian semantic representation と長期 global optimization を扱う | ConceptGraphs 系の次世代動向。新しく研究寄りなので、現時点では実用中核ではなく将来候補 |
 
 ### A. 軽量 self-built object memory（推奨）
 
