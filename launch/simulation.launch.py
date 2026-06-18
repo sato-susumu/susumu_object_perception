@@ -30,6 +30,7 @@ def generate_launch_description():
     use_nav2 = LaunchConfiguration('use_nav2')
     use_perception = LaunchConfiguration('use_perception')
     use_image_recognition = LaunchConfiguration('image_recognition')
+    use_semantic_memory = LaunchConfiguration('semantic_memory')
     use_rviz = LaunchConfiguration('use_rviz')
     use_gui = LaunchConfiguration('gui')
     map_yaml = LaunchConfiguration('map')
@@ -48,6 +49,11 @@ def generate_launch_description():
         'image_recognition', default_value='True',
         description=('画像認識（6面カメラ→全天球合成 + LiDAR検出物体のYOLO分類 + 全天球信号認識）を起動する。'
                      'YOLOはCPU負荷が高いが間引きありで既定ON。重いときは False'))
+    declare_use_semantic_memory = DeclareLaunchArgument(
+        'semantic_memory', default_value='False',
+        description=('セマンティック物体メモリ（検出物体を map 座標で永続記憶し、'
+                     '無くなったら消し、自然語クエリで物体へ Nav2 移動）を起動する。'
+                     '既定 OFF。image_recognition:=True で分類済みトラックを使うのが望ましい'))
     declare_use_rviz = DeclareLaunchArgument('use_rviz', default_value='True',
         description='RViz2 を起動する')
     declare_gui = DeclareLaunchArgument('gui', default_value='True',
@@ -196,6 +202,44 @@ def generate_launch_description():
         traffic_light_localizer, traffic_light_marker])
 
     # ------------------------------------------------------------------
+    # 3.7) セマンティック物体メモリ（semantic_memory:=True で起動、既定 OFF）。
+    #      検出物体を map 座標で永続記憶し（object_memory）、自然語クエリで
+    #      物体の手前へ Nav2 移動する（semantic_query）。image_recognition が ON なら
+    #      YOLO 分類済み tracked_objects_classified を、OFF なら素の tracked_objects を入力に使う。
+    # ------------------------------------------------------------------
+    memory_input = PythonExpression([
+        "'/perception/tracked_objects_classified' if '",
+        use_image_recognition,
+        "' == 'True' else '/perception/tracked_objects'"
+    ])
+    object_memory = Node(
+        package='susumu_object_perception', executable='object_memory_node.py',
+        name='object_memory', output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_topic': memory_input,
+        }],
+        condition=IfCondition(use_semantic_memory))
+    semantic_query = Node(
+        package='susumu_object_perception', executable='semantic_query_node.py',
+        name='semantic_query', output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
+        condition=IfCondition(use_semantic_memory))
+    # 行動層: 指定クラスを追従(FOLLOW)/探索接近(SEARCH)する。tracked_objects_classified
+    # とメモリ DB を使い、Nav2 で対象の手前へ向かう。
+    object_seeker = Node(
+        package='susumu_object_perception', executable='object_seeker_node.py',
+        name='object_seeker', output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'tracks_topic': memory_input,
+        }],
+        condition=IfCondition(use_semantic_memory))
+    semantic_memory_delayed = TimerAction(period=22.0, actions=[
+        LogInfo(msg='Starting semantic object memory (memory + query + seeker)...'),
+        object_memory, semantic_query, object_seeker])
+
+    # ------------------------------------------------------------------
     # 4) RViz2
     # ------------------------------------------------------------------
     rviz_config = os.path.join(susumu_pkg, 'rviz', 'simulation.rviz')
@@ -219,9 +263,21 @@ def generate_launch_description():
         condition=IfCondition(use_gui))
     gui_delayed = TimerAction(period=24.0, actions=[gui_node])
 
+    # 5.5) 記憶物体の一覧 GUI（gui:=True かつ semantic_memory:=True のとき）。
+    #      object_memory の DB を読んで「どこに何があるか」を一覧表示し、行クリックで詳細、
+    #      ボタンで選択物体へ Nav2 移動する。
+    memory_gui_cond = PythonExpression([
+        "'", use_gui, "' == 'True' and '", use_semantic_memory, "' == 'True'"])
+    memory_gui_node = Node(
+        package='susumu_object_perception', executable='object_memory_gui_node.py',
+        name='object_memory_gui', output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
+        condition=IfCondition(memory_gui_cond))
+    memory_gui_delayed = TimerAction(period=25.0, actions=[memory_gui_node])
+
     ld = LaunchDescription()
     for a in (declare_use_sim_time, declare_use_nav2, declare_use_perception,
-              declare_use_image_recognition,
+              declare_use_image_recognition, declare_use_semantic_memory,
               declare_use_rviz, declare_gui, declare_map, declare_params,
               declare_x, declare_y, declare_yaw, declare_lidar_model):
         ld.add_action(a)
@@ -230,7 +286,9 @@ def generate_launch_description():
     ld.add_action(spawn_robot_delayed)
     ld.add_action(perception_delayed)
     ld.add_action(image_recognition_delayed)
+    ld.add_action(semantic_memory_delayed)
     ld.add_action(nav2_delayed)
     ld.add_action(rviz_delayed)
     ld.add_action(gui_delayed)
+    ld.add_action(memory_gui_delayed)
     return ld

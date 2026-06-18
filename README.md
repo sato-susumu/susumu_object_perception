@@ -5,6 +5,7 @@ ROS 2 Humble + Gazebo Classic 11 上のシミュレーターパッケージ。**
 **Teleop GUI** と、**Autoware 流の LiDAR perception パイプライン**（既定 ON、RViz 可視化）を備える。
 perception の **prediction の予測のみ Nav2 costmap に連携**し、人の進路先を先回りで障害物化する。
 
+- **ノード接続図 / トピック I/O 一覧**（どのノードがどのトピックで繋がっているか・Mermaid 図）: [`docs/node_topology.md`](docs/node_topology.md)
 - 設計（全体構造・状態遷移・シーケンス図・パラメータ・ディレクトリ構成）: [`docs/software_design.md`](docs/software_design.md)
 - Nav2 の調整（パラメータ・症状別の指針・変更履歴）: [`docs/nav2_tuning.md`](docs/nav2_tuning.md)
 - perception パイプライン詳細: [`docs/autoware_perception.md`](docs/autoware_perception.md)

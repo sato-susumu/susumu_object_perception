@@ -104,6 +104,10 @@ install(PROGRAMS
   susumu_object_perception/colorized_pointcloud_node.py
   susumu_object_perception/object_image_crop_node.py
   susumu_object_perception/object_classifier_node.py
+  susumu_object_perception/object_memory_node.py
+  susumu_object_perception/semantic_query_node.py
+  susumu_object_perception/object_seeker_node.py
+  susumu_object_perception/object_memory_gui_node.py
   susumu_object_perception/equirect_camera_info_node.py
   susumu_object_perception/pointcloud_intensity_node.py
   susumu_object_perception/omni_image_compress_node.py
@@ -115,6 +119,7 @@ install(PROGRAMS
   scripts/run_direct_visual_lidar_calibration_docker.sh
   scripts/direct_calib_to_tf.py
   scripts/validate_colorized_pointcloud_quality.py
+  scripts/test_object_seeker.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

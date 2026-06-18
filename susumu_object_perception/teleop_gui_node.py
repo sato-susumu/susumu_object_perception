@@ -28,6 +28,7 @@ import time
 import rclpy
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
+from std_msgs.msg import String
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionClient
 from rclpy.node import Node
@@ -37,21 +38,8 @@ try:
 except Exception:  # pragma: no cover - ヘッドレス環境向けガード
     tk = None
 
-# 家の各部屋のウェイポイント（map 座標 x, y）。巡回ループ順に並べてあり、ロボットが
-# ランダムにワープせず部屋を順番に巡るようにしている。
-#
-# cafe world（縦長: y≈-12〜11）を縦に一周する巡回ルート。各点は cafe.pgm 上で
-# ロボット起点から到達可能かつ周囲0.6mが空きであることを確認済み（壁・到達不可点は除外）。
-PATROL_WAYPOINTS = [
-    (0.0, -4.0),   # 下エリア
-    (0.0, -7.0),
-    (0.0, -10.0),  # 最下部
-    (-3.0, -9.0),  # 左下
-    (-3.0, -5.0),  # 左中
-    (0.0, 2.0),    # 中央上へ
-    (0.0, 5.0),    # 上エリア
-    (-3.0, 6.0),   # 左上で折り返し
-]
+# 巡回ウェイポイントは object_seeker_node.py と共有する共通モジュールから取る。
+from susumu_object_perception.patrol_waypoints import PATROL_WAYPOINTS
 
 LINEAR_SPEED = 0.22   # m/s   （TurtleBot3 waffle の最大 ~0.26）
 ANGULAR_SPEED = 0.9   # rad/s
@@ -69,6 +57,11 @@ class TeleopGuiNode(Node):
         self._initpose_pub = self.create_publisher(
             PoseWithCovarianceStamped, '/initialpose', 10)
         self._nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+        # セマンティック物体メモリへのクエリ送信（semantic_query_node が購読）。
+        # semantic_memory:=True で起動していなければ誰も読まないだけで無害。
+        self._query_pub = self.create_publisher(String, '/semantic_query', 10)
+        # 行動層 object_seeker への追従/探索コマンド。
+        self._seek_pub = self.create_publisher(String, '/object_seek', 10)
 
         # 現在の手動コマンド (lin, ang)。(0, 0) は停止を意味する。
         self._manual = (0.0, 0.0)
@@ -86,6 +79,22 @@ class TeleopGuiNode(Node):
         # ロボットがどこかへ向かい続けるようにする。ゴールが失われた / Nav2 が
         # まだ起動していない / 何も処理中でない場合は現在のウェイポイントを（再）送信する。
         self.create_timer(1.0, self._auto_watchdog)
+
+    def send_query(self, text):
+        """GUI のクエリ入力を semantic_query_node へ送る（例「椅子」「人」）。"""
+        text = (text or '').strip()
+        if not text:
+            return
+        self._query_pub.publish(String(data=text))
+        self.get_logger().info(f'semantic query 送信: {text}')
+
+    def send_seek(self, text):
+        """object_seeker へ追従/探索コマンドを送る（例「人を追って」「椅子を探して」）。"""
+        text = (text or '').strip()
+        if not text:
+            return
+        self._seek_pub.publish(String(data=text))
+        self.get_logger().info(f'object_seek 送信: {text}')
 
     # ---- 手動操縦 -------------------------------------------------------
     def set_manual(self, lin, ang):
@@ -260,7 +269,48 @@ class TeleopGui:
             self.root, text='⌂ 原点へワープ', width=24, height=2,
             font=('Sans', 11, 'bold'), bg='#445588', fg='white',
             activebackground='#5566aa', command=self._warp)
-        self.warp_btn.grid(row=4, column=0, columnspan=3, padx=8, pady=(8, 10))
+        self.warp_btn.grid(row=4, column=0, columnspan=3, padx=8, pady=(8, 4))
+
+        # --- セマンティック物体メモリへのクエリ（semantic_memory:=True 起動時のみ機能）---
+        # 入力欄に「椅子」「人」等を打って送信すると、semantic_query_node が記憶から
+        # 物体座標を引き、その手前へ Nav2 で移動する。
+        query_label = tk.Label(
+            self.root, bg='#202028', fg='#aaaaaa', font=('Sans', 9),
+            text='物体へ行く（要 semantic_memory:=True）: 例「人」「車」')
+        query_label.grid(row=5, column=0, columnspan=3, pady=(6, 0))
+        self.query_entry = tk.Entry(
+            self.root, width=16, font=('Sans', 11),
+            bg='#303040', fg='white', insertbackground='white')
+        self.query_entry.grid(row=6, column=0, columnspan=2, padx=(8, 4), pady=(2, 4))
+        self.query_entry.bind('<Return>', lambda e: self._send_query())
+        self.query_btn = tk.Button(
+            self.root, text='探して移動', width=8, height=1,
+            font=('Sans', 10, 'bold'), bg='#446644', fg='white',
+            activebackground='#557755', command=self._send_query)
+        self.query_btn.grid(row=6, column=2, padx=(4, 8), pady=(2, 4))
+
+        # --- 追従/探索（object_seeker。semantic_memory:=True 起動時のみ機能）---
+        # 入力欄のクラスを「追って」=動く対象を追従 / 「探して」=巡回して見つけたら接近。
+        seek_label = tk.Label(
+            self.root, bg='#202028', fg='#aaaaaa', font=('Sans', 9),
+            text='追従/探索: クラスを入れて［追って］か［探して］')
+        seek_label.grid(row=7, column=0, columnspan=3, pady=(4, 0))
+        self.seek_entry = tk.Entry(
+            self.root, width=10, font=('Sans', 11),
+            bg='#303040', fg='white', insertbackground='white')
+        self.seek_entry.grid(row=8, column=0, padx=(8, 2), pady=(2, 10))
+        self.follow_btn = tk.Button(
+            self.root, text='追って', width=6, height=1,
+            font=('Sans', 10, 'bold'), bg='#664422', fg='white',
+            activebackground='#775533',
+            command=lambda: self._send_seek('追って'))
+        self.follow_btn.grid(row=8, column=1, padx=2, pady=(2, 10))
+        self.search_btn = tk.Button(
+            self.root, text='探して', width=6, height=1,
+            font=('Sans', 10, 'bold'), bg='#224466', fg='white',
+            activebackground='#335577',
+            command=lambda: self._send_seek('探して'))
+        self.search_btn.grid(row=8, column=2, padx=(2, 8), pady=(2, 10))
 
         # --- キーボード: 矢印キー + テンキー ---
         binds = {
@@ -285,6 +335,15 @@ class TeleopGui:
         self.root.protocol('WM_DELETE_WINDOW', self._on_close)
         # Ctrl-C / ノード終了でウィンドウを閉じられるよう定期ポーリングする。
         self.root.after(200, self._poll)
+
+    def _send_query(self):
+        self.node.send_query(self.query_entry.get())
+
+    def _send_seek(self, verb):
+        """seek_entry のクラスに動詞（追って/探して）を付けて object_seeker へ送る。"""
+        cls = self.seek_entry.get().strip()
+        if cls:
+            self.node.send_seek(f'{cls}を{verb}')
 
     def _make_hold_button(self, label, lin, ang, row, column):
         b = tk.Button(self.root, text=label, width=8, height=2,

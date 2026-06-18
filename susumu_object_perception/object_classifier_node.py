@@ -29,6 +29,7 @@ from rclpy.qos import qos_profile_sensor_data
 
 from sensor_msgs.msg import Image
 from autoware_perception_msgs.msg import (TrackedObjects, ObjectClassification)
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from visualization_msgs.msg import Marker, MarkerArray
 from cv_bridge import CvBridge
 from tf2_ros import Buffer, TransformException, TransformListener
@@ -159,6 +160,12 @@ class ObjectClassifierNode(Node):
         self.pub_annot = self.create_publisher(
             Image, '/perception/object_classes/image_annotated',
             qos_profile_sensor_data)
+        # COCO 細クラス名の副チャネル。Autoware ObjectClassification.label は enum で
+        # chair/couch/diningtable 等の什器を表現できない（UNKNOWN に丸まる）。物体メモリが
+        # 什器を区別して記憶できるよう、object_id(UUID hex)→COCO名 を DiagnosticArray で
+        # 出す（独自 .msg は作らない方針。name=UUID hex, message=COCO名）。
+        self.pub_fine = self.create_publisher(
+            DiagnosticArray, '/perception/object_fine_classes', 10)
 
         self.create_subscription(
             Image, self.input_image, self.on_image, qos_profile_sensor_data)
@@ -263,6 +270,8 @@ class ObjectClassifierNode(Node):
         markers.markers.append(clear)
         annot_tiles = []
         mid = 0
+        # object_id(UUID hex) -> COCO 細クラス名（什器含む）。副チャネルで配信する。
+        fine_classes = {}
 
         for i, obj in enumerate(msg.objects):
             new_obj = obj  # 既存物体をそのまま使い classification だけ差し替える
@@ -305,6 +314,8 @@ class ObjectClassifierNode(Node):
                     new_obj.classification = [cls]
                     text = '%s %.2f' % (coco_name, conf)
                     color = (0.1, 0.9, 0.2)
+                    # label が UNKNOWN に丸まる什器(chair 等)でも COCO 名は副チャネルへ。
+                    fine_classes[bytes(obj.object_id.uuid).hex()] = (coco_name, conf)
                 else:
                     text = 'unknown'
                     color = (0.6, 0.6, 0.6)
@@ -337,11 +348,29 @@ class ObjectClassifierNode(Node):
 
         self.pub_objects.publish(out)
         self.pub_markers.publish(markers)
+        self._publish_fine_classes(msg.header, fine_classes)
         if annot_tiles:
             mosaic = np.hstack(annot_tiles)
             am = self.bridge.cv2_to_imgmsg(mosaic, encoding='bgr8')
             am.header = msg.header
             self.pub_annot.publish(am)
+
+    def _publish_fine_classes(self, header, fine_classes):
+        """object_id(UUID hex) -> COCO 細クラス名 を DiagnosticArray で配信する。
+
+        1 status が 1 物体に対応する: name=UUID hex, message=COCO名,
+        values=[{key:'conf', value:'0.87'}]。物体メモリがこれを引いて什器を区別する。
+        """
+        da = DiagnosticArray()
+        da.header = header
+        for uuid_hex, (coco_name, conf) in fine_classes.items():
+            st = DiagnosticStatus()
+            st.level = DiagnosticStatus.OK
+            st.name = uuid_hex
+            st.message = coco_name
+            st.values = [KeyValue(key='conf', value='%.3f' % conf)]
+            da.status.append(st)
+        self.pub_fine.publish(da)
 
 
 def main():
