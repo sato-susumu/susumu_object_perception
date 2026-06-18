@@ -107,6 +107,8 @@ install(PROGRAMS
   susumu_object_perception/object_memory_node.py
   susumu_object_perception/semantic_query_node.py
   susumu_object_perception/object_seeker_node.py
+  susumu_object_perception/auto_patrol_node.py
+  susumu_object_perception/frontier_explore_node.py
   susumu_object_perception/object_memory_gui_node.py
   susumu_object_perception/equirect_camera_info_node.py
   susumu_object_perception/pointcloud_intensity_node.py

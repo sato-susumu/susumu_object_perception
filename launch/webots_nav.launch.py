@@ -36,6 +36,7 @@ def generate_launch_description():
     lidar_model = LaunchConfiguration('lidar_model')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    nav_params_file = LaunchConfiguration('nav_params_file')
 
     # robot + Webots + Nav2 + SLAM。webots_simulation を nav:=True slam:=True で呼ぶだけ。
     # Nav2 の bringup が slam:=True のとき slam_toolbox を 1 個起動し map->odom を供給する
@@ -56,6 +57,7 @@ def generate_launch_description():
             ('lidar_model', lidar_model),
             ('omni_calibration_json', omni_calibration_json),
             ('use_sim_time', use_sim_time),
+            ('nav_params_file', nav_params_file),
         ],
     )
 
@@ -87,5 +89,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_sim_time', default_value='true',
             description='Webots はシミュレーション時刻のため true 必須'),
+        DeclareLaunchArgument(
+            'nav_params_file', default_value='',
+            description='Nav2 params 差し替え（空なら標準。探索は inflation を下げた '
+                        'config/nav2_params_webots_explore.yaml を指定）'),
         robot_nav,
     ])

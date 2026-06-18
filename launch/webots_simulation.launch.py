@@ -42,6 +42,9 @@ def generate_launch_description():
     mode = LaunchConfiguration('mode')
     use_nav = LaunchConfiguration('nav', default=False)
     use_slam = LaunchConfiguration('slam', default=False)
+    # Nav2 params 差し替え用（空なら従来の webots_ros2_turtlebot 標準を使う）。
+    # 探索マッピングでは inflation を下げた config/nav2_params_webots_explore.yaml を渡す。
+    nav_params_file = LaunchConfiguration('nav_params_file', default='')
     use_rviz = LaunchConfiguration('rviz', default=True)
     use_perception = LaunchConfiguration('perception', default=True)
     use_omni_perception = LaunchConfiguration('omni_perception', default=True)
@@ -130,13 +133,24 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'target_frame': lidar_frame,
             'transform_tolerance': 0.01,
-            'min_height': 0.0,
-            'max_height': 1.0,
+            # lidar_link 基準の高さ帯。MID-360 は俯角ビームが密で、どの高さでも
+            # 「地面に当たるビーム」が全方位リングを作る。下限が低いとそのリングの
+            # 最近傍点（例 z=0.3→水平1.7m）が各方位で選ばれ /scan が半径1.7mに
+            # 潰れて SLAM 地図が広がらない（city は 20m 四方の開放環境なのに）。
+            # 点群解析: 帯を上げるほど地面リングが遠ざかる（0.5-2.0m→近傍2.6m、
+            # 1.5-3.0m→近傍5.3m/最大6.7m）。下限 1.0 上限 3.0 で遠方建物を取りつつ
+            # 地面リングを 3.7m 先まで遠ざける。※恒久対策は ground_filter 済み点群で
+            # /scan を作ること（docs/autoware_perception.md 参照）。
+            'min_height': 1.0,
+            'max_height': 3.0,
             'angle_min': -3.14159,
             'angle_max': 3.14159,
             'angle_increment': 0.0087,
             'scan_time': 0.1,
-            'range_min': 0.45,
+            # 近接リング（ロボット自己構造 + 残留地面、全方位 1.1〜1.8m）を捨てて
+            # 遠方の建物・壁だけ /scan に乗せる。屋外の地図作成では近接障害物より
+            # 遠方が見えることを優先（min_height との併用で地面リングも遠ざける）。
+            'range_min': 1.8,
             'range_max': 40.0,
             'use_inf': True,
         }])
@@ -196,7 +210,10 @@ def generate_launch_description():
     os.environ['TURTLEBOT3_MODEL'] = 'burger'
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
     nav2_map = os.path.join(tb3_pkg, 'resource', 'turtlebot3_burger_example_map.yaml')
-    nav2_params = os.path.join(tb3_pkg, 'resource', 'nav2_params.yaml')
+    default_nav2_params = os.path.join(tb3_pkg, 'resource', 'nav2_params.yaml')
+    # nav_params_file が空なら従来の標準 params、指定があればそれを使う。
+    nav2_params = PythonExpression(
+        ["'", nav_params_file, "' or '", default_nav2_params, "'"])
     turtlebot_navigation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
             nav2_bringup_dir, 'launch', 'bringup_launch.py')),
