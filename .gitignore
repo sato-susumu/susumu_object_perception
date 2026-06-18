@@ -62,3 +62,8 @@ Thumbs.db
 
 # ===== Personal notes (not part of the package) =====
 指示内容.md
+
+# ===== MID-360 scan pattern CSV (大容量 ~40MB、リポジトリに含めない) =====
+# Gazebo MID-360 プラグイン(liblivox_mid360_sensor)が読む scan pattern。
+# 取得元・配置手順は docs/mid360_lidar_research.md 参照。
+config/mid360_scan_patterns/*.csv

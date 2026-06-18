@@ -102,7 +102,7 @@ flowchart LR
 | `predicted_layer.occupied_threshold` | 50 | 予測格子のこの値以上のセルを LETHAL で焼く |
 
 > 障害物層は**人を除去しない**（人も普通の障害物として避ける）が、**地面は除去する**。
-> 生 `/velodyne_points` は地面点を 46% 含み、costmap の ~90% が LETHAL になって経路が
+> 生 `/lidar/points` は地面点を 46% 含み、costmap の ~90% が LETHAL になって経路が
 > 引けなくなる。Autoware ground_filter の出力 `/perception/no_ground/pointcloud` を使う
 > ことで地面だけを除き、壁・人・什器は障害物として残す。
 > 「地面除去できているか」は `/local_costmap/costmap` の LETHAL(>=99) 率で確認できる
@@ -112,6 +112,10 @@ flowchart LR
 
 動的障害物（人）を costmap に乗せる層は3世代を経て、現在は自作 `predicted_layer` に確定した。
 各方式の入力・蓄積特性・壁保持・通過跡・結果を比較する（時系列の経緯は [§5 調整履歴](#5-調整履歴)）。
+
+> 注: 以下の履歴表・調整履歴に出てくる `/velodyne_points` は当時のトピック名。2026-06-18 の
+> MID-360 化で 3D LiDAR トピックは `/lidar/points`、frame は `lidar_link` に改名済み。履歴は
+> 当時の事実として原文のまま残す。現行の入力トピックは `/lidar/points` 系で読み替えること。
 
 | 時期 | 層 | 入力 | 蓄積 | 壁保持 | 軌跡（通過跡） | 結果 |
 |---|---|---|---|---|---|---|

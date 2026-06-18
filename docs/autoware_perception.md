@@ -17,11 +17,67 @@
 > `map_roi_filter_node.py`** で壁・地図外・未知に当たる検出を除外する（HD 地図 ROI の
 > 2D 代替）。
 
-## データフロー
+## 認識の全体フロー（LiDAR + 全天球カメラ）
+
+3D LiDAR（物体の有無・大きさ・速度・位置）と全天球カメラ（それが何か・信号の色）を組み合わせる
+late fusion 構成。LiDAR perception 本線（緑/橙）に、全天球カメラ起点の画像認識（青）を足す。
+
+```mermaid
+flowchart TB
+  %% センサ
+  LIDAR["3D LiDAR (MID-360)<br/>/lidar/points (frame lidar_link)"]:::hd
+  OMNI["全天球カメラ (Webots cylindrical)<br/>/omni_camera/image_raw/image_color"]:::hd
+
+  %% LiDAR perception 本線
+  subgraph LP["LiDAR perception（crop_box→ground→cluster→自作補完）"]
+    direction TB
+    DET["検出: crop_box → ground_filter →<br/>euclidean_cluster → shape_estimation"]:::own
+    MERGE["過分割統合 detection_by_tracker →<br/>2D地図照合 map_roi_filter"]:::own
+    TRACK["追跡 object_tracker_node<br/>(ID・速度・向き、移動=PEDESTRIAN/静止=UNKNOWN)"]:::own
+    PRED["予測 prediction_node<br/>(CV + 占有格子, マルチモーダル)"]:::own
+    DET --> MERGE --> TRACK --> PRED
+  end
+
+  %% 画像認識（全天球）
+  subgraph IMG["画像認識（全天球カメラ起点）"]
+    direction TB
+    CLASSIFY["物体分類 object_classifier_node<br/>物体方向の透視クロップ → YOLOv8(COCO)<br/>→ classification 上書き(late fusion)<br/>※トラックIDキャッシュ+レート上限で間引き"]:::img
+    TLDET["信号検出 traffic_light_detector_node<br/>全周N分割の透視ビュー → 信号灯検出・色判定<br/>(yoloはバッチ推論, 重複は方向で1つに統合)"]:::img
+    TLLOC["信号3D化 traffic_light_localizer_node<br/>検出方向 × LiDAR点群 → 信号の3D位置"]:::img
+  end
+
+  %% 連携
+  LIDAR --> DET
+  TRACK -->|"/perception/tracked_objects"| CLASSIFY
+  OMNI --> CLASSIFY
+  OMNI --> TLDET
+  TLDET -->|"rois (方向ベクトル付)"| TLLOC
+  LIDAR --> TLLOC
+
+  %% 出力
+  PRED -->|"/perception/predicted_costmap"| NAV["Nav2 costmap (PredictedCostmapLayer, max合成)"]:::aw
+  PRED -->|"/perception/predicted_objects"| RVIZ["RViz 可視化<br/>(perception_marker)"]:::own
+  CLASSIFY -->|"/perception/tracked_objects_classified<br/>/perception/object_classes/markers"| RVIZ
+  TLDET -->|"/perception/traffic_signals"| OUT1["信号状態 (autoware型, id=方位deg)"]:::img
+  TLLOC -->|"/perception/traffic_light/poses, markers"| RVIZ
+
+  classDef hd fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef aw fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  classDef own fill:#e65100,stroke:#bf360c,color:#fff;
+  classDef img fill:#6a1b9a,stroke:#4a148c,color:#fff;
+```
+
+> **役割分担**: LiDAR は「物体がどこに・どれだけの大きさ・どう動くか」、全天球カメラは「それが
+> 何か（人/車/椅子…）・信号の色」を担う。画像認識（青）は LiDAR の検出/追跡を入力に、その方向の
+> 全天球クロップを切って YOLO にかける late fusion。信号だけは LiDAR 非依存に全周検出し、3D 位置
+> 推定時のみ LiDAR を併用する。画像認識は CPU 負荷が高いのでトラック ID キャッシュ・レート上限で
+> 間引く（詳細は各ノード節）。
+
+## データフロー（LiDAR perception パイプライン詳細）
 
 ```mermaid
 flowchart LR
-  IN["/velodyne_points<br/>PointXYZI<br/>frame velodyne_link"]
+  IN["/lidar/points<br/>PointXYZI<br/>frame lidar_link"]
   P2A["pointcloud_to_autoware_node.py<br/>PointXYZI → PointXYZIRC"]
   CROP["autoware_crop_box_filter<br/>ROI クロップ"]
   GND["autoware_ground_filter<br/>地面除去"]
@@ -56,7 +112,7 @@ flowchart LR
 
 | ノード | 種別 | 入力 → 出力 | 役割 |
 |---|---|---|---|
-| `pointcloud_to_autoware_node.py` | 自作Py | `/velodyne_points` → `/perception/points_autoware` | PointXYZI → PointXYZIRC 変換（ground_filter は ring/channel 必須、後述） |
+| `pointcloud_to_autoware_node.py` | 自作Py | `/lidar/points` → `/perception/points_autoware` | PointXYZI → PointXYZIRC 変換（ground_filter は ring/channel 必須、後述） |
 | `autoware_crop_box_filter` | Autoware | `points_autoware` → `/perception/cropped/pointcloud` | ROI クロップ（±13m=店内, z -0.5..2.0） |
 | `autoware_ground_filter` | Autoware | `cropped/pointcloud` → `/perception/no_ground/pointcloud` | Scan Ground Filter で地面除去 |
 | `autoware_euclidean_cluster_object_detector` | Autoware | `no_ground/pointcloud` → `/perception/detected_objects` | クラスタ化 |
@@ -66,6 +122,7 @@ flowchart LR
 | `object_tracker_node.py` | 自作Py | `detected_objects_in_map` → `/perception/tracked_objects` | フレーム間追跡（TrackedObjects） |
 | `prediction_node.py` | 自作Py | `tracked_objects` → `/perception/predicted_objects` ＋ `/perception/predicted_costmap` | 将来軌跡予測（2D 占有格子で CV 予測 + 壁回避）。予測 OccupancyGrid を Nav2 costmap の自作 `predicted_layer` が max 合成（下「Nav2 連携」） |
 | `perception_marker_node.py` | 自作Py | `predicted_objects` 他 → `/perception/markers` | RViz 可視化（MarkerArray） |
+| `object_classifier_node.py` | 自作Py | `tracked_objects` ＋ 全天球画像 → `/perception/tracked_objects_classified` ＋ `/perception/object_classes/markers` | **LiDAR 検出物体の画像分類**。各物体方向の全天球クロップを YOLOv8(COCO) で分類し、COCO クラスを Autoware `ObjectClassification`（PEDESTRIAN/CAR/BICYCLE/ANIMAL...）にマップして classification を上書き。LiDAR は「物体の有無・大きさ・速度」、カメラは「それが何か」を担う late fusion。YOLO 初期化失敗時は classic 等に勝手に落とさず `[FATAL]` 終了 |
 
 上 3 つの Autoware モジュールは composable node なので 1 つの `component_container`
 （`autoware_perception_container`）にまとめてロードする（intra-process 通信）。
@@ -73,7 +130,7 @@ flowchart LR
 
 起動は `launch/include/autoware_perception.launch.py`。`simulation.launch.py` から
 `use_perception:=True`（既定）で robot spawn の後（+18s）に TimerAction で起動する。
-追跡は `odom ← velodyne_link` の TF を使うため robot/TF が揃ってから起動する必要がある。
+追跡は `odom ← lidar_link` の TF を使うため robot/TF が揃ってから起動する必要がある。
 
 ## 使う Autoware パッケージ（apt）
 
@@ -208,7 +265,7 @@ euclidean クラスタリングは 1 人を複数の小クラスタに割る（o
 tracker 未起動（初回）/TF 不在時は検出を素通し（パイプラインを止めない）。
 
 **アルゴリズム**:
-1. tracker の各トラックを検出フレーム(velodyne_link)へ TF 変換し、位置と OBB 半径を得る。
+1. tracker の各トラックを検出フレーム(lidar_link)へ TF 変換し、位置と OBB 半径を得る。
 2. 各検出を最近傍トラック（中心間距離が `assign_radius`(0.4m) + トラック半径以内）に割り当て。
 3. 同一トラックに 2 個以上の検出が割り当たったら統合。**統合後の shape は包含 BBox では
    なく、統合領域の no_ground 点群を L字フィットで再推定**する（包含 BBox だと離れた検出を
@@ -305,11 +362,83 @@ costmap に焼かない。
 > **教訓**: costmap に「毎フレーム入れ替えたいデータ（予測）」を入れるとき、標準層は不適
 > （ObstacleLayer/STVL=蓄積、StaticLayer=他層上書き）。max 合成で乗せる自作層が要る。
 
+### object_classifier（LiDAR 検出物体の画像分類、`object_classifier_node.py`）
+
+LiDAR は「物体の有無・大きさ・速度」は分かるが「何か」は分からない。各 `tracked_objects` の
+3D 位置をカメラ方向に変換し、全天球画像から透視クロップを切って **YOLOv8(COCO)** で分類、
+最大信頼度のクラスを採って COCO→Autoware `ObjectClassification`（PEDESTRIAN/CAR/BICYCLE/
+ANIMAL...）にマップし classification を上書きする（LiDAR×カメラの late fusion）。出力は
+`/perception/tracked_objects_classified` と 3D クラス名 `…/object_classes/markers`、デバッグ用
+`…/object_classes/image_annotated`。`min_accept_conf`(既定 0.3) 未満は採らず元の分類を保つ。
+YOLO 初期化失敗時は classic 等へ勝手に落とさず `[FATAL]` 終了（信号検出ノードと同方針）。
+
+**間引き（CPU 実用化のため）**: tracked_objects は ~10Hz × 物体数ぶん来るが、物体の種類は急に
+変わらないので推論を間引く。①`max_rate_hz`(既定 2.0) で推論レートを上限。②**トラック ID
+(`object_id.uuid`) キャッシュで、一度分類できたトラックは再分類しない**（最も効く。再推論は
+未分類=unknown のトラックと新規トラックだけ）。キャッシュは `cache_ttl_sec`(既定 10) で失効。
+間引き中もキャッシュ済み classification は当てて素通しするので物体情報は失わない。検証では
+入力 ~190Hz に出力が追従し処理が詰まらないことを確認（キャッシュ無しなら CPU YOLO の数 Hz に
+律速されるはず）。CPU 実測（i7-13700F, 640×480/view）: yolov8n 30ms, s 70ms, m 150ms /view。
+
+#### 多数物体での分類性能（2026-06-18 検証）
+
+検証用 world `webots_worlds/kitchen_test.wbt`（Webots 同梱 `kitchen.wbt` に本パッケージの
+TurtleBot3＝全天球カメラ + MID-360 を組み込んだもの。chair6 / bottle8 / orange8 / apple3 /
+can2 / wineglass / bowl / spoon 等が並ぶ）で評価した。
+
+YOLO 単体（全天球 8 ビュー × 2 仰角で分類）の傾向:
+
+- 検出できた: `chair`(明瞭・多数), `bottle`, `dining table`, `cup` — **大きく輪郭の出る物体**。
+- 誤検出: `book` / `stop sign` / `person` / `tv` を各 1〜4（壁の模様や小物の誤分類）。
+- 未検出: `orange` / `apple` / `can` / `wineglass` / `spoon` — **小さい物体は拾えない**。
+- 同一物体が視野の重なるビューに重複して出る。
+
+LiDAR 検出 → クロップ → 分類のパイプライン（kitchen 物体方向に置いた 9 物体で評価）:
+
+- **7/9 を分類**: `chair`×4（conf 0.36〜0.82）, `bottle`×3（conf 0.84〜0.86）。方位を変えても安定。
+- 2/9 は `unknown`（明瞭な物体が画角に無い／小物で未検出）。
+
+YOLO 重みによる精度比較（同じ kitchen 全天球画像、全周 8 ビュー × 2 仰角、conf 0.25）:
+
+| クラス | yolov8n | yolov8s | yolov8m | 実物体数 |
+|---|---:|---:|---:|---:|
+| chair | 15 | 17 | 18 | 6 |
+| dining table | 4 | 5 | 11 | 2 |
+| bottle | 4 | 5 | 4 | 8 |
+| cup | 2 | 8 | 8 | 有 |
+| refrigerator | 0 | 1 | **8** | 1 |
+| oven | 0 | 0 | **3** | 1 |
+| bowl | 0 | 1 | 0 | 2 |
+| **総検出** | **32** | **55** | **82** | |
+| ユニーククラス | 8 | 12 | 10 | |
+
+- **重みを上げると検出力が上がる**。n では見えなかった `cup`(2→8)、`refrigerator`、`oven`、`bowl`、
+  `vase` を s/m が拾う。特に m はキッチン家電（冷蔵庫・オーブン）を確実に検出。
+- ただし**重複・誤検出も増える**（同一の椅子が視野の重なるビューで多重計上され実 6 → 15〜18、
+  `book` の誤検出が n4 → m26）。重みを上げるほど「拾うが重複も増える」ので、後段で
+  方位・距離による重複統合（NMS 相当）を入れると実用性が上がる。
+- `orange`/`apple`/`can`/`wineglass`/`spoon` などの**極小物体は m でも拾えない**。全天球カメラが
+  ロボット上部 0.75m にあり、画像の大半が床・天井で、机上の小物は遠く小さく映るのが主因
+  （重みでなくセンサ配置・解像度・距離の限界）。
+
+結論と限界:
+
+- **椅子・ボトル・机・キッチン家電など大きめの物体は分類できる。重みを n→s→m と上げると
+  カバレッジ（拾えるクラス）が広がる**。果物・食器・カトラリーなどの小物は重みを上げても
+  全天球の歪み + 距離で**ほぼ拾えない**（重みより配置・解像度の制約）。
+- 精度を上げるには ① より大きい YOLO 重み（yolov8s/m）、② クロップ解像度・画角を物体サイズに
+  合わせる（`crop_fov_deg` を小物では狭める）、③ COCO に無い品物は専用学習重みを `yolo.weights`
+  で差し替える、が要る。
+- なお kitchen のような密な室内では euclidean_cluster の `max_cluster_size:2000` /
+  `tolerance:0.4` が屋外 cafe 向けのままだと壁・床・家具が 1 つの巨大クラスタに繋がり
+  `tracked_objects` が 0 になる。室内で LiDAR 検出を出すにはクラスタ param の調整が要る
+  （この検証では classifier 経路自体は方向指定の物体で確認した）。
+
 ## パラメータ（`config/`）
 
 | ファイル | 対象 | 屋内向けの主な調整 |
 |---|---|---|
-| `autoware_crop_box.param.yaml` | crop_box | ±15m / z -0.5..2.0。frame は velodyne_link（launch で個別指定） |
+| `autoware_crop_box.param.yaml` | crop_box | ±15m / z -0.5..2.0。frame は lidar_link（launch で個別指定） |
 | `autoware_ground_filter.param.yaml` | ground_filter | `grid_mode_switch_radius: 8.0`、`grid_size_m: 0.3`、`non_ground_height_threshold: 0.15` |
 | `autoware_euclidean_cluster.param.yaml` | euclidean_cluster | `tolerance: 0.4`、`min_cluster_size: 5`、`use_height: false` |
 | `autoware_vehicle_info.param.yaml` | vehicle_info | 乗用車サイズ → TurtleBot3 waffle の極小値（自車近傍の人を消さない） |
@@ -346,15 +475,15 @@ ros2 topic echo /perception/tracked_objects --once    # ID・速度付き追跡
 障害物として焼き、local_costmap の **約 90% が LETHAL** で埋まっていたこと。プランナー
 が経路を引けない。
 
-**根本原因:** Nav2 costmap が**生の `/velodyne_points`（地面点を 46% 含む）**と、地面
-すれすれの高さ帯で作った `/scan` を入力にしていた。velodyne_link は地面 +0.21m に
-あり、`min_obstacle_height` などの高さフィルタも velodyne_link 基準で評価されるため、
+**根本原因:** Nav2 costmap が**生の `/lidar/points`（地面点を 46% 含む）**と、地面
+すれすれの高さ帯で作った `/scan` を入力にしていた。lidar_link は地面 +0.21m に
+あり、`min_obstacle_height` などの高さフィルタも lidar_link 基準で評価されるため、
 地面（z≈-0.21）が障害物高さ帯に入って床全面が障害物化していた。
 
 **対処:**
-1. costmap の 3D 障害物層の mark 入力を `/velodyne_points` →
+1. costmap の 3D 障害物層の mark 入力を `/lidar/points` →
    **`/perception/no_ground/pointcloud`（Autoware で地面除去済み）**に変更。高さ帯は
-   velodyne_link 基準で `min -0.18 / max 1.8`。（当時は Nav2 標準 voxel_layer → 後に STVL に
+   lidar_link 基準で `min -0.18 / max 1.8`。（当時は Nav2 標準 voxel_layer → 後に STVL に
    置換 → **現在はその 3D 障害物層自体を廃止**し、人は予測層 + 2D `/scan` で扱う。
    [`nav2_tuning.md`](nav2_tuning.md)）
 2. `/scan`（obstacle_layer / AMCL 用）の生成高さ帯を `min_height -0.20 → 0.0`（地面
@@ -375,19 +504,20 @@ ros2 topic echo /perception/tracked_objects --once    # ID・速度付き追跡
 - `wall_margin_cells`（既定 3、地図 res 0.05m なら ±15cm）で壁周辺も占有扱いにし、壁に
   貼り付いた静止クラスタ（壁上の緑ボックス）を落とす。人は壁から離れるので残る。
 - ライブ確認: 生検出 18 → 照合後 10（margin=3）。移動トラック 6（人）は残存。
-- map<-velodyne_link の TF が要る（map->odom は AMCL/Nav2 提供）。Nav2 無し起動時は
+- map<-lidar_link の TF が要る（map->odom は AMCL/Nav2 提供）。Nav2 無し起動時は
   TF 不在で**素通し**にして perception を止めない。
 
 ## 試行錯誤・落とし穴の記録
 
 | 症状 | 原因 | 対策 |
 |---|---|---|
-| **【最重要・ライブ起動で判明】地面除去以降が一切流れない**（静的検証・component ロード確認では気付けず、実点群を流して初めて出る） | `autoware_ground_filter` は ring/channel を持つ Autoware 独自型 `PointXYZIRC` / `PointXYZIRCAEDT` を要求するが、Gazebo velodyne の生 `/velodyne_points` は古典的 `PointXYZI`(point_step=16, x/y/z/intensity 全て float)。下記ログを出す（後述） | 自作 `pointcloud_to_autoware_node.py` をパイプライン先頭に入れ `PointXYZIRC` へ変換（後述） |
+| **【最重要・ライブ起動で判明】地面除去以降が一切流れない**（静的検証・component ロード確認では気付けず、実点群を流して初めて出る） | `autoware_ground_filter` は ring/channel を持つ Autoware 独自型 `PointXYZIRC` / `PointXYZIRCAEDT` を要求するが、Gazebo の生 `/lidar/points` は古典的 `PointXYZI`(point_step=16, x/y/z/intensity 全て float)。下記ログを出す（後述） | 自作 `pointcloud_to_autoware_node.py` をパイプライン先頭に入れ `PointXYZIRC` へ変換（後述） |
 | plugin 名の誤り | `ground_filter.launch.py` のコメントや別資料の `ScanGroundFilterComponent` は誤り | `ros2 component types` で実登録名を確認。ground_filter=`GroundFilterComponent`、crop_box=`CropBoxFilterNode`、cluster=`EuclideanClusterNode` |
-| crop_box の frame がパラメータファイルで渡せない | param file は範囲と `negative` のみ | `input_frame` / `output_frame` / `input_pointcloud_frame` を launch でノードパラメータとして個別に渡す。入力は velodyne_link なので 3 つとも velodyne_link で無変換処理 |
-| euclidean_cluster 出力が固定フレームでない | EuclideanClusterNode（非 voxel 版）は `input_frame` を持たず、出力 DetectedObjects は入力点群の frame(velodyne_link)を引き継ぐ | 追跡は固定フレームが要るので tracker 側で `odom ← velodyne_link` を TF 変換してから追跡 |
+| **【2026-06-18 調査・解決済み】component がロードされず perception 全体が無出力に見える**。`ros2 component list` に container だけで中身が無く、`/perception/cropped/pointcloud` 以降が出ない。手動 `ros2 component load`（param 無し）だと `statically typed parameter 'min_x' must be initialized` | **コードのバグではなく、検証時に前回起動の古いノードが残っていた汚染が原因**だった。確認手順:①`autoware_perception.launch.py` 単体起動 → crop_box/ground/cluster とも正常 `Loaded node`、`min_x=-13.0` 適用済み。②最小 launch で param file 渡し → 正常ロード。③Webots 経由でも、**全プロセスを完全 kill → `ros2 daemon stop/start` → 単一起動**すると Publisher 1 個・Subscription 1 個で crop_box 17Hz、no_ground 3110 点、detected/tracked 4 個まで正常に流れた。汚染時は `points_autoware` の Publisher が 5 個（pointcloud_to_autoware 多重起動）で discovery/QoS が混乱していた | **再検証の作法**: perception を起動し直すときは、`ps` で `component_container`/`pointcloud_to_autoware`/`webots-bin` 等を**完全に kill** してから単一起動する（古いノードが残ると無出力・多重 Publisher で誤った「不具合」に見える）。`ros2 topic info -v <topic>` の Publisher count が想定より多ければ残骸を疑う |
+| crop_box の frame がパラメータファイルで渡せない | param file は範囲と `negative` のみ | `input_frame` / `output_frame` / `input_pointcloud_frame` を launch でノードパラメータとして個別に渡す。入力は lidar_link なので 3 つとも lidar_link で無変換処理 |
+| euclidean_cluster 出力が固定フレームでない | EuclideanClusterNode（非 voxel 版）は `input_frame` を持たず、出力 DetectedObjects は入力点群の frame(lidar_link)を引き継ぐ | 追跡は固定フレームが要るので tracker 側で `odom ← lidar_link` を TF 変換してから追跡 |
 | TurtleBot3 周辺の人の点まで消える恐れ | vehicle_info が乗用車デフォルト（wheel_base 2.74m など）だと ground_filter 等が自車サイズで足元点を除外 | vehicle_info を waffle の極小値にする |
-| tracker が何も出さない | `odom ← velodyne_link` の TF が無いと変換に失敗（robot spawn 前起動） | robot spawn より後に起動。simulation.launch.py は robot(+15s) の後 +18s で perception 起動。遅延値をむやみに詰めない |
+| tracker が何も出さない | `odom ← lidar_link` の TF が無いと変換に失敗（robot spawn 前起動） | robot spawn より後に起動。simulation.launch.py は robot(+15s) の後 +18s で perception 起動。遅延値をむやみに詰めない |
 | `No executable found` | `--symlink-install` でノードを増やした際の登録漏れ | 実行ビット（`chmod +x`）を立て、CMakeLists の `install(PROGRAMS)` に追加 |
 
 **PointXYZIRC 変換の詳細（上表 1 行目）:** ground_filter は `PointXYZI` を渡すと
@@ -415,7 +545,7 @@ ros2 topic echo /perception/tracked_objects --once    # ID・速度付き追跡
   - すれ違い（クロス）時の ID 取り違えなし（ハンガリアン法）
 - launch パース: `ros2 launch ... --show-args` で確認済み。
 - **Gazebo 実起動でのライブ確認済み（cafe world + HuNav 歩行者5人）:**
-  - パイプライン全段が ~9Hz で流れる: `/velodyne_points`(9.2) →
+  - パイプライン全段が ~9Hz で流れる: `/lidar/points`(9.2) →
     `/perception/points_autoware`(9.2) → `/perception/cropped/pointcloud`(9.2) →
     `/perception/no_ground/pointcloud`(9.1) → `/perception/detected_objects`(9.2)。
   - `/perception/tracked_objects` で 30+ トラックを追跡、`frame_id=odom`。

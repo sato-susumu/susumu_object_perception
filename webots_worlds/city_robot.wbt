@@ -1,0 +1,100 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/robots/robotis/turtlebot/protos/TurtleBot3Burger.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/plants/protos/PottedTree.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/buildings/protos/SimpleBuilding.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/objects/traffic/protos/GenericTrafficLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/vehicles/protos/bmw/BmwX5.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/humans/pedestrian/protos/Pedestrian.proto"
+
+WorldInfo {
+  info [ "TurtleBot3 in an outdoor environment (ROS2 + Nav2)." ]
+  title "ROS2 outdoor simulation of the TurtleBot3 Burger robot"
+  basicTimeStep 20
+}
+Viewpoint {
+  orientation -0.3 -0.16 0.94 4.17
+  position 9.1 4.9 3.8
+  follow "TurtleBot3Burger:lidar3d"
+}
+TexturedBackground {
+  texture "noon_cloudy_countryside"
+}
+TexturedBackgroundLight {
+}
+Floor {
+  translation 0 0 0
+  name "ground"
+  size 20 20
+  tileSize 4 4
+}
+TurtleBot3Burger {
+  translation 0 0 0
+  controller "<extern>"
+  controllerArgs [ "" ]
+  extensionSlot [
+    Solid { name "imu_link" }
+    GPS { }
+    InertialUnit { name "inertial_unit" }
+    # 全天球カメラ。Webots の球面投影カメラをロボット上部に置き、ROS 2 へ
+    # /omni_camera/image_raw/image_color として出す。
+    Camera {
+      translation 0 0 0.75
+      rotation 0 1 0 1.5708
+      name "omni_camera"
+      fieldOfView 6.283185
+      width 2048
+      height 1024
+      projection "cylindrical"
+      antiAliasing TRUE
+    }
+    # RGB カメラ（Gazebo の Intel RealSense R200 相当）。/camera/image_raw を出す。2D LiDAR は廃止。
+    Camera { translation 0.05 0 0.10 rotation 0 1 0 -0.15 name "camera" width 1920 height 1080 fieldOfView 1.02974 }
+    # 3D LiDAR（VLP-16 相当）。Gazebo の model.sdf に合わせ 16 層・水平 1°・垂直 ±15°・
+    # +0.20m に置き PointCloud2 を出す。perception 入力用。
+    Lidar {
+      translation 0 0 0.20
+      name "lidar3d"
+      horizontalResolution 720
+      fieldOfView 6.283185
+      verticalFieldOfView 1.029744
+      tiltAngle 0.392699
+      numberOfLayers 28
+      near 0.1
+      minRange 0.1
+      maxRange 40.0
+      type "rotating"
+      pointCloud TRUE
+    }
+  ]
+}
+PottedTree { translation 3 2 0 name "tree1" }
+PottedTree { translation -3 -2 0 name "tree2" }
+PottedTree { translation 2 -3 0 name "tree3" }
+PottedTree { translation -2 3 0 name "tree4" }
+SimpleBuilding { translation 6 0 0 name "building1" }
+SimpleBuilding { translation -6 3 0 name "building2" rotation 0 0 1 1.5708 }
+# 交通信号（traffic_light_detector の認識対象）。TB3 前方(+X)に置き、カメラに映るようにする。
+# controller が greenTime/redTime で赤⇄青を自動遷移する。short にして遷移を観察しやすく。
+GenericTrafficLight {
+  translation 4.5 0 0
+  rotation 0 0 1 3.14159
+  startGreen FALSE
+  greenTime 8
+  redTime 8
+  state "red"
+}
+
+BmwX5 {
+  translation 5 2 0.4
+  rotation 0 0 1 1.5708
+  name "car1"
+}
+Pedestrian {
+  translation 4 -1.5 1.27
+  rotation 0 0 1 3.14159
+  name "pedestrian1"
+}

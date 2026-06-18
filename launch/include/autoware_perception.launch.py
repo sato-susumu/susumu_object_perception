@@ -1,7 +1,7 @@
 # Autoware の sensing/perception モジュールで 3D LiDAR の点群から物体を検出する
 # パイプライン。HD 地図は使わず、点群ジオメトリのみで検出する。
 #
-#   /velodyne_points (PointCloud2, frame: velodyne_link)
+#   /lidar/points (PointCloud2, frame: LiDAR frame)
 #     └→ [Autoware] crop_box_filter   ROI クロップ        → cropped/pointcloud
 #        └→ [Autoware] ground_filter  地面除去(Scan Ground) → no_ground/pointcloud
 #           └→ [Autoware] euclidean_cluster クラスタ化      → /perception/detected_objects
@@ -27,6 +27,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -35,11 +36,27 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration('use_sim_time')
     input_pc = LaunchConfiguration('input_pointcloud')
+    lidar_frame = LaunchConfiguration('lidar_frame')
+    num_rings = LaunchConfiguration('num_rings')
+    min_elev_deg = LaunchConfiguration('min_elev_deg')
+    max_elev_deg = LaunchConfiguration('max_elev_deg')
 
     declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
     declare_input = DeclareLaunchArgument(
-        'input_pointcloud', default_value='/velodyne_points',
+        'input_pointcloud', default_value='/lidar/points',
         description='検出パイプラインへの入力点群トピック')
+    declare_lidar_frame = DeclareLaunchArgument(
+        'lidar_frame', default_value='lidar_link',
+        description='入力点群の LiDAR frame')
+    declare_num_rings = DeclareLaunchArgument(
+        'num_rings', default_value='16',
+        description='PointXYZIRC channel 近似に使う仮想ring数')
+    declare_min_elev = DeclareLaunchArgument(
+        'min_elev_deg', default_value='-15.0',
+        description='PointXYZIRC channel 近似に使う最小仰角[deg]')
+    declare_max_elev = DeclareLaunchArgument(
+        'max_elev_deg', default_value='15.0',
+        description='PointXYZIRC channel 近似に使う最大仰角[deg]')
 
     crop_box_param = os.path.join(cfg, 'autoware_crop_box.param.yaml')
     ground_param = os.path.join(cfg, 'autoware_ground_filter.param.yaml')
@@ -50,7 +67,7 @@ def generate_launch_description():
 
     # 0) pointcloud_to_autoware: Gazebo の PointXYZI を Autoware の PointXYZIRC へ変換。
     #    ground_filter は ring/channel を持つ Autoware 独自点群型を要求し、Gazebo の
-    #    生 /velodyne_points (PointXYZI) では "layout not compatible ... Aborting" で
+    #    生 /lidar/points (PointXYZI) では "layout not compatible ... Aborting" で
     #    止まる。この前処理で channel(ring) を付与して互換にする（ライブ起動で判明）。
     pc_convert = Node(
         package='susumu_object_perception',
@@ -60,10 +77,13 @@ def generate_launch_description():
         parameters=[sim_time_param, {
             'input_topic': input_pc,
             'output_topic': '/perception/points_autoware',
+            'num_rings': ParameterValue(num_rings, value_type=int),
+            'min_elev_deg': ParameterValue(min_elev_deg, value_type=float),
+            'max_elev_deg': ParameterValue(max_elev_deg, value_type=float),
         }],
     )
 
-    # 1) crop_box_filter: ROI クロップ（velodyne_link 基準）
+    # 1) crop_box_filter: ROI クロップ（lidar_link 基準）
     crop_box = ComposableNode(
         package='autoware_crop_box_filter',
         plugin='autoware::crop_box_filter::CropBoxFilterNode',
@@ -73,11 +93,11 @@ def generate_launch_description():
             ('output', '/perception/cropped/pointcloud'),
         ],
         # frame 系はノードパラメータで個別指定（param file は範囲のみ）。
-        # 入力点群は velodyne_link なので変換せず同フレームで処理する。
+        # 入力点群は LiDAR frame なので変換せず同フレームで処理する。
         parameters=[crop_box_param, sim_time_param, {
-            'input_frame': 'velodyne_link',
-            'output_frame': 'velodyne_link',
-            'input_pointcloud_frame': 'velodyne_link',
+            'input_frame': lidar_frame,
+            'output_frame': lidar_frame,
+            'input_pointcloud_frame': lidar_frame,
         }],
         extra_arguments=[{'use_intra_process_comms': True}],
     )
@@ -155,7 +175,7 @@ def generate_launch_description():
     #      DetectedObjects のうち、2D 占有格子地図で壁/地図外/未知に当たるものを除外し、
     #      地図内フリースペースの物体（＝動的に現れた人など）だけ通す。HD 地図の無い
     #      本環境で Autoware の map-based ROI フィルタを 2D 地図で代替する。
-    #      map<-velodyne_link の TF（map->odom は AMCL/Nav2 提供）が要るため、Nav2 無し
+    #      map<-lidar_link の TF（map->odom は AMCL/Nav2 提供）が要るため、Nav2 無し
     #      のときは TF 不在で素通しになる（perception は止めない設計）。
     #      入力は detection_by_tracker で過分割統合した検出。
     map_filter = Node(
@@ -213,6 +233,10 @@ def generate_launch_description():
     ld = LaunchDescription()
     ld.add_action(declare_use_sim_time)
     ld.add_action(declare_input)
+    ld.add_action(declare_lidar_frame)
+    ld.add_action(declare_num_rings)
+    ld.add_action(declare_min_elev)
+    ld.add_action(declare_max_elev)
     ld.add_action(pc_convert)
     ld.add_action(container)
     ld.add_action(shape_est)

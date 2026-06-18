@@ -11,6 +11,14 @@ find_package(nav2_costmap_2d REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(gazebo_dev REQUIRED)
+find_package(gazebo_ros REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+# LCAS livox MID-360 plugin（ODE MultiRayShape 方式）の依存
+find_package(std_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(livox_ros_driver2 REQUIRED)
 
 # Python モジュール（susumu_object_perception/*.py）
 ament_python_install_package(${PROJECT_NAME})
@@ -38,6 +46,44 @@ install(TARGETS predicted_costmap_layer
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
+
+# === Gazebo Classic MID-360 LiDAR sensor plugin (LCAS / ODE MultiRayShape) ===
+# LCAS/livox_laser_simulation_ros2 由来。ODE MultiRayShape で CSV の各角度に
+# 実 ray を撃つため、自作 mid360_livox_sensor の「標準 RaySensor 格子に最近傍」
+# 方式で出ていた上向きの自己遮蔽・幾何歪みが原理的に起きない。こちらを標準にする。
+# 由来とライセンスは config/mid360_scan_patterns/LCAS_LIVOX_LICENSE 参照。
+add_library(livox_mid360_sensor SHARED
+  src/livox_ros2/livox_points_plugin.cpp
+  src/livox_ros2/livox_ode_multiray_shape.cpp)
+target_include_directories(livox_mid360_sensor PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/livox_ros2>
+  $<INSTALL_INTERFACE:include>
+  ${GAZEBO_INCLUDE_DIRS})
+target_link_directories(livox_mid360_sensor PUBLIC ${GAZEBO_LIBRARY_DIRS})
+target_link_libraries(livox_mid360_sensor
+  ${GAZEBO_LIBRARIES}
+  RayPlugin
+  GpuRayPlugin
+  # 元 CMake は libprotobuf.so.9 / libboost_chrono.so.1.71.0 を直指定していたが
+  # Ubuntu 22.04 には存在しない。開発版シンボリックリンクで実体(.so.23 / 1.74)へ解決させる。
+  protobuf
+  boost_chrono)
+ament_target_dependencies(livox_mid360_sensor
+  rclcpp
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+  gazebo_dev
+  gazebo_ros
+  tf2_ros
+  ament_index_cpp
+  livox_ros_driver2)
+
+install(TARGETS livox_mid360_sensor
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
+
 install(DIRECTORY include/
   DESTINATION include)
 
@@ -53,9 +99,11 @@ install(PROGRAMS
   susumu_object_perception/perception_marker_node.py
   susumu_object_perception/traffic_light_detector_node.py
   susumu_object_perception/traffic_light_marker_node.py
+  susumu_object_perception/traffic_light_localizer_node.py
   susumu_object_perception/omni_image_node.py
   susumu_object_perception/colorized_pointcloud_node.py
   susumu_object_perception/object_image_crop_node.py
+  susumu_object_perception/object_classifier_node.py
   susumu_object_perception/equirect_camera_info_node.py
   susumu_object_perception/pointcloud_intensity_node.py
   susumu_object_perception/omni_image_compress_node.py
@@ -76,7 +124,7 @@ install(
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(predicted_costmap_layer)
-ament_export_dependencies(nav2_costmap_2d nav_msgs pluginlib)
+ament_export_libraries(predicted_costmap_layer livox_mid360_sensor)
+ament_export_dependencies(nav2_costmap_2d nav_msgs pluginlib sensor_msgs gazebo_dev gazebo_ros)
 
 ament_package()

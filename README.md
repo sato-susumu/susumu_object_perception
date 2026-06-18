@@ -18,7 +18,7 @@ perception の **prediction の予測のみ Nav2 costmap に連携**し、人の
 | 機能 | 内容 | 備考 |
 |---|---|---|
 | カフェ + 5人の歩行者 | HuNavSim（Social Force Model）が5人をカフェ内に配置し歩き回らせる | `max_vel: 1.5`, `vel: 0.6`〜`0.8`（通常歩行速度） |
-| 3D LiDAR TurtleBot3 | waffle に Velodyne VLP-16 相当の16ch 3D LiDAR を搭載 | `/velodyne_points`（PointCloud2）を出力 |
+| 3D LiDAR TurtleBot3 | waffle 上部に MID-360 近似の3D LiDAR を搭載。VLP-16版も別ファイルで保持 | `/lidar/points`（PointCloud2）を出力 |
 | Nav2 自律移動 | ゴール指定で人を含む障害物を避けて自律走行 | 現在位置回避は 2D `/scan`、進路先は予測コストマップ |
 | Teleop / 自動巡回 GUI | 矢印（＋テンキー）で手動操縦、トグルで自動巡回、原点ワープ | tkinter |
 | Autoware 流 perception | 3D LiDAR 点群から検出〜将来軌跡予測まで（下図） | 既定 ON、RViz 可視化が主 |
@@ -35,7 +35,7 @@ Autoware アルゴリズムの踏襲で自作補完**している。
 
 ```mermaid
 flowchart LR
-  PC["/velodyne_points"]:::hd
+  PC["/lidar/points"]:::hd
   MAP["/map<br/>(2D占有格子)"]:::hd
 
   crop["crop_box"]:::aw
@@ -153,6 +153,13 @@ Webots 版（屋外街など）も用意している（詳細は [`docs/webots_s
 ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor
 ```
 
+VLP-16 版を明示して起動する場合:
+
+```bash
+ros2 launch susumu_object_perception simulation.launch.py lidar_model:=vlp16
+ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor_vlp16.wbt lidar_model:=vlp16
+```
+
 ---
 
 ## launch（エントリポイント）
@@ -169,13 +176,15 @@ ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor
 | `webots_indoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=indoor 固定ショートカット |
 | `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
 | `webots_slam.launch.py` | — | — | — | ✅ | — | — | — | slam_toolbox を1個だけ起動する補助 |
-| `webots_city.launch.py` | Webots | —※ | — | — | — | — | — | city_traffic（車+SUMO）。ROS2 連携なしの街デモ |
+| `webots_city.launch.py` | Webots | ✅ | ✅ | — | ✅ | — | ✅ | **既定 `ros2:=True`: city にセンサ付き TB3 を置き ROS2 認識（LiDAR + 全天球 + YOLO 物体分類 + 信号認識）。`ros2:=False` で SUMO 車100台の眺めるデモ**※ |
 
-※ `webots_city` の「robot」は SUMO 制御の車であり ROS2 連携しない（`/scan` 等は出ない）。
+※ `webots_city ros2:=False` は SUMO 制御の車を眺めるだけで ROS2 連携しない（`/scan` 等は出ない）。
+既定の `ros2:=True` は `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号 + センサ付き TB3）を
+起動し、`/cmd_vel` で対象に近づくと car/person/信号を認識する（遠方は全天球で小さく映り苦手）。
 
-> **Webots のセンサ構成**: indoor/outdoor.wbt は **3D LiDAR（VLP-16 相当）+ RGB カメラ**を搭載
+> **Webots のセンサ構成**: indoor/outdoor.wbt は **3D LiDAR（MID-360 近似）+ RGB カメラ**を搭載
 > （2D LiDAR LDS-01 は廃止）。
-> - 3D LiDAR → `/velodyne_points/point_cloud`(PointCloud2, frame `velodyne_link`)
+> - 3D LiDAR → `/lidar/points/point_cloud`(PointCloud2, frame `lidar_link`)
 > - カメラ → `/camera/image_raw/image_color`(Image, 1920×1080, Intel RealSense R200 相当)
 > - `/scan` は `pointcloud_to_laserscan` が 3D 点群から生成（2D LiDAR の代替、Nav2/AMCL 用）
 >
@@ -193,9 +202,10 @@ ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor
 | 引数 | 既定 | 対象 | 意味 |
 |---|---|---|---|
 | `world` | `outdoor.wbt` | webots_simulation | `webots_worlds/` の world ファイル名（拡張子込み） |
+| `lidar_model` | `mid360` | webots_simulation/outdoor/indoor/nav/calibration/SLAM | LiDAR profile。`mid360` または `vlp16` |
 | `nav` | `True` | simulation/outdoor/indoor | Nav2 を起動（大文字必須。小文字 `true` は NameError） |
 | `slam` | `False` | simulation/outdoor/indoor | Cartographer SLAM を起動（大文字必須） |
-| `perception` | `True` | simulation/outdoor/indoor | Autoware perception を起動（3D LiDAR `/velodyne_points/point_cloud` 入力） |
+| `perception` | `True` | simulation/outdoor/indoor | Autoware perception を起動（3D LiDAR `/lidar/points/point_cloud` 入力） |
 | `rviz` | `True` | simulation/outdoor/indoor | RViz2 を起動 |
 | `mode` | `realtime` | webots 全般 | Webots 起動モード（realtime / fast / pause） |
 
@@ -204,15 +214,41 @@ ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor
 | 引数 | 既定 | 意味 |
 |---|---|---|
 | `use_nav2` | True | Nav2 スタックを起動する |
-| `use_perception` | True | Autoware 流 perception パイプライン（検出・追跡・可視化）を起動する |
+| `use_perception` | True | Autoware 流 perception パイプライン（LiDAR 検出・追跡・予測）を起動する |
+| `image_recognition` | True | 画像認識（6面カメラ→全天球合成 + LiDAR 検出物体の YOLO 分類 + 全天球信号認識）を起動する。YOLO が重ければ False |
 | `use_rviz` | True | RViz2 を起動する |
 | `gui` | True | Teleop / 自動巡回 GUI を起動する |
+| `lidar_model` | `mid360` | 3D LiDAR profile。`mid360`（標準）または `vlp16` |
 | `map` | `maps/cafe.yaml` | マップ yaml のフルパス（house に戻すなら `maps/house.yaml`） |
 | `params_file` | `config/nav2_params.yaml` | Nav2 パラメータ yaml のフルパス |
 | `x_pose` / `y_pose` / `yaw` | 0.0 / 0.0 / 0.0 | ロボットの spawn 姿勢 |
 
 > 起動順序や各部品の構成は
 > [`docs/software_design.md`](docs/software_design.md#2-launch-構成と起動順序) を参照。
+
+---
+
+## ロボット / LiDAR 構成と制約
+
+Gazebo Classic の標準ロボットは TurtleBot3 Waffle に上部 3D LiDAR を載せた構成で、
+URDF/SDF の識別子、topic、frame はセンサ製品名に依存しない汎用名にしている。LiDAR link は
+`lidar_link`、点群 topic は `/lidar/points`。標準 `lidar_model:=mid360` は
+`liblivox_mid360_sensor.so`（LCAS/livox_laser_simulation_ros2 由来、ODE MultiRayShape 方式）が
+MID-360 の scan pattern CSV（`config/mid360_scan_patterns/mid360.csv`）を読み、`x,y,z,intensity,tag,line`
+付き PointCloud2 を出す（frame は sensor 名 = `lidar_link`）。VLP-16 版は `models/turtlebot3_waffle_vlp16/` と
+`urdf/turtlebot3_waffle_vlp16.urdf.xacro` に残してあり、`lidar_model:=vlp16` で使う。
+
+Webots の標準 world は Webots 標準 `Lidar` による MID-360 近似で、device 名は `lidar3d`、
+frame は `lidar_link`、topic は `/lidar/points/point_cloud`。仰角中心を MID-360 の +22.5° に
+合わせる `tiltAngle` を設定済み。VLP-16 用 world は `*_vlp16.wbt` として別に残している。
+
+制約事項:
+
+- Gazebo Classic 版 MID-360 は ODE MultiRayShape で CSV の非反復角度列に実 ray を撃つ。
+  per-point timestamp は出さない（`x,y,z,intensity,tag,line`、tag/line はダミー 0）。
+- Webots 標準 `Lidar` では Livox/MID-360 の非反復 scan pattern を直接指定できないため、FOV・レンジ・点密度の近似に留めている。
+- Nav2/AMCL 用 `/scan` は 2D LiDAR ではなく、3D LiDAR 点群から `pointcloud_to_laserscan` で生成する。
+- downstream の perception、色付き点群、GLIM 設定は汎用 topic/frame に寄せており、旧 `/velodyne_points` / `velodyne_link` 前提ではない。
 
 ---
 

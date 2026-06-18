@@ -38,7 +38,7 @@ class OmniSensorTfNode(Node):
     def __init__(self):
         super().__init__('omni_sensor_tf')
         self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('lidar_frame', 'velodyne_link')
+        self.declare_parameter('lidar_frame', 'lidar_link')
         self.declare_parameter('camera_frame', 'omni_camera_link')
         self.declare_parameter('lidar_xyz', [0.0, 0.0, 0.20])
         self.declare_parameter('camera_xyz_initial', [0.0, 0.0, 0.75])

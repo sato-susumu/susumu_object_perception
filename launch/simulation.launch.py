@@ -1,7 +1,7 @@
 # 全部入りシミュレーション。
 #
 #   Gazebo（house world）+ HuNavSim 歩行者5人          （hunav_house.launch.py より）
-#   + 3D-LiDAR TurtleBot3（waffle + Velodyne VLP-16）  （spawn_robot.launch.py より）
+#   + 3D-LiDAR TurtleBot3（waffle + Livox MID-360）    （spawn_robot.launch.py より）
 #   + Nav2（AMCL 自己位置推定 + 3D点群による障害物回避）
 #   + RViz2
 #   + Teleop / 自動巡回 GUI
@@ -18,7 +18,7 @@ from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
@@ -29,6 +29,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_nav2 = LaunchConfiguration('use_nav2')
     use_perception = LaunchConfiguration('use_perception')
+    use_image_recognition = LaunchConfiguration('image_recognition')
     use_rviz = LaunchConfiguration('use_rviz')
     use_gui = LaunchConfiguration('gui')
     map_yaml = LaunchConfiguration('map')
@@ -36,12 +37,17 @@ def generate_launch_description():
     x_pose = LaunchConfiguration('x_pose')
     y_pose = LaunchConfiguration('y_pose')
     yaw = LaunchConfiguration('yaw')
+    lidar_model = LaunchConfiguration('lidar_model')
 
     declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
     declare_use_nav2 = DeclareLaunchArgument('use_nav2', default_value='True',
         description='Nav2 スタックを起動する')
     declare_use_perception = DeclareLaunchArgument('use_perception', default_value='True',
         description='Autoware sensing/perception パイプライン（物体検出・追跡・可視化）を起動する')
+    declare_use_image_recognition = DeclareLaunchArgument(
+        'image_recognition', default_value='True',
+        description=('画像認識（6面カメラ→全天球合成 + LiDAR検出物体のYOLO分類 + 全天球信号認識）を起動する。'
+                     'YOLOはCPU負荷が高いが間引きありで既定ON。重いときは False'))
     declare_use_rviz = DeclareLaunchArgument('use_rviz', default_value='True',
         description='RViz2 を起動する')
     declare_gui = DeclareLaunchArgument('gui', default_value='True',
@@ -56,6 +62,22 @@ def generate_launch_description():
     declare_x = DeclareLaunchArgument('x_pose', default_value='0.0')
     declare_y = DeclareLaunchArgument('y_pose', default_value='0.0')
     declare_yaw = DeclareLaunchArgument('yaw', default_value='0.0')
+    declare_lidar_model = DeclareLaunchArgument(
+        'lidar_model',
+        default_value='mid360',
+        description='3D LiDAR model: mid360 (default) or vlp16')
+
+    lidar_points_topic = '/lidar/points'
+    lidar_frame = 'lidar_link'
+    lidar_num_rings = PythonExpression([
+        "'16' if '", lidar_model, "' == 'vlp16' else '64'"
+    ])
+    lidar_min_elev = PythonExpression([
+        "'-15.0' if '", lidar_model, "' == 'vlp16' else '-55.0'"
+    ])
+    lidar_max_elev = PythonExpression([
+        "'15.0' if '", lidar_model, "' == 'vlp16' else '55.0'"
+    ])
 
     # ------------------------------------------------------------------
     # 1) Gazebo house world + HuNavSim 歩行者5人。
@@ -80,6 +102,7 @@ def generate_launch_description():
         launch_arguments={
             'use_sim_time': use_sim_time,
             'entity_name': 'turtlebot3',
+            'lidar_model': lidar_model,
             'x_pose': x_pose, 'y_pose': y_pose, 'yaw': yaw,
         }.items())
 
@@ -105,9 +128,9 @@ def generate_launch_description():
 
     # ------------------------------------------------------------------
     # 3.5) Autoware sensing/perception パイプライン。
-    #      /velodyne_points → crop_box → ground_filter → euclidean_cluster
+    #      /lidar/points → crop_box → ground_filter → euclidean_cluster
     #      （ここまで Autoware 純正）→ object_tracker → perception_marker（自作）。
-    #      追跡は odom←velodyne_link の TF を使うため、robot spawn の後に起動する。
+    #      追跡は odom←LiDAR frame の TF を使うため、robot spawn の後に起動する。
     #      Nav2 とは連携せず（生センサで動く Nav2 はそのまま）、検出結果は可視化のみ。
     # ------------------------------------------------------------------
     perception = IncludeLaunchDescription(
@@ -116,10 +139,61 @@ def generate_launch_description():
         condition=IfCondition(use_perception),
         launch_arguments={
             'use_sim_time': use_sim_time,
-            'input_pointcloud': '/velodyne_points',
+            'input_pointcloud': lidar_points_topic,
+            'lidar_frame': lidar_frame,
+            'num_rings': lidar_num_rings,
+            'min_elev_deg': lidar_min_elev,
+            'max_elev_deg': lidar_max_elev,
         }.items())
     perception_delayed = TimerAction(period=18.0, actions=[
         LogInfo(msg='Starting Autoware perception pipeline...'), perception])
+
+    # ------------------------------------------------------------------
+    # 3.6) 画像認識（image_recognition:=True で起動）。Gazebo は 6 面カメラなので
+    #      omni_image_node で全天球（/omni_camera/image_raw）に合成し、その画像で
+    #      LiDAR 検出物体の YOLO 分類と全天球信号認識を行う。YOLO は重いが間引きあり。
+    # ------------------------------------------------------------------
+    omni_image = Node(
+        package='susumu_object_perception', executable='omni_image_node.py',
+        name='omni_image', output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
+        condition=IfCondition(use_image_recognition))
+    object_classifier = Node(
+        package='susumu_object_perception', executable='object_classifier_node.py',
+        name='object_classifier', output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_objects': '/perception/tracked_objects',
+            'input_image': '/omni_camera/image_raw',  # Gazebo は合成後の生トピック
+            'camera_frame': 'omni_camera_link',
+        }],
+        condition=IfCondition(use_image_recognition))
+    traffic_light_detector = Node(
+        package='susumu_object_perception', executable='traffic_light_detector_node.py',
+        name='traffic_light_detector', output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time, 'omni_mode': True,
+            'input_image': '/omni_camera/image_raw',
+        }],
+        condition=IfCondition(use_image_recognition))
+    traffic_light_localizer = Node(
+        package='susumu_object_perception', executable='traffic_light_localizer_node.py',
+        name='traffic_light_localizer', output='screen',
+        parameters=[{'use_sim_time': use_sim_time,
+                     'points_topic': lidar_points_topic}],
+        condition=IfCondition(use_image_recognition))
+    traffic_light_marker = Node(
+        package='susumu_object_perception', executable='traffic_light_marker_node.py',
+        name='traffic_light_marker', output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time, 'omni_mode': True,
+            'input_image': '/omni_camera/image_raw',
+        }],
+        condition=IfCondition(use_image_recognition))
+    image_recognition_delayed = TimerAction(period=20.0, actions=[
+        LogInfo(msg='Starting image recognition (omni + YOLO classify + traffic light)...'),
+        omni_image, object_classifier, traffic_light_detector,
+        traffic_light_localizer, traffic_light_marker])
 
     # ------------------------------------------------------------------
     # 4) RViz2
@@ -147,13 +221,15 @@ def generate_launch_description():
 
     ld = LaunchDescription()
     for a in (declare_use_sim_time, declare_use_nav2, declare_use_perception,
+              declare_use_image_recognition,
               declare_use_rviz, declare_gui, declare_map, declare_params,
-              declare_x, declare_y, declare_yaw):
+              declare_x, declare_y, declare_yaw, declare_lidar_model):
         ld.add_action(a)
 
     ld.add_action(hunav_world)
     ld.add_action(spawn_robot_delayed)
     ld.add_action(perception_delayed)
+    ld.add_action(image_recognition_delayed)
     ld.add_action(nav2_delayed)
     ld.add_action(rviz_delayed)
     ld.add_action(gui_delayed)

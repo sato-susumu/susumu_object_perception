@@ -100,87 +100,92 @@
     </link>
 
     <!-- 2D LiDAR (hls_lfcd_lds / base_scan) は削除した。/scan は 3D LiDAR の
-         /velodyne_points から pointcloud_to_laserscan ノードで生成する。 -->
+         /lidar/points から pointcloud_to_laserscan ノードで生成する。 -->
 
     <!-- ============================================================ -->
-    <!-- Added 3D LiDAR (Velodyne VLP-16 style, 16 channels)          -->
+    <!-- Added 3D LiDAR (Livox MID-360 style, non-repetitive pattern) -->
     <!-- Mounted on top of the robot, publishes PointCloud2 on        -->
-    <!-- /velodyne_points in frame velodyne_link.                     -->
+    <!-- /lidar/points in frame lidar_link.                         -->
     <!-- ============================================================ -->
-    <link name="velodyne_link">
+    <link name="lidar_link">
       <pose>0 0 0.20 0 0 0</pose>
 
       <inertial>
-        <mass>0.83</mass>
+        <mass>0.265</mass>
         <inertia>
-          <ixx>0.001</ixx>
+          <ixx>0.0002</ixx>
           <ixy>0.0</ixy>
           <ixz>0.0</ixz>
-          <iyy>0.001</iyy>
+          <iyy>0.0002</iyy>
           <iyz>0.0</iyz>
-          <izz>0.001</izz>
+          <izz>0.0002</izz>
         </inertia>
       </inertial>
 
-      <collision name="velodyne_collision">
-        <geometry>
-          <cylinder>
-            <radius>0.0516</radius>
-            <length>0.0717</length>
-          </cylinder>
-        </geometry>
-      </collision>
+      <!-- LiDAR 筐体の collision は持たせない。センサ原点がこの link 中心に
+           あるため、collision box があると上向きの ray が自分の筐体に当たって
+           至近の偽点（全周 0.1〜0.2m の環）を作る。実機 LiDAR でも自身の筐体は
+           測距対象ではないので collision は不要。visual は残す。 -->
 
-      <visual name="velodyne_visual">
+      <visual name="lidar_visual">
         <geometry>
-          <cylinder>
-            <radius>0.0516</radius>
-            <length>0.0717</length>
-          </cylinder>
+          <box>
+            <size>0.065 0.065 0.060</size>
+          </box>
         </geometry>
         <material>
-          <ambient>0.1 0.1 0.1 1.0</ambient>
-          <diffuse>0.1 0.1 0.1 1.0</diffuse>
+          <ambient>0.05 0.05 0.05 1.0</ambient>
+          <diffuse>0.05 0.05 0.05 1.0</diffuse>
         </material>
       </visual>
 
-      <sensor name="velodyne_vlp16" type="gpu_ray">
+      <!-- ============================================================ -->
+      <!-- MID-360 LiDAR (LCAS / ODE MultiRayShape 方式)                 -->
+      <!-- LCAS/livox_laser_simulation_ros2 由来のプラグイン。CSV の各    -->
+      <!-- (azimuth, zenith) に実 ray を ODE で撃つため、標準 RaySensor   -->
+      <!-- 格子に最近傍する旧自作方式で出ていた上向きの自己遮蔽・幾何歪み  -->
+      <!-- が起きない。frame_id は sensor 名（= lidar_link）になる。       -->
+      <!-- <ray> の格子はプラグインが range を引く土台で、CSV 角度で実 ray -->
+      <!-- を生成する。垂直は MID-360 の仰角 -7°..+55° を pitch で表す。    -->
+      <!-- 由来/ライセンスは config/mid360_scan_patterns/LCAS_LIVOX_LICENSE。-->
+      <!-- ============================================================ -->
+      <sensor name="lidar_link" type="ray">
         <always_on>true</always_on>
         <visualize>false</visualize>
         <update_rate>10</update_rate>
         <pose>0 0 0 0 0 0</pose>
-        <ray>
-          <scan>
-            <horizontal>
-              <samples>900</samples>
-              <resolution>1.0</resolution>
-              <min_angle>-3.14159265</min_angle>
-              <max_angle>3.14159265</max_angle>
-            </horizontal>
-            <vertical>
-              <samples>16</samples>
-              <resolution>1.0</resolution>
-              <min_angle>-0.2617993878</min_angle>  <!-- -15 deg -->
-              <max_angle>0.2617993878</max_angle>    <!-- +15 deg -->
-            </vertical>
-          </scan>
-          <range>
-            <min>0.3</min>
-            <max>30.0</max>
-            <resolution>0.01</resolution>
-          </range>
-          <noise>
-            <type>gaussian</type>
-            <mean>0.0</mean>
-            <stddev>0.008</stddev>
-          </noise>
-        </ray>
-        <plugin name="velodyne_pointcloud" filename="libgazebo_ros_ray_sensor.so">
-          <ros>
-            <remapping>~/out:=/velodyne_points</remapping>
-          </ros>
-          <output_type>sensor_msgs/PointCloud2</output_type>
-          <frame_name>velodyne_link</frame_name>
+        <plugin name="lidar3d_pointcloud" filename="liblivox_mid360_sensor.so">
+          <ray>
+            <scan>
+              <horizontal>
+                <samples>100</samples>
+                <resolution>1</resolution>
+                <min_angle>0</min_angle>
+                <max_angle>6.2831853</max_angle>
+              </horizontal>
+              <vertical>
+                <samples>360</samples>
+                <resolution>1</resolution>
+                <min_angle>-0.126</min_angle>
+                <max_angle>0.964</max_angle>
+              </vertical>
+            </scan>
+            <range>
+              <min>0.1</min>
+              <max>40.0</max>
+              <resolution>0.002</resolution>
+            </range>
+            <noise>
+              <type>gaussian</type>
+              <mean>0.0</mean>
+              <stddev>0.01</stddev>
+            </noise>
+          </ray>
+          <visualize>false</visualize>
+          <samples>20000</samples>
+          <downsample>1</downsample>
+          <csv_file_name>config/mid360_scan_patterns/mid360.csv</csv_file_name>
+          <topic>/lidar/points</topic>
         </plugin>
       </sensor>
     </link>
@@ -559,9 +564,9 @@
       </axis>
     </joint>    
 
-    <joint name="velodyne_joint" type="fixed">
+    <joint name="lidar_joint" type="fixed">
       <parent>base_link</parent>
-      <child>velodyne_link</child>
+      <child>lidar_link</child>
       <axis>
         <xyz>0 0 1</xyz>
       </axis>

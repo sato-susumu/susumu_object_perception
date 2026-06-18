@@ -1,58 +1,95 @@
-# Webots city_traffic 起動 launch（車・信号・歩行者が動く街、SUMO 連携）。
+# Webots city（車・信号・歩行者が動く街）+ ROS2 認識 launch。
 #
-# Webots 標準同梱の city_traffic.wbt を起動する。SUMO（都市交通シミュレータ）連携で
-# 車が信号を守って自律走行し（最大100台）、信号機・歩行者も動く。
-# このロボット（車）は ROS2 連携なし＝街のデモを眺める用途。ROS2 で TurtleBot3 を
-# 走らせたいときは webots_simulation.launch.py / webots_nav.launch.py を使う。
+# 2 モード:
+#   ros2:=true（既定） … city にセンサ付き TurtleBot3 を組み込んだ webots_worlds/city_robot.wbt
+#                        を起動し、ROS2 認識（LiDAR perception + 全天球色付き点群 + 信号認識 +
+#                        物体画像分類）を回す。車・歩行者・信号を認識する用途。
+#   ros2:=false        … Webots 標準同梱の city_traffic.wbt 等をそのまま起動する眺めるだけのデモ
+#                        （従来動作、SUMO で車 100 台が走る）。ROS2 連携なし。
 #
 # 使い方:
-#   ros2 launch susumu_object_perception webots_city.launch.py            # GUI realtime
-#   ros2 launch susumu_object_perception webots_city.launch.py mode:=fast # 高速
-#   ros2 launch susumu_object_perception webots_city.launch.py world:=village
+#   ros2 launch susumu_object_perception webots_city.launch.py                 # ros2 認識あり(city_robot)
+#   ros2 launch susumu_object_perception webots_city.launch.py mode:=fast
+#   ros2 launch susumu_object_perception webots_city.launch.py ros2:=false world:=city_traffic  # 眺めるデモ
 #
 # 罠（docs/webots_simulation.md）:
-#   - SUMO_HOME 未設定だと「SUMO not found」になる。本 launch は既定 /usr/share/sumo を
-#     プロセス環境に設定する（環境側で別途 export 済みならそちらが優先）。
-#   - Webots は GUI（X）を要求する。ヘッドレスなら DISPLAY を環境側で設定しておくこと。
+#   - SUMO_HOME 未設定だと city_traffic で「SUMO not found」。本 launch は既定 /usr/share/sumo を設定。
+#   - Webots は GUI(X) を要求。ヘッドレスなら DISPLAY を環境側で設定しておくこと。
 
 import os
 
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
+                            OpaqueFunction)
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from webots_ros2_driver.webots_launcher import WebotsLauncher
 
 
-# city_traffic 等は webots 標準の vehicles/worlds 配下にある。world 引数で切替可能。
+# city_traffic 等は webots 標準の vehicles/worlds 配下にある（ros2:=false の眺めるデモ用）。
 WORLDS_DIR = '/usr/local/webots/projects/vehicles/worlds'
 
 
-def _launch_setup(context, *args, **kwargs):
+def _demo_setup(context, *args, **kwargs):
+    """ros2:=false のとき: 標準 city world をそのまま起動（ROS2 連携なし）。"""
     world_name = LaunchConfiguration('world').perform(context)
     mode = LaunchConfiguration('mode').perform(context)
-
-    # SUMO_HOME 未設定なら既定値を入れる（city_traffic の車走行に必須）。
     os.environ.setdefault('SUMO_HOME', '/usr/share/sumo')
-
-    world_path = os.path.join(WORLDS_DIR, world_name + '.wbt')
-
     webots = WebotsLauncher(
-        world=world_path,
+        world=os.path.join(WORLDS_DIR, world_name + '.wbt'),
         mode=mode,
-        # ロボット ROS2 連携が無い純粋デモなので Ros2Supervisor は起動しない。
         ros2_supervisor=False,
     )
     return [webots]
 
 
 def generate_launch_description():
+    pkg = get_package_share_directory('susumu_object_perception')
+    use_ros2 = LaunchConfiguration('ros2')
+    mode = LaunchConfiguration('mode')
+
+    # ros2:=true: city にロボットを組み込んだ city_robot.wbt を webots_simulation 経由で起動。
+    # webots_simulation.launch.py が driver 配線・perception・全天球色付き点群を担う。
+    # ros2:=true: city にロボットを組み込んだ city_robot.wbt を webots_simulation 経由で起動。
+    # 画像認識（YOLO 物体分類 + 全天球信号認識）は webots_simulation の image_recognition に
+    # 任せる（個別起動はせず DRY に）。LiDAR perception・全天球色付き点群も同 launch が担う。
+    sim = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg, 'launch', 'webots_simulation.launch.py')),
+        launch_arguments=[
+            ('world', 'city_robot.wbt'),
+            ('mode', mode),
+            ('nav', 'False'),       # 街認識が目的なので Nav2 は使わない
+            ('slam', 'False'),
+            ('perception', 'True'),          # LiDAR perception（検出・追跡・予測）
+            ('omni_perception', 'True'),     # 全天球色付き点群
+            ('image_recognition', 'True'),   # YOLO 物体分類 + 全天球信号認識
+        ],
+        condition=IfCondition(use_ros2))
+
     return LaunchDescription([
         DeclareLaunchArgument(
-            'world', default_value='city_traffic',
-            description=('vehicles/worlds 配下の world 名（拡張子不要）。'
-                         'city_traffic / city / village / village_realistic / highway')),
+            'ros2', default_value='True',
+            description=('True: city にロボットを置き ROS2 認識を回す（既定）。'
+                         'False: 標準 city world を眺めるだけのデモ（ROS2 連携なし）')),
         DeclareLaunchArgument(
             'mode', default_value='realtime',
             description='Webots 起動モード（realtime / fast / pause）'),
-        OpaqueFunction(function=_launch_setup),
+        DeclareLaunchArgument(
+            'world', default_value='city_traffic',
+            description=('ros2:=false の眺めるデモで使う標準 world 名（拡張子不要）。'
+                         'city_traffic / city / village / highway 等')),
+        sim,
+        # ros2:=false のときだけ標準 world を眺めるデモ起動（OpaqueFunction は condition を
+        # 取れないので内部で ros2 引数を判定する）。
+        OpaqueFunction(function=_demo_setup_guarded),
     ])
+
+
+def _demo_setup_guarded(context, *args, **kwargs):
+    """ros2:=false のときだけ標準 world を起動（OpaqueFunction は condition を取れないので内部判定）。"""
+    if LaunchConfiguration('ros2').perform(context).lower() == 'true':
+        return []
+    return _demo_setup(context)

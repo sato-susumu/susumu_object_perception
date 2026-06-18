@@ -31,7 +31,7 @@ WorldInfo {
 Viewpoint {
   orientation -0.2878951570967451 -0.16506369377382343 0.9433293992651676 4.177335774513749
   position 9.141595121588473 4.8923306199482335 3.8476210861955575
-  follow "TurtleBot3Burger:velodyne"
+  follow "TurtleBot3Burger:lidar3d"
 }
 TexturedBackground {
   texture "empty_office"
@@ -77,14 +77,15 @@ TurtleBot3Burger {
     # 16 層・水平 1°・垂直 ±15°・+0.20m に置き、PointCloud2 を出す。perception 入力用。
     Lidar {
       translation 0 0 0.20
-      name "velodyne"
-      horizontalResolution 360
+      name "lidar3d"
+      horizontalResolution 720
       fieldOfView 6.283185
-      verticalFieldOfView 0.5236
-      numberOfLayers 16
-      near 0.3
-      minRange 0.3
-      maxRange 30.0
+      verticalFieldOfView 1.029744
+      tiltAngle 0.392699
+      numberOfLayers 28
+      near 0.1
+      minRange 0.1
+      maxRange 40.0
       type "rotating"
       pointCloud TRUE
     }

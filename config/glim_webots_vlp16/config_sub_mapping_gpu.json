@@ -1,0 +1,23 @@
+{
+  "sub_mapping": {
+    "so_name": "libsub_mapping.so",
+    "enable_imu": true,
+    "enable_optimization": true,
+    "max_num_keyframes": 12,
+    "keyframe_update_strategy": "DISPLACEMENT",
+    "keyframe_update_min_points": 300,
+    "keyframe_update_interval_rot": 0.25,
+    "keyframe_update_interval_trans": 0.4,
+    "max_keyframe_overlap": 0.8,
+    "create_between_factors": true,
+    "between_registration_type": "GICP",
+    "registration_error_factor_type": "VGICP_GPU",
+    "keyframe_randomsampling_rate": 1.0,
+    "keyframe_voxel_resolution": 0.18,
+    "keyframe_voxelmap_levels": 2,
+    "keyframe_voxelmap_scaling_factor": 2.0,
+    "submap_downsample_resolution": 0.10,
+    "submap_voxel_resolution": 0.30,
+    "submap_target_num_points": 50000
+  }
+}

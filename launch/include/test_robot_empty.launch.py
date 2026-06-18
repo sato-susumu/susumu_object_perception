@@ -1,5 +1,5 @@
 # 動作確認用: 空の Gazebo world を起動して 3D-LiDAR TurtleBot3 を spawn する。
-# HuNav/Nav2 とは独立に /velodyne_points（PointCloud2）と TF を確認するために使う。
+# HuNav/Nav2 とは独立に /lidar/points（PointCloud2）と TF を確認するために使う。
 
 import os
 

@@ -21,6 +21,7 @@ def generate_launch_description():
     use_perception = LaunchConfiguration('perception')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    lidar_model = LaunchConfiguration('lidar_model')
 
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -34,6 +35,7 @@ def generate_launch_description():
             ('perception', use_perception),
             ('omni_perception', 'True'),
             ('colored_slam', 'True'),
+            ('lidar_model', lidar_model),
             ('omni_calibration_json', omni_calibration_json),
             ('use_sim_time', use_sim_time),
         ],
@@ -55,6 +57,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='direct_visual_lidar_calibration の calib.json。空なら初期TF'),
+        DeclareLaunchArgument(
+            'lidar_model', default_value='mid360',
+            description='3D LiDAR model metadata: mid360 / vlp16'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='True',
             description='Webots はシミュレーション時刻のため True'),

@@ -64,7 +64,7 @@ class ColorizedPointCloudNode(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        self.declare_parameter('input_cloud', '/velodyne_points/point_cloud')
+        self.declare_parameter('input_cloud', '/lidar/points')
         self.declare_parameter('input_image', '/omni_camera/image_raw/image_color')
         self.declare_parameter('output_cloud', '/perception/colorized_points')
         self.declare_parameter('camera_frame', 'omni_camera_link')

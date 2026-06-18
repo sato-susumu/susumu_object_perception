@@ -22,8 +22,8 @@ FIELDS_XYZI = [
 class PointCloudIntensityNode(Node):
     def __init__(self):
         super().__init__('pointcloud_intensity')
-        self.declare_parameter('input_cloud', '/velodyne_points/point_cloud')
-        self.declare_parameter('output_cloud', '/velodyne_points/point_cloud_intensity')
+        self.declare_parameter('input_cloud', '/lidar/points')
+        self.declare_parameter('output_cloud', '/lidar/points_intensity')
         self.declare_parameter('max_range', 30.0)
 
         self.max_range = float(self.get_parameter('max_range').value)

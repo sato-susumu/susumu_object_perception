@@ -54,14 +54,15 @@ TurtleBot3Burger {
     }
     Lidar {
       translation 0 0 0.20
-      name "velodyne"
-      horizontalResolution 360
+      name "lidar3d"
+      horizontalResolution 720
       fieldOfView 6.283185
-      verticalFieldOfView 0.5236
-      numberOfLayers 16
-      near 0.3
-      minRange 0.3
-      maxRange 30.0
+      verticalFieldOfView 1.029744
+      tiltAngle 0.392699
+      numberOfLayers 28
+      near 0.1
+      minRange 0.1
+      maxRange 40.0
       type "rotating"
       pointCloud TRUE
     }

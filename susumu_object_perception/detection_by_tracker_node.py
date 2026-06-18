@@ -15,12 +15,12 @@ tracker の最新出力を購読し、次フレームの検出統合に使う。
 TF 不在のときは検出を素通しする（パイプラインを止めない設計）。
 
 入出力:
-  in : /perception/detected_objects_shaped (DetectedObjects, frame=velodyne_link)
+  in : /perception/detected_objects_shaped (DetectedObjects, frame=lidar_link)
        /perception/tracked_objects          (TrackedObjects, frame=odom)
-  out: /perception/detected_objects_merged  (DetectedObjects, frame=velodyne_link)
+  out: /perception/detected_objects_merged  (DetectedObjects, frame=lidar_link)
 
 アルゴリズム（Cluster Merger 踏襲）:
-  1. tracker の各トラックを検出フレーム(velodyne_link)へ TF 変換し、位置と OBB 半径を得る。
+  1. tracker の各トラックを検出フレーム(lidar_link)へ TF 変換し、位置と OBB 半径を得る。
   2. 各検出を最近傍トラック（中心間距離が assign_radius + トラック半径以内）に割り当てる。
   3. 同一トラックに 2 個以上の検出が割り当たったら 1 つに統合。統合後の shape は
      **統合領域の no_ground 点群を L字フィットで再推定**する（包含 BBox にすると離れた

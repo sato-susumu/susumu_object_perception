@@ -25,6 +25,7 @@ def generate_launch_description():
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
     glim_config_path = LaunchConfiguration('glim_config_path')
+    lidar_model = LaunchConfiguration('lidar_model')
 
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -38,6 +39,7 @@ def generate_launch_description():
             ('perception', use_perception),
             ('omni_perception', 'True'),
             ('colored_slam', 'True'),
+            ('lidar_model', lidar_model),
             ('colored_slam_target_frame', 'glim_map'),
             ('colored_slam_fallback_frame', ''),
             ('colored_slam_source_frame_override', 'glim_lidar'),
@@ -102,6 +104,9 @@ def generate_launch_description():
             'glim_config_path',
             default_value=os.path.join(pkg, 'config', 'glim_webots'),
             description='GLIM の config.json があるディレクトリ'),
+        DeclareLaunchArgument(
+            'lidar_model', default_value='mid360',
+            description='3D LiDAR model metadata: mid360 / vlp16'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='True',
             description='Webots はシミュレーション時刻のため True'),

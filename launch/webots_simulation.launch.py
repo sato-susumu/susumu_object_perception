@@ -26,7 +26,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from webots_ros2_driver.webots_launcher import WebotsLauncher
 from webots_ros2_driver.webots_controller import WebotsController
@@ -45,7 +45,11 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('rviz', default=True)
     use_perception = LaunchConfiguration('perception', default=True)
     use_omni_perception = LaunchConfiguration('omni_perception', default=True)
+    # 画像認識（LiDAR 検出物体の YOLO 分類 + 全天球信号認識）。YOLO は CPU 負荷が高いが
+    # 間引き（トラック ID キャッシュ + レート上限）があるので既定 ON。重いとき image_recognition:=False。
+    use_image_recognition = LaunchConfiguration('image_recognition', default=True)
     use_colored_slam = LaunchConfiguration('colored_slam', default=True)
+    lidar_model = LaunchConfiguration('lidar_model')
     colored_slam_target_frame = LaunchConfiguration('colored_slam_target_frame')
     colored_slam_fallback_frame = LaunchConfiguration('colored_slam_fallback_frame')
     colored_slam_source_frame_override = LaunchConfiguration(
@@ -53,6 +57,18 @@ def generate_launch_description():
     colored_slam_output_cloud = LaunchConfiguration('colored_slam_output_cloud')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    lidar_frame = 'lidar_link'
+    lidar_points_topic = '/lidar/points/point_cloud'
+    lidar_points_intensity = '/lidar/points_intensity'
+    lidar_num_rings = PythonExpression([
+        "'16' if '", lidar_model, "' == 'vlp16' else '64'"
+    ])
+    lidar_min_elev = PythonExpression([
+        "'-15.0' if '", lidar_model, "' == 'vlp16' else '-55.0'"
+    ])
+    lidar_max_elev = PythonExpression([
+        "'15.0' if '", lidar_model, "' == 'vlp16' else '55.0'"
+    ])
 
     # 本パッケージ同梱の world を直接指す（sudo cp 不要）。
     # world 引数は拡張子込みのファイル名（outdoor.wbt / indoor.wbt）で受け、upstream
@@ -93,7 +109,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'base_frame': 'base_link',
-            'lidar_frame': 'velodyne_link',
+            'lidar_frame': lidar_frame,
             'camera_frame': 'omni_camera_link',
             'lidar_xyz': [0.0, 0.0, 0.20],
             'camera_xyz_initial': [0.0, 0.0, 0.75],
@@ -102,17 +118,17 @@ def generate_launch_description():
 
     # 2D LiDAR(LDS-01) を廃止したので /scan は 3D 点群から生成する（Gazebo 側と同構成）。
     # Nav2 の AMCL / costmap obstacle_layer がこの /scan を使う。Webots の PointCloud2 は
-    # /velodyne_points/point_cloud に出る（driver が /point_cloud サフィックスを付ける）。
+    # /lidar/points/point_cloud に出る（driver が /point_cloud サフィックスを付ける）。
     pointcloud_to_laserscan = Node(
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
         name='pointcloud_to_laserscan',
         output='screen',
-        remappings=[('cloud_in', '/velodyne_points/point_cloud'),
+        remappings=[('cloud_in', lidar_points_topic),
                     ('scan', '/scan')],
         parameters=[{
             'use_sim_time': use_sim_time,
-            'target_frame': 'velodyne_link',
+            'target_frame': lidar_frame,
             'transform_tolerance': 0.01,
             'min_height': 0.0,
             'max_height': 1.0,
@@ -121,7 +137,7 @@ def generate_launch_description():
             'angle_increment': 0.0087,
             'scan_time': 0.1,
             'range_min': 0.45,
-            'range_max': 30.0,
+            'range_max': 40.0,
             'use_inf': True,
         }])
 
@@ -145,7 +161,7 @@ def generate_launch_description():
     ros_control_spawners = [diffdrive_controller_spawner,
                             joint_state_broadcaster_spawner]
 
-    # driver の URDF は本パッケージの 3D LiDAR 拡張版（velodyne→/velodyne_points）を使う。
+    # driver の URDF は本パッケージの 3D LiDAR 拡張版（/lidar/points）を使う。
     # ros2_control 設定は webots_ros2_turtlebot の resource を流用。
     robot_description_path = os.path.join(pkg, 'resource', 'turtlebot_webots_3d.urdf')
     ros2_control_params = os.path.join(tb3_pkg, 'resource', 'ros2control.yml')
@@ -194,15 +210,18 @@ def generate_launch_description():
     navigation_nodes.append(turtlebot_navigation)
 
     # Autoware perception パイプライン（perception:=True で起動）。
-    # world に追加した 3D LiDAR が /velodyne_points を出すので、Gazebo 同様に検出できる。
+    # world に追加した 3D LiDAR が /lidar/points を出すので、Gazebo 同様に検出できる。
     perception = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
             pkg, 'launch', 'include', 'autoware_perception.launch.py')),
         launch_arguments=[
             ('use_sim_time', use_sim_time),
-            # webots_ros2_driver の Lidar は PointCloud2 を <topicName>/point_cloud に出す
-            # （URDF topicName=/velodyne_points → 実トピックは /velodyne_points/point_cloud）。
-            ('input_pointcloud', '/velodyne_points/point_cloud'),
+            # webots_ros2_driver の Lidar は PointCloud2 を <topicName>/point_cloud に出す。
+            ('input_pointcloud', lidar_points_topic),
+            ('lidar_frame', lidar_frame),
+            ('num_rings', lidar_num_rings),
+            ('min_elev_deg', lidar_min_elev),
+            ('max_elev_deg', lidar_max_elev),
         ],
         condition=launch.conditions.IfCondition(use_perception))
 
@@ -213,7 +232,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'use_sim_time': use_sim_time,
-            'input_cloud': '/velodyne_points/point_cloud',
+            'input_cloud': lidar_points_topic,
             'input_image': '/omni_camera/image_raw/image_color',
             'output_cloud': '/perception/colorized_points',
             'camera_frame': 'omni_camera_link',
@@ -227,8 +246,8 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'use_sim_time': use_sim_time,
-            'input_cloud': '/velodyne_points/point_cloud',
-            'output_cloud': '/velodyne_points/point_cloud_intensity',
+            'input_cloud': lidar_points_topic,
+            'output_cloud': lidar_points_intensity,
         }],
         condition=launch.conditions.IfCondition(use_omni_perception))
 
@@ -272,6 +291,59 @@ def generate_launch_description():
             'camera_frame': 'omni_camera_link',
         }],
         condition=launch.conditions.IfCondition(use_omni_perception))
+
+    # === 画像認識（image_recognition:=True で起動）===
+    # LiDAR 検出物体を全天球 YOLO で分類（car/person 等）。
+    object_classifier = Node(
+        package='susumu_object_perception',
+        executable='object_classifier_node.py',
+        name='object_classifier',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_objects': '/perception/tracked_objects',
+            'input_image': '/omni_camera/image_raw/image_color',
+            'camera_frame': 'omni_camera_link',
+        }],
+        condition=launch.conditions.IfCondition(use_image_recognition))
+
+    # 信号認識（全天球を全周 N 分割の透視ビューで検出・色判定）。
+    traffic_light_detector = Node(
+        package='susumu_object_perception',
+        executable='traffic_light_detector_node.py',
+        name='traffic_light_detector',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'omni_mode': True,
+            'input_image': '/omni_camera/image_raw/image_color',
+        }],
+        condition=launch.conditions.IfCondition(use_image_recognition))
+
+    # 信号の 3D 位置推定（検出方向 × LiDAR 点群）。
+    traffic_light_localizer = Node(
+        package='susumu_object_perception',
+        executable='traffic_light_localizer_node.py',
+        name='traffic_light_localizer',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'points_topic': lidar_points_topic,
+        }],
+        condition=launch.conditions.IfCondition(use_image_recognition))
+
+    # 信号認識の可視化（全天球画像に方位帯マーカーを重畳）。
+    traffic_light_marker = Node(
+        package='susumu_object_perception',
+        executable='traffic_light_marker_node.py',
+        name='traffic_light_marker',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'omni_mode': True,
+            'input_image': '/omni_camera/image_raw/image_color',
+        }],
+        condition=launch.conditions.IfCondition(use_image_recognition))
 
     colorized_mapper = Node(
         package='susumu_object_perception',
@@ -326,13 +398,21 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'perception', default_value='True',
             description='Autoware perception パイプラインを起動する（既定 True。'
-                        '3D LiDAR /velodyne_points を入力に検出・追跡・可視化）'),
+                        '3D LiDAR /lidar/points を入力に検出・追跡・可視化）'),
         DeclareLaunchArgument(
             'omni_perception', default_value='True',
             description='全天球カメラ連携（色付き点群・物体クロップ）を起動する'),
         DeclareLaunchArgument(
+            'image_recognition', default_value='True',
+            description=('画像認識（LiDAR検出物体のYOLO分類 + 全天球信号認識）を起動する。'
+                         'YOLOはCPU負荷が高いが間引きありで既定ON。重いときは False')),
+        DeclareLaunchArgument(
             'colored_slam', default_value='True',
             description='SLAM/odom座標に色付き点群を蓄積して /slam/colorized_points_map を出す'),
+        DeclareLaunchArgument(
+            'lidar_model', default_value='mid360',
+            description='3D LiDAR model metadata: mid360 (default) or vlp16. '
+                        'world ファイル自体のセンサ形状は world 引数で選ぶ'),
         DeclareLaunchArgument(
             'colored_slam_target_frame', default_value='map',
             description='色付き点群マップの目標TFフレーム。GLIMでは glim_map を指定する'),
@@ -361,6 +441,10 @@ def generate_launch_description():
         equirect_camera_info,
         omni_image_compress,
         object_crops,
+        object_classifier,
+        traffic_light_detector,
+        traffic_light_localizer,
+        traffic_light_marker,
         colorized_mapper,
         rviz,
         waiting_nodes,

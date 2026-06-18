@@ -98,11 +98,11 @@ export SUMO_HOME=/usr/share/sumo   # city_traffic 用。未設定だと「SUMO n
 
 | launch | 役割 | 主な引数（既定） | 起動例 |
 |---|---|---|---|
-| `webots_simulation.launch.py` | TurtleBot3 + Webots 同梱 world を起動。ROS2 連携の基本 | `world`(`outdoor.wbt` 拡張子込み), `mode`(realtime / fast / pause), `nav`(**True**), `slam`(False), `use_sim_time`(True) | `ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt` |
+| `webots_simulation.launch.py` | TurtleBot3 + Webots 同梱 world を起動。ROS2 連携の基本。**LiDAR perception + 全天球色付き点群 + 画像認識（YOLO 物体分類 + 全天球信号認識）を含む**（outdoor/indoor/city 等はこれを include するので全部に波及） | `world`(`outdoor.wbt` 拡張子込み), `mode`, `nav`(**True**), `slam`(False), `perception`(True), `omni_perception`(True), `image_recognition`(True), `use_sim_time`(True) | `ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt` |
 | `webots_outdoor.launch.py` / `webots_indoor.launch.py` | 上記の world 固定ショートカット（`world` 引数不要）。`nav`(**True**) / `slam`(False) / `mode` は渡せる | `mode`, `nav`(True), `slam`(False), `use_sim_time` | `ros2 launch susumu_object_perception webots_outdoor.launch.py` |
 | `webots_slam.launch.py` | `slam_toolbox` を単独起動する補助（robot を別 launch で起動済みのとき用）。通常は `slam:=True` で足りるので不要 | `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_slam.launch.py` |
 | `webots_nav.launch.py` | robot + Nav2 + SLAM フルスタック。内部で simulation を `nav:=True slam:=True` で呼ぶだけ（bringup が slam_toolbox を1個起動・AMCL は無効。二重起動なし） | `world`(outdoor.wbt / indoor.wbt), `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor.wbt` |
-| `webots_city.launch.py` | `city_traffic.wbt`（車+SUMO+信号+歩行者）の街デモ。ROS2 連携なし。`SUMO_HOME` を内部既定 `/usr/share/sumo` に設定 | `world`(city_traffic / city / village / village_realistic / highway), `mode`(realtime / fast / pause) | `ros2 launch susumu_object_perception webots_city.launch.py mode:=fast` |
+| `webots_city.launch.py` | **既定 `ros2:=True`: city にセンサ付き TurtleBot3 を組み込んだ `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号）を起動し ROS2 認識（LiDAR perception + 全天球色付き点群 + YOLO 物体分類 + 信号認識）を回す。** `ros2:=False` で従来の眺めるだけの街デモ（city_traffic + SUMO 車100台、ROS2 連携なし）。`SUMO_HOME` を内部既定設定 | `ros2`(True), `mode`(realtime / fast / pause), `world`(ros2:=False 用 city_traffic / city / village 等) | `ros2 launch susumu_object_perception webots_city.launch.py mode:=fast` |
 
 > `webots_simulation.launch.py` は外部 `webots_ros2_turtlebot/robot_launch.py` の driver 配線
 > （`WebotsLauncher` + `WebotsController` + `robot_state_publisher` + ros2_control spawner）を踏襲し、
@@ -182,28 +182,37 @@ Goal finished with status: SUCCEEDED    （ゴール到達）
 
 `/odom` の位置がゴール方向に移動していれば、Nav2 が実際にロボットを自律走行させている。
 
-> 補足: ここでは確実な 2D LiDAR(LDS-01) で Nav2 を完走させた。3D LiDAR 化したい場合は Webots の
-> Velodyne PROTO（`/usr/local/webots/projects/devices/velodyne/`）をロボットの extensionSlot に足し、
-> pointcloud_to_laserscan で `/scan` を作るか、3D 対応の costmap 層を使う。
+> 補足: この汎用ナビ手順自体は 2D LiDAR(LDS-01) でも完走する。ただし本パッケージの標準ロボットは
+> 既に 3D LiDAR(MID-360 相当) を搭載しており、`resource/turtlebot_webots_3d.urdf` の Lidar
+> `lidar3d` が `/lidar/points/point_cloud`(frame `lidar_link`) を出す。`/scan` は launch 側の
+> pointcloud_to_laserscan が `/lidar/points/point_cloud` から生成する。Webots での MID-360 近似
+> （`tiltAngle` で仰角中心を +22.5° に寄せる等）は [`mid360_lidar_research.md`](mid360_lidar_research.md) 参照。
 
-### 4-3. 街デモを眺める（車・信号・歩行者）
+### 4-3. 街で車・歩行者・信号を認識する（既定）/ 眺めるだけのデモ
 
-ROS2 連携なしの街デモ。`webots_city.launch.py` は `SUMO_HOME` を内部で既定設定する。
+`webots_city.launch.py` は 2 モード。`SUMO_HOME` は内部で既定設定する。
 
 ```bash
-ros2 launch susumu_object_perception webots_city.launch.py             # GUI realtime
-ros2 launch susumu_object_perception webots_city.launch.py mode:=fast  # 高速
-ros2 launch susumu_object_perception webots_city.launch.py world:=village
+# 既定(ros2:=True): city にセンサ付き TurtleBot3 を置き ROS2 認識を回す。
+# city_robot.wbt(車 BmwX5 + 歩行者 Pedestrian + 信号 + センサ付き TB3) を起動し、
+# LiDAR perception + 全天球色付き点群 + YOLO 物体分類 + 信号認識 が動く。
+ros2 launch susumu_object_perception webots_city.launch.py mode:=fast
+# 別端末で /cmd_vel 操縦して対象に近づくと認識される（遠方は全天球で小さく映り苦手）:
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.4}}" -r 10
+ros2 topic echo /perception/object_classes/markers   # car/person 等のクラス名
+ros2 topic echo /perception/traffic_signals          # 信号の色
+
+# ros2:=False: 従来の眺めるだけの街デモ（city_traffic + SUMO で車100台、ROS2 連携なし）。
+ros2 launch susumu_object_perception webots_city.launch.py ros2:=False world:=city_traffic mode:=fast
 ```
 
-起動後、ログに以下が出れば成功:
+ros2:=False 起動後、ログに `Using SUMO from /usr/share/sumo` / `Connect to SUMO...` が出れば成功
+（SUMO プロセスが立ち、車が信号を守って自律走行する）。
 
-```
-Using SUMO from /usr/share/sumo
-Connect to SUMO...
-```
-
-→ SUMO プロセス（`/usr/share/sumo/bin/sumo`）が立ち、車が信号を守って自律走行する。
+> **認識のコツ**: 全天球カメラはロボット上部にあり、遠方の車・人は画像上端に小さく映って
+> 苦手。ロボットを `/cmd_vel` で対象に近づけると、LiDAR で物体を捉え YOLO で car/person を
+> 分類できる（近距離で `person` を高信頼度で認識できることを実機確認済み）。CPU で重ければ
+> `image_recognition:=False` で画像認識を切れる（LiDAR perception は残る）。
 
 ---
 

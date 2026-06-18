@@ -17,6 +17,13 @@
   <depend>rclcpp</depend>
   <depend>nav2_costmap_2d</depend>
   <depend>pluginlib</depend>
+  <depend>sensor_msgs</depend>
+  <depend>gazebo_dev</depend>
+  <depend>gazebo_ros</depend>
+  <depend>ament_index_cpp</depend>
+  <!-- LCAS livox MID-360 plugin（ODE MultiRayShape）の依存 -->
+  <depend>std_msgs</depend>
+  <depend>livox_ros_driver2</depend>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>launch</exec_depend>
@@ -34,7 +41,6 @@
   <exec_depend>hunav_msgs</exec_depend>
 
   <!-- Simulation / robot -->
-  <exec_depend>gazebo_ros</exec_depend>
   <exec_depend>turtlebot3_description</exec_depend>
   <exec_depend>turtlebot3_gazebo</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
@@ -46,7 +52,7 @@
   <exec_depend>slam_toolbox</exec_depend>
   <!-- 3D LiDAR loop-closure backend for Webots colored point cloud SLAM. -->
   <exec_depend>glim_ros</exec_depend>
-  <!-- 3D LiDAR の /velodyne_points を 2D /scan に変換（2D LiDAR の代替） -->
+  <!-- 3D LiDAR の /lidar/points を 2D /scan に変換（2D LiDAR の代替） -->
   <exec_depend>pointcloud_to_laserscan</exec_depend>
 
   <!-- Webots シミュレーション（webots_simulation.launch.py が同梱 world を起動）。
@@ -70,7 +76,6 @@
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>unique_identifier_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>sensor_msgs_py</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
