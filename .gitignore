@@ -71,6 +71,12 @@ Thumbs.db
 maps/*.pgm
 maps/*.png
 
+# ===== 色付き点群 PLY (大容量バイナリ、リポジトリに含めない) =====
+# colorized_pointcloud_mapper が omni camera + LiDAR fusion で作る色付き点群地図。
+# /slam/save_colorized_map サービスで maps/colorized/<world>_colored.ply に保存する。
+# 各自の環境で再生成する前提（数MB〜。プロジェクト内に置くが追跡しない）。
+maps/colorized/
+
 # ===== MID-360 scan pattern CSV (大容量 ~40MB、リポジトリに含めない) =====
 # Gazebo MID-360 プラグイン(liblivox_mid360_sensor)が読む scan pattern。
 # 取得元・配置手順は docs/mid360_lidar_research.md 参照。

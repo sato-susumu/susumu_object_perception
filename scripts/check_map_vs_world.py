@@ -127,6 +127,11 @@ def main():
         px, py = world_to_map_px(tx, ty)
         if typ in ('Floor', 'RectangleArena') and s:
             wpx, hpx = s[0] / res, s[1] / res
+            # Floor の rotation(z軸 90deg)を反映。size はローカル座標なので、90度回転
+            # した床は world 上で幅高さが入れ替わる（break_room は Floor が 90度回転して
+            # おり、これを無視すると照合が 90度ズレて見えた）。
+            if abs(abs(yaw) - 1.5708) < 0.3:
+                wpx, hpx = hpx, wpx
             ax.add_patch(Rectangle((px - wpx / 2, py - hpx / 2), wpx, hpx,
                          fill=False, edgecolor='blue', lw=2, label='floor'))
         elif typ == 'Wall' and s:

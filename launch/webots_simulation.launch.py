@@ -399,6 +399,12 @@ def generate_launch_description():
             'source_frame_override': colored_slam_source_frame_override,
             'voxel_size': 0.08,
             'max_voxels': 250000,
+            # 色付き点群 PLY をプロジェクト内 maps/colorized/ に保存（.gitignore で無視）。
+            # install/share でなくソースの maps/colorized を指す（再生成物を手元に残すため）。
+            'save_dir': os.path.join(
+                os.path.expanduser(
+                    '~/ros2_ws/src/susumu_object_perception'),
+                'maps', 'colorized'),
         }],
         condition=launch.conditions.IfCondition(use_colored_slam))
 
