@@ -116,8 +116,10 @@ controller_server:
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
+      # 低速旋回(max_vel_theta 0.3)だとゴール方向へ向き直るのに時間がかかり、10秒で
+      # 0.5m 動けず "Failed to make progress" を多発していた。猶予を 20s に緩める。
       required_movement_radius: 0.5
-      movement_time_allowance: 10.0
+      movement_time_allowance: 20.0
     
     general_goal_checker:
       stateful: True
@@ -133,11 +135,11 @@ controller_server:
       min_vel_y: 0.0
       max_vel_x: 0.22
       max_vel_y: 0.0
-      # 旋回上限。MID-360 の疎な水平スキャンでは速い旋回で slam マッチが乱れ地図が崩れる
-      # ため地図作成時は遅めにする。ただし遅すぎる(0.17)と slam の minimum_travel_heading に
-      # 達せずスキャンが取り込まれず地図が更新されない症状が出たため、0.3 を採用（巡回時は
-      # もっと速くてよいが、この explore 用 params はマッピング専用）。
-      max_vel_theta: 0.3
+      # 旋回上限。0.17 だと slam の minimum_travel_heading に達せず地図が更新されず、0.3 だと
+      # ゴール方向への向き直りが遅く DWB が "Failed to make progress" を多発しロボットが原点付近
+      # から動けなかった（屋外で 1.6m 四方しか移動せず）。mode:=realtime で slam は安定したので
+      # 0.6 に上げて経路追従を回復する（地図崩れは mode:=fast が主因で realtime なら 0.6 でも可）。
+      max_vel_theta: 0.6
       min_speed_xy: 0.0
       max_speed_xy: 0.22
       min_speed_theta: 0.0
@@ -145,7 +147,7 @@ controller_server:
       # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
       acc_lim_x: 2.5
       acc_lim_y: 0.0
-      acc_lim_theta: 1.0
+      acc_lim_theta: 1.5
       decel_lim_x: -2.5
       decel_lim_y: 0.0
       decel_lim_theta: -1.0

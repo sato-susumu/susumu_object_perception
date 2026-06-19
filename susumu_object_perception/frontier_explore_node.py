@@ -71,7 +71,11 @@ class FrontierExploreNode(Node):
         self.declare_parameter('dist_weight', 0.3)
         # 旧 nearest 法の gain（互換のため残すが未使用）。
         self.declare_parameter('gain', 0.30)
-        # 近すぎるフロンティア（既に居る場所）は無視する最小距離 [m]。
+        # 近すぎるフロンティア（既に居る場所）は無視する最小距離 [m]。屋内で実績のある 0.6。
+        # ※ 屋外開放空間で「2.0 に上げて至近フロンティアを除外し遠征させる」を試したが、
+        #   /scan が数mしか届かず遠方に手がかりが無いため効果なし（原点±2-3mから出られない）。
+        #   特徴の乏しい開放空間での frontier 探索の困難は学術的にも既知の難問で、標準的な
+        #   frontier+slam_toolbox では原理的に解決できない。屋内向けの 0.6 を採用。
         self.declare_parameter('min_goal_dist', 0.6)
         # 到達距離以上のフロンティアが無いとき、最大フロンティア方向へ実際に前進する距離[m]。
         # spin でなく前進で新領域を既知化し「動き回る」探索にするための一歩。屋外で free が
