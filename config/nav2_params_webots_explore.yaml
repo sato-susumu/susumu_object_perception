@@ -199,7 +199,7 @@ local_costmap:
         # マッピング中に壁から十分離れるよう 0.35→0.5。大きすぎる(既定1.0)と狭い自由空間が
         # 高コストで埋まりフロンティアゴールへ planner が失敗するので、0.5 で衝突回避と
         # 到達性を両立する。
-        inflation_radius: 0.5
+        inflation_radius: 0.35
         cost_scaling_factor: 3.0
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -298,7 +298,7 @@ global_costmap:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
         # マッピング中に壁から離れて衝突を防ぐ 0.5（local と揃える）。
-        inflation_radius: 0.5
+        inflation_radius: 0.35
       always_send_full_costmap: True
   global_costmap_client:
     ros__parameters:
@@ -325,11 +325,19 @@ planner_server:
     expected_planner_frequency: 20.0
     use_sim_time: False
     planner_plugins: ["GridBased"]
+    # NavfnPlanner は「ロボット開始位置が inflation 半径内だと経路を引けない」既知バグ
+    # (#5685)があり、狭い屋内+inflation でロボットが家具/壁の inflation 内に居ると
+    # "failed to generate a valid path" 多発→部屋の奥へ行けず一角に留まる(床中央部しか
+    # 取れない)原因だった。Smac 2D に変更して footprint を考慮した経路で回避する。
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
+      plugin: "nav2_smac_planner/SmacPlanner2D"
       tolerance: 0.5
-      use_astar: false
       allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 3.5
+      cost_travel_multiplier: 2.0
+      use_final_approach_orientation: false
 
 planner_server_rclcpp_node:
   ros__parameters:
