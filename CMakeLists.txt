@@ -128,6 +128,7 @@ install(PROGRAMS
   scripts/generate_waypoints.py
   scripts/map_progress_monitor.py
   scripts/eval_map_quality.py
+  scripts/check_map_vs_world.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
