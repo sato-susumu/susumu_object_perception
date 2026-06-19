@@ -73,6 +73,10 @@ class FrontierExploreNode(Node):
         self.declare_parameter('gain', 0.30)
         # 近すぎるフロンティア（既に居る場所）は無視する最小距離 [m]。
         self.declare_parameter('min_goal_dist', 0.6)
+        # 到達距離以上のフロンティアが無いとき、最大フロンティア方向へ実際に前進する距離[m]。
+        # spin でなく前進で新領域を既知化し「動き回る」探索にするための一歩。屋外で free が
+        # 小円に留まり前進しない問題への対策。
+        self.declare_parameter('forward_step', 2.0)
         # フロンティア重心そのものは壁/未知の際にあり Nav2 プランが通らないことが多い。
         # ロボット→フロンティアの線上で、重心の手前 approach_setback[m] にゴールを
         # 引く（自由空間側に寄せて到達可能にする）。マッピング中に壁へ寄りすぎて衝突→
@@ -104,6 +108,7 @@ class FrontierExploreNode(Node):
         self.size_weight = float(self.get_parameter('size_weight').value)
         self.dist_weight = float(self.get_parameter('dist_weight').value)
         self.min_goal_dist = float(self.get_parameter('min_goal_dist').value)
+        self.forward_step = float(self.get_parameter('forward_step').value)
         self.approach_setback = float(
             self.get_parameter('approach_setback').value)
         self.goal_timeout_sec = float(
@@ -209,8 +214,9 @@ class FrontierExploreNode(Node):
         self._publish_markers(frontiers)
         goal = self._choose_goal(frontiers)
         if goal is None:
-            # フロンティアはあるが、どれも到達済み/ブラックリスト＝実質探索しきった。
-            # 完了判定を進める（連続で続けば _finish で地図保存）。
+            # _choose_goal は「至近フロンティアしか無い」ときも最大フロンティア方向への前進
+            # ゴールを返すので、None になるのは全フロンティアがブラックリスト済み＝本当に
+            # 行き場が無いとき。ここは（spin でなく）待機して完了判定を進める。
             self._empty_count += 1
             self._publish_status(
                 f'no reachable frontier '
@@ -343,7 +349,24 @@ class FrontierExploreNode(Node):
                 best_score = score
                 best = (wx, wy)
         if best is None:
-            return None
+            # 到達距離(min_goal_dist)以上のフロンティアが無い＝目の前にしか境界が無い。
+            # 屋外で free が小円に留まる典型。ここで諦めて spin/待機すると「その場でぐるぐる
+            # するだけで未踏が埋まらない」。代わりに **最大フロンティアの方向へ実際に前進する
+            # ゴール** を作り、ロボットを動き回らせて新領域を既知化する（その先に新たな
+            # フロンティアが生まれ探索が前へ進む）。ブラックリスト外の最大クラスタ方向を採る。
+            cand = [(wx, wy, size) for (wx, wy, size) in frontiers
+                    if self._blkey(wx, wy) not in self._blacklist]
+            if not cand:
+                return None
+            tx, ty, _ = max(cand, key=lambda f: f[2])  # 最大クラスタ
+            ang = math.atan2(ty - ry, tx - rx)
+            # その方向へ前進距離 forward_step[m] 進んだ点をゴールにする（free 内を進む）。
+            fx = rx + self.forward_step * math.cos(ang)
+            fy = ry + self.forward_step * math.sin(ang)
+            self._publish_status(
+                f'no distant frontier; push forward {self.forward_step:.1f}m '
+                f'toward largest frontier')
+            return (fx, fy)
         # 代表点（ロボットに最も近いフロンティアセル）の手前に setback してゴール
         # にする。セルは未踏との境界なので、そこへ直接プランすると planner が失敗
         # しやすい。連続失敗中は setback を増やしてさらに手前を狙う。

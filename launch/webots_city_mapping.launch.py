@@ -70,41 +70,33 @@ def generate_launch_description():
             '~/ros2_ws/src/susumu_object_perception/maps/'), "' + '",
         map_name, "'"])
 
-    # フロンティア探索: 実績ある explore_lite(m-explore-ros2 移植)を使う。自作ノードは
-    # 屋外の疎な環境で「目の前のフロンティアばかり選び前進しない」問題があり、定番実装の
-    # 距離重視スコア(potential_scale)・進捗タイムアウト・spin 復帰に置き換えた。Nav2 へ
-    # NavigateToPose でゴールを投げる設計(自作と同じアーキテクチャ)。/map を購読し base_link
-    # 基準。frame は slam_toolbox の base_footprint に合わせる。
+    # フロンティア探索（自作 frontier_explore_node）。explore_lite(m-explore-ros2)を試したが、
+    # 屋外で「最小ゴール距離チェックが無く至近フロンティアで即到達→前進しない」「初期 spin が
+    # 無く free が小さいまま鶏卵問題に陥る」弱点があり（ソース確認・公式 troubleshooting でも
+    # spin 推奨）、自作ノードの方が min_goal_dist と bootstrap_spin でこれに対処できるので自作に
+    # 戻す。Nav2 へ NavigateToPose で投げる設計は同じ。完了時に地図も自動保存する。
     # Nav2 のアクションサーバが立つのを待って遅延起動する。
     frontier = TimerAction(
         period=22.0,
         actions=[
             Node(
-                package='explore_lite',
-                executable='explore',
-                name='explore_node',
+                package='susumu_object_perception',
+                executable='frontier_explore_node.py',
+                name='frontier_explore',
                 output='screen',
                 parameters=[{
                     'use_sim_time': True,
-                    'robot_base_frame': 'base_footprint',
-                    'costmap_topic': 'map',
-                    'costmap_updates_topic': 'map_updates',
-                    'visualize': True,
-                    'planner_frequency': 0.33,
-                    # 進捗が無いゴールは放棄して別フロンティアへ（屋外で詰まり対策）。
-                    'progress_timeout': 30.0,
-                    # 距離重視(explore_lite 既定 3.0)。大きいほど近いフロンティアを優先しつつ
-                    # ゴールに着いたら次へ連続的に前進＝広く開拓する。
-                    'potential_scale': 3.0,
-                    'gain_scale': 1.0,
-                    'orientation_scale': 0.0,
-                    'transform_tolerance': 0.5,
-                    # フロンティア最小サイズ[m]（セルでなくメートル基準＝解像度非依存）。
-                    'min_frontier_size': 0.5,
-                    # 探索完了後に初期位置へ戻る挙動は地図保存タイミングを乱すので無効。
-                    'return_to_init': False,
+                    'map_frame': 'map',
+                    'robot_frame': 'base_footprint',
+                    'min_frontier_cells': min_frontier_cells,
+                    'gain': gain,
+                    'save_map': save_map,
+                    'map_save_path': save_path,
+                    'start_delay_sec': 8.0,
+                    # ワールド全体を探索しきるまで粘る。
+                    'done_after_empty': 12,
+                    'goal_timeout_sec': goal_timeout,
                 }],
-                remappings=[('/tf', '/tf'), ('/tf_static', '/tf_static')],
             ),
         ],
     )
