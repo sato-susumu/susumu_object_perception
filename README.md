@@ -1,9 +1,25 @@
 # susumu_object_perception
 
-ROS 2 Humble + Gazebo Classic 11 上のシミュレーターパッケージ。**HuNavSim が制御する5人の歩行者**が動く
-**カフェ（cafe world）**を、**3D LiDAR 搭載 TurtleBot3** が Nav2 で自律走行する。手動操縦／自動巡回ができる
-**Teleop GUI** と、**Autoware 流の LiDAR perception パイプライン**（既定 ON、RViz 可視化）を備える。
-perception の **prediction の予測のみ Nav2 costmap に連携**し、人の進路先を先回りで障害物化する。
+ROS 2 Humble のシミュレーター統合パッケージ。**3D LiDAR + 全天球カメラを載せた移動ロボット**が、
+シミュレータ上の環境を**自律的に地図化し・巡回し・周囲の物体を検出/識別する**ところまでを一貫して扱う。
+
+## 目指す構想
+
+実機の自律移動ロボットに必要な「**地図を作る → 経路を巡る → 周囲を認識する**」のループを、
+**シミュレータ上で Autoware 互換の perception を中心に統合・検証する**ことを目指す。
+
+1. **環境を知る（マッピング）** — 事前地図のない環境を frontier 探索で自律的に動き回り SLAM 地図を作る
+2. **環境を巡る（ナビゲーション）** — 作った地図から巡回ウェイポイントを生成し Nav2 で巡回する
+3. **環境を理解する（認識）** — 巡回しながら LiDAR で物体を検出・追跡し、カメラ画像（YOLO）で種類を識別、
+   信号も認識する。人の進路先は予測して Nav2 の障害物回避に先回りで反映する
+
+検出は Autoware 純正モジュールを使い、apt に無い段は Autoware アルゴリズムを踏襲して自作補完する。
+複数のシミュレータ（Gazebo Classic / Webots）と複数の world（カフェ・屋内外・街・室内）で同じ
+perception スタックを回せるようにしている。
+
+> 例: **HuNavSim が制御する5人の歩行者**が動く**カフェ（cafe world）**を、3D LiDAR 搭載 TurtleBot3 が
+> Nav2 で自律走行する構成が既定。手動操縦／自動巡回ができる **Teleop GUI** と、**Autoware 流の LiDAR
+> perception パイプライン**（既定 ON、RViz 可視化）を備え、prediction の予測のみ Nav2 costmap に連携する。
 
 - **ノード接続図 / トピック I/O 一覧**（どのノードがどのトピックで繋がっているか・Mermaid 図）: [`docs/node_topology.md`](docs/node_topology.md)
 - 設計（全体構造・状態遷移・シーケンス図・パラメータ・ディレクトリ構成）: [`docs/software_design.md`](docs/software_design.md)
@@ -18,14 +34,20 @@ perception の **prediction の予測のみ Nav2 costmap に連携**し、人の
 
 | 機能 | 内容 | 備考 |
 |---|---|---|
-| カフェ + 5人の歩行者 | HuNavSim（Social Force Model）が5人をカフェ内に配置し歩き回らせる | `max_vel: 1.5`, `vel: 0.6`〜`0.8`（通常歩行速度） |
-| 3D LiDAR TurtleBot3 | waffle 上部に MID-360 近似の3D LiDAR を搭載。VLP-16版も別ファイルで保持 | `/lidar/points`（PointCloud2）を出力 |
+| カフェ + 5人の歩行者 | HuNavSim（Social Force Model）が5人をカフェ内に配置し歩き回らせる | Gazebo。`vel: 0.6`〜`0.8`（通常歩行速度） |
+| 3D LiDAR TurtleBot3 | waffle/burger 上部に MID-360 近似の3D LiDAR + 全天球カメラを搭載 | `/lidar/points`（PointCloud2）を出力 |
 | Nav2 自律移動 | ゴール指定で人を含む障害物を避けて自律走行 | 現在位置回避は 2D `/scan`、進路先は予測コストマップ |
-| Teleop / 自動巡回 GUI | 矢印（＋テンキー）で手動操縦、トグルで自動巡回、原点ワープ | tkinter |
-| Autoware 流 perception | 3D LiDAR 点群から検出〜将来軌跡予測まで（下図） | 既定 ON、RViz 可視化が主 |
+| Teleop / 自動巡回 GUI | 矢印（＋テンキー）で手動操縦、トグルで自動巡回、原点ワープ | tkinter（Gazebo） |
+| Autoware 流 perception | 3D LiDAR 点群から検出〜追跡〜将来軌跡予測まで | 既定 ON、RViz 可視化が主 |
 | 予測コストマップ連携 | prediction の予測だけ Nav2 costmap に焼く | 自作 C++ 層が max 合成、毎フレーム作り直し |
+| **画像認識（物体分類・信号）** | LiDAR 検出物体を全天球クロップ→**YOLOv8(COCO)** で分類、全天球を全周分割して**信号検出**（色判定） | late fusion。`car`/`pedestrian` 等を識別、信号は 3D 位置も推定 |
+| **frontier 自律マッピング** | 事前地図のない Webots 環境を frontier 探索で動き回って SLAM 地図を作成・保存 | `webots_city_mapping.launch.py`。情報利得で広い未踏領域を優先 |
+| **ウェイポイント巡回** | 保存地図から巡回ウェイポイントを自動生成・可視化し、Nav2 で巡回 | `generate_waypoints.py`（到達可能領域に限定）→ `webots_waypoint_nav.launch.py`（各点タイムアウトで詰まってもスキップして一巡） |
+| **色付き 3D 点群地図** | 全天球カメラで色付けした点群を SLAM フレームで蓄積し PLY 保存 | `omni_perception:=True` + `/slam/save_colorized_map` |
+| **転倒検知** | IMU の傾きでロボットの転倒を常時監視し警告 | `fall_detector_node.py`。launch に統合済み、`/fall_detector/status` |
 
 > 「人を検知して右隣を歩く」追従機能は持たない（旧 `susumu_lidar_perception` へ分離）。
+> 各 launch の詳細・引数は [`docs/launch.md`](docs/launch.md) を参照。
 
 ---
 
@@ -165,67 +187,10 @@ ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor_
 
 ## launch（エントリポイント）
 
-### 何が起動するか一覧
+主な launch は `simulation.launch.py`（Gazebo 全部入り）、`webots_simulation.launch.py`（Webots）、
+`webots_city_mapping.launch.py`（自律マッピング）、`webots_waypoint_nav.launch.py`（ウェイポイント巡回）。
 
-✅=既定で起動 / ○=引数で起動可 / —=起動しない。Sim 列は使うシミュレータ。
-
-| launch | Sim | robot | Nav2 | SLAM | RViz | GUI | perception | 備考 |
-|---|---|---|---|---|---|---|---|---|
-| `simulation.launch.py` | Gazebo | ✅ | ✅ | — | ✅ | ✅ | ✅ | カフェ+5人歩行者。全部入りエントリ |
-| `webots_simulation.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | `world:=outdoor.wbt`/`indoor.wbt` 指定 |
-| `webots_outdoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=outdoor 固定ショートカット |
-| `webots_indoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=indoor 固定ショートカット |
-| `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
-| `webots_slam.launch.py` | — | — | — | ✅ | — | — | — | slam_toolbox を1個だけ起動する補助 |
-| `webots_city.launch.py` | Webots | ✅ | ✅ | — | ✅ | — | ✅ | **既定 `ros2:=True`: city にセンサ付き TB3 を置き ROS2 認識（LiDAR + 全天球 + YOLO 物体分類 + 信号認識）。`ros2:=False` で SUMO 車100台の眺めるデモ**※ |
-
-※ `webots_city ros2:=False` は SUMO 制御の車を眺めるだけで ROS2 連携しない（`/scan` 等は出ない）。
-既定の `ros2:=True` は `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号 + センサ付き TB3）を
-起動し、`/cmd_vel` で対象に近づくと car/person/信号を認識する（遠方は全天球で小さく映り苦手）。
-
-> **Webots のセンサ構成**: indoor/outdoor.wbt は **3D LiDAR（MID-360 近似）+ RGB カメラ**を搭載
-> （2D LiDAR LDS-01 は廃止）。
-> - 3D LiDAR → `/lidar/points/point_cloud`(PointCloud2, frame `lidar_link`)
-> - カメラ → `/camera/image_raw/image_color`(Image, 1920×1080, Intel RealSense R200 相当)
-> - `/scan` は `pointcloud_to_laserscan` が 3D 点群から生成（2D LiDAR の代替、Nav2/AMCL 用）
->
-> **Webots の perception**: 上記 3D LiDAR を入力に Gazebo と同じ Autoware perception パイプライン
-> （検出・追跡・予測・可視化）が既定 `perception:=True` で動く。RViz2 も既定 `rviz:=True`。
-> 見るだけにしたいときは `perception:=False rviz:=False` を付ける。
->
-> **Webots の nav/SLAM の住み分け**: `webots_simulation`/`outdoor`/`indoor` は `nav` 既定 `True`
-> で Nav2(AMCL ベース)が立つが、自律走行には初期位置指定が要る。SLAM で地図を作りながら
-> 完全自走したいときは `webots_nav.launch.py`（slam_toolbox 同梱）を使う。
-> Webots を見るだけなら `nav:=False` を付ける。詳細は [`docs/webots_simulation.md`](docs/webots_simulation.md)。
-
-### Webots 系 launch の引数
-
-| 引数 | 既定 | 対象 | 意味 |
-|---|---|---|---|
-| `world` | `outdoor.wbt` | webots_simulation | `webots_worlds/` の world ファイル名（拡張子込み） |
-| `lidar_model` | `mid360` | webots_simulation/outdoor/indoor/nav/calibration/SLAM | LiDAR profile。`mid360` または `vlp16` |
-| `nav` | `True` | simulation/outdoor/indoor | Nav2 を起動（大文字必須。小文字 `true` は NameError） |
-| `slam` | `False` | simulation/outdoor/indoor | Cartographer SLAM を起動（大文字必須） |
-| `perception` | `True` | simulation/outdoor/indoor | Autoware perception を起動（3D LiDAR `/lidar/points/point_cloud` 入力） |
-| `rviz` | `True` | simulation/outdoor/indoor | RViz2 を起動 |
-| `mode` | `realtime` | webots 全般 | Webots 起動モード（realtime / fast / pause） |
-
-### `simulation.launch.py`（Gazebo）の主な引数:
-
-| 引数 | 既定 | 意味 |
-|---|---|---|
-| `use_nav2` | True | Nav2 スタックを起動する |
-| `use_perception` | True | Autoware 流 perception パイプライン（LiDAR 検出・追跡・予測）を起動する |
-| `image_recognition` | True | 画像認識（6面カメラ→全天球合成 + LiDAR 検出物体の YOLO 分類 + 全天球信号認識）を起動する。YOLO が重ければ False |
-| `use_rviz` | True | RViz2 を起動する |
-| `gui` | True | Teleop / 自動巡回 GUI を起動する |
-| `lidar_model` | `mid360` | 3D LiDAR profile。`mid360`（標準）または `vlp16` |
-| `map` | `maps/cafe.yaml` | マップ yaml のフルパス（house に戻すなら `maps/house.yaml`） |
-| `params_file` | `config/nav2_params.yaml` | Nav2 パラメータ yaml のフルパス |
-| `x_pose` / `y_pose` / `yaw` | 0.0 / 0.0 / 0.0 | ロボットの spawn 姿勢 |
-
-> 起動順序や各部品の構成は
-> [`docs/software_design.md`](docs/software_design.md#2-launch-構成と起動順序) を参照。
+**各 launch が何を起動するか・全引数の一覧は [`docs/launch.md`](docs/launch.md) を参照。**
 
 ---
 

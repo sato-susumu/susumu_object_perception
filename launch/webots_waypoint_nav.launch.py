@@ -34,6 +34,11 @@ def generate_launch_description():
     mode = LaunchConfiguration('mode')
     use_rviz = LaunchConfiguration('rviz')
     loop = LaunchConfiguration('loop')
+    # 物体認識（LiDAR検出/追跡 + 全天球色付き + YOLO分類）。巡回しながら検出・識別を
+    # 調査したいときは perception:=True omni_perception:=True で起動する。
+    use_perception = LaunchConfiguration('perception')
+    use_omni_perception = LaunchConfiguration('omni_perception')
+    indoor_objects = LaunchConfiguration('indoor_objects')
 
     # ウェイポイント yaml の絶対パス（maps/ 配下）。
     wp_path = PythonExpression([
@@ -46,8 +51,9 @@ def generate_launch_description():
             ('world', world),
             ('mode', mode),
             ('rviz', use_rviz),
-            ('perception', 'False'),
-            ('omni_perception', 'False'),
+            ('perception', use_perception),
+            ('omni_perception', use_omni_perception),
+            ('indoor_objects', indoor_objects),
         ],
     )
 
@@ -103,6 +109,15 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'loop', default_value='True',
             description='完走後にもう一周する'),
+        DeclareLaunchArgument(
+            'perception', default_value='False',
+            description='物体検出/追跡(Autoware perception)。巡回中の物体識別調査は True'),
+        DeclareLaunchArgument(
+            'omni_perception', default_value='False',
+            description='全天球色付き点群+YOLO画像分類。物体識別調査は True'),
+        DeclareLaunchArgument(
+            'indoor_objects', default_value='False',
+            description='室内物体検出（高所除外+床付近の家具を検出/識別）。室内 world で True'),
         robot_nav,
         viz,
         nav,

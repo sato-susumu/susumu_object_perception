@@ -226,6 +226,19 @@ def generate_launch_description():
         condition=launch.conditions.IfCondition(use_nav))
     navigation_nodes.append(turtlebot_navigation)
 
+    # 転倒検知（常時監視）。IMU の姿勢から機体の傾きを見て、しきい値超えで転倒を警告する。
+    # odom は 2D 前提で roll/pitch=0 のため転倒を検知できず、IMU(InertialUnit)を使う。
+    fall_detector = Node(
+        package='susumu_object_perception',
+        executable='fall_detector_node.py',
+        name='fall_detector',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'imu_topic': '/imu',
+        }],
+    )
+
     # Autoware perception パイプライン（perception:=True で起動）。
     # world に追加した 3D LiDAR が /lidar/points を出すので、Gazebo 同様に検出できる。
     perception = IncludeLaunchDescription(
@@ -239,6 +252,7 @@ def generate_launch_description():
             ('num_rings', lidar_num_rings),
             ('min_elev_deg', lidar_min_elev),
             ('max_elev_deg', lidar_max_elev),
+            ('indoor_objects', LaunchConfiguration('indoor_objects')),
         ],
         condition=launch.conditions.IfCondition(use_perception))
 
@@ -321,6 +335,13 @@ def generate_launch_description():
             'input_objects': '/perception/tracked_objects',
             'input_image': '/omni_camera/image_raw/image_color',
             'camera_frame': 'omni_camera_link',
+            # 識別率チューニング（巡回識別の実測: 既定 nano/conf0.3 で 47% →
+            # この設定で 89.5%）。yolov8s（nano より高精度）+ 採用しきい値を
+            # 緩めて UNKNOWN を減らす + クロップ FOV を広げて対象を大きく捉える。
+            'yolo.weights': 'yolov8s.pt',
+            'yolo.conf': 0.15,
+            'min_accept_conf': 0.15,
+            'crop_fov_deg': 75.0,
         }],
         condition=launch.conditions.IfCondition(use_image_recognition))
 
@@ -424,6 +445,10 @@ def generate_launch_description():
             description=('画像認識（LiDAR検出物体のYOLO分類 + 全天球信号認識）を起動する。'
                          'YOLOはCPU負荷が高いが間引きありで既定ON。重いときは False')),
         DeclareLaunchArgument(
+            'indoor_objects', default_value='False',
+            description=('室内物体検出: map_roi_filter が高所（天井/壁上部）を除外しつつ'
+                         '床付近の家具を占有セル上でも検出/識別する。室内 world で True')),
+        DeclareLaunchArgument(
             'colored_slam', default_value='True',
             description='SLAM/odom座標に色付き点群を蓄積して /slam/colorized_points_map を出す'),
         DeclareLaunchArgument(
@@ -452,6 +477,7 @@ def generate_launch_description():
         omni_sensor_tf,
         pointcloud_to_laserscan,
         turtlebot_driver,
+        fall_detector,
         perception,
         colorized_points,
         pointcloud_intensity,

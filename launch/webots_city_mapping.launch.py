@@ -87,6 +87,9 @@ def generate_launch_description():
                     'save_map': save_map,
                     'map_save_path': save_path,
                     'start_delay_sec': 8.0,
+                    # ワールド全体を探索しきるまで粘る（屋外 20m 級を半分でやめないよう、
+                    # 連続空振り許容を増やす）。地図がワールド全体を抑えるのに必要。
+                    'done_after_empty': 12,
                 }],
             ),
         ],
@@ -118,8 +121,9 @@ def generate_launch_description():
             'gain', default_value='0.30',
             description='フロンティア選択の利得（大きいほど広い未踏領域を優先）'),
         DeclareLaunchArgument(
-            'min_frontier_cells', default_value='8',
-            description='フロンティアクラスタの最小セル数（ノイズ除去）'),
+            'min_frontier_cells', default_value='4',
+            description='フロンティアクラスタの最小セル数（小さいと細かい未踏も追い'
+                        'ワールド全体を探索しきる。大きいと早期完了で地図が狭くなる）'),
         robot_nav,
         frontier,
     ])

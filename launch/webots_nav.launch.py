@@ -32,6 +32,7 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('rviz')
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
+    indoor_objects = LaunchConfiguration('indoor_objects')
     use_colored_slam = LaunchConfiguration('colored_slam')
     lidar_model = LaunchConfiguration('lidar_model')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
@@ -53,6 +54,7 @@ def generate_launch_description():
             ('rviz', use_rviz),
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
+            ('indoor_objects', indoor_objects),
             ('colored_slam', use_colored_slam),
             ('lidar_model', lidar_model),
             ('omni_calibration_json', omni_calibration_json),
@@ -74,6 +76,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'perception', default_value='True',
             description='Autoware perception を起動する'),
+        DeclareLaunchArgument(
+            'indoor_objects', default_value='False',
+            description='室内物体検出（高所除外+床付近の家具を検出/識別）。室内 world で True'),
         DeclareLaunchArgument(
             'omni_perception', default_value='True',
             description='全天球カメラ連携を起動する'),

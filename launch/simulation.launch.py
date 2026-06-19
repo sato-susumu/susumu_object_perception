@@ -114,6 +114,17 @@ def generate_launch_description():
 
     spawn_robot_delayed = TimerAction(period=15.0, actions=[spawn_robot])
 
+    # 転倒検知（常時監視）。IMU の傾きで転倒を警告。robot spawn 後に起動する。
+    fall_detector = Node(
+        package='susumu_object_perception',
+        executable='fall_detector_node.py',
+        name='fall_detector',
+        output='screen',
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time'),
+                     'imu_topic': '/imu'}],
+    )
+    fall_detector_delayed = TimerAction(period=17.0, actions=[fall_detector])
+
     # ------------------------------------------------------------------
     # 3) Nav2（自己位置推定 + ナビゲーション）。robot/TF が揃うよう遅延させる。
     # ------------------------------------------------------------------
@@ -284,6 +295,7 @@ def generate_launch_description():
 
     ld.add_action(hunav_world)
     ld.add_action(spawn_robot_delayed)
+    ld.add_action(fall_detector_delayed)
     ld.add_action(perception_delayed)
     ld.add_action(image_recognition_delayed)
     ld.add_action(semantic_memory_delayed)

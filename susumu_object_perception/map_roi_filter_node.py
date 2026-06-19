@@ -58,11 +58,26 @@ class MapRoiFilterNode(Node):
         # 壁セルの周囲このセル数ぶんも占有扱いにする（0=膨張なし）。壁に貼り付いた
         # クラスタを落としたいなら 1〜2 に。人を消し過ぎるなら 0 のまま。
         self.declare_parameter('wall_margin_cells', 0)
+        # 高さフィルタ: 物体重心 z（base_link 基準）がこの値より高い検出は「高所
+        # （天井・壁上部・照明）」として除外する。負値で無効。室内で家具を拾いたい
+        # なら 1.2 程度（人の頭〜手すり高）にして高所だけ落とす。
+        self.declare_parameter('max_obj_height', -1.0)
+        # 高さフィルタを通った「低い物体」を、占有(壁)セル上でも通すか。室内では
+        # 家具が地図に occupied として焼かれるため、これを true にすると壁際の家具
+        # （椅子・テーブル・箱）を検出・識別できるようになる。既定 false（屋外は人の
+        # み拾えればよく、壁を確実に除外したいため）。
+        self.declare_parameter('keep_low_on_occupied', False)
+        # base_link への TF 取得用フレーム名（高さ z を base_link 基準で見るため）。
+        self.declare_parameter('base_frame', 'base_link')
 
         self.map_frame = self.get_parameter('map_frame').value
         self.occ_thresh = int(self.get_parameter('occupied_thresh').value)
         self.keep_unknown = bool(self.get_parameter('keep_unknown').value)
         self.margin = int(self.get_parameter('wall_margin_cells').value)
+        self.max_obj_height = float(self.get_parameter('max_obj_height').value)
+        self.keep_low_on_occupied = bool(
+            self.get_parameter('keep_low_on_occupied').value)
+        self.base_frame = self.get_parameter('base_frame').value
 
         self.map = None          # OccupancyGrid
         self.grid = None         # np.int8 [height, width]
@@ -159,9 +174,18 @@ class MapRoiFilterNode(Node):
         out.header = msg.header  # frame は据え置き（lidar_link）。下流は据え置きで動く
         for obj in msg.objects:
             p = obj.kinematics.pose_with_covariance.pose.position
+            # 高さフィルタ: 重心 z（lidar_link 基準。base_link からは +0.2m）が高すぎる
+            # 物体は「高所（天井・壁上部・照明）」として除外する。
+            if self.max_obj_height >= 0.0 and p.z > self.max_obj_height:
+                continue
             mx = c * p.x - s * p.y + t.x
             my = s * p.x + c * p.y + t.y
-            if not self._cell_blocked(mx, my):
+            blocked = self._cell_blocked(mx, my)
+            if blocked and self.keep_low_on_occupied:
+                # 高さフィルタを通った低い物体は、占有(壁)セル上でも通す（室内の家具を
+                # 拾う）。地図範囲外・未知は keep_unknown 側で別途扱う。
+                blocked = False
+            if not blocked:
                 out.objects.append(obj)
 
         self.pub.publish(out)

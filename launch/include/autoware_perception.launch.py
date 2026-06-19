@@ -40,6 +40,11 @@ def generate_launch_description():
     num_rings = LaunchConfiguration('num_rings')
     min_elev_deg = LaunchConfiguration('min_elev_deg')
     max_elev_deg = LaunchConfiguration('max_elev_deg')
+    # 室内物体検出モード。True で map_roi_filter が「高所（天井・壁上部）は除外しつつ
+    # 床付近の家具（占有セル上）は通す」設定になり、室内の家具を検出・識別できる。
+    # 既定 False（屋外: 壁を確実に除外し人/車だけ拾う）。
+    indoor_objects = LaunchConfiguration('indoor_objects')
+    indoor_max_height = LaunchConfiguration('indoor_max_height')
 
     declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
     declare_input = DeclareLaunchArgument(
@@ -57,6 +62,12 @@ def generate_launch_description():
     declare_max_elev = DeclareLaunchArgument(
         'max_elev_deg', default_value='15.0',
         description='PointXYZIRC channel 近似に使う最大仰角[deg]')
+    declare_indoor_objects = DeclareLaunchArgument(
+        'indoor_objects', default_value='False',
+        description='室内物体検出: 高所を除外し床付近の家具を占有セル上でも検出/識別する')
+    declare_indoor_max_height = DeclareLaunchArgument(
+        'indoor_max_height', default_value='1.6',
+        description='室内物体検出時、この高さ[m]より高い検出は高所として除外')
 
     crop_box_param = os.path.join(cfg, 'autoware_crop_box.param.yaml')
     ground_param = os.path.join(cfg, 'autoware_ground_filter.param.yaml')
@@ -189,6 +200,10 @@ def generate_launch_description():
             # 壁に貼り付いて検出される静止クラスタ（緑ボックス）を落とす。人は壁から
             # 多少離れるので残る。消し過ぎるなら下げる。
             'wall_margin_cells': 3,
+            # 室内物体検出（indoor_objects:=True）: 高所を除外しつつ床付近の家具を
+            # 占有セル上でも通す。max_obj_height より高い検出は天井/壁上部として除外。
+            'keep_low_on_occupied': indoor_objects,
+            'max_obj_height': indoor_max_height,
         }],
     )
 
@@ -232,6 +247,8 @@ def generate_launch_description():
 
     ld = LaunchDescription()
     ld.add_action(declare_use_sim_time)
+    ld.add_action(declare_indoor_objects)
+    ld.add_action(declare_indoor_max_height)
     ld.add_action(declare_input)
     ld.add_action(declare_lidar_frame)
     ld.add_action(declare_num_rings)

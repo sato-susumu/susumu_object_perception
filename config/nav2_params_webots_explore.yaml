@@ -355,4 +355,6 @@ waypoint_follower:
     wait_at_waypoint:
       plugin: "nav2_waypoint_follower::WaitAtWaypoint"
       enabled: True
-      waypoint_pause_duration: 200
+      # 各ウェイポイント到達後の待機[ms]。巡回では待つ必要がないので 0。
+      # 既定の 200(=0.2秒)程度でよく、大きいと巡回が完走しない。
+      waypoint_pause_duration: 0
