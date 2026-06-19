@@ -63,11 +63,12 @@ class FrontierExploreNode(Node):
         # 斜めノイズ→地図分断の原因に。8 セル(=0.4m級)以上のまとまりだけ狙う。
         self.declare_parameter('min_frontier_cells', 8)
         # 情報利得スコア score = size_weight*log(size) - dist_weight*distance。
-        # 【近接優先に変更】遠い大領域へジャンプすると移動が大きく、slam が追従しきれず
-        # 誤マッチで地図が崩れる。屋内のような閉空間は「手前から連続的に塗りつぶす」方が
-        # slam が安定する。dist_weight を上げ size_weight を下げて近接フロンティア優先に。
-        self.declare_parameter('size_weight', 1.0)
-        self.declare_parameter('dist_weight', 1.0)
+        # 【未開拓を広く開拓する方針】最優先は「未踏領域を残さず広く開拓」すること
+        # （/scan が疎でも気にしない）。大きな未踏領域(size 大)を強く優先し、多少遠くても
+        # 向かわせる。size_weight を大きく・dist_weight を小さくして、近場に滞留せず
+        # 遠方の大未踏へ積極的に展開する。
+        self.declare_parameter('size_weight', 2.5)
+        self.declare_parameter('dist_weight', 0.3)
         # 旧 nearest 法の gain（互換のため残すが未使用）。
         self.declare_parameter('gain', 0.30)
         # 近すぎるフロンティア（既に居る場所）は無視する最小距離 [m]。
@@ -299,15 +300,19 @@ class FrontierExploreNode(Node):
                                 visited[nidx] = 1
                                 q.append((nx, ny))
                 if len(cells) >= self.min_frontier_cells:
-                    # 代表点はクラスタ重心ではなく「ロボットに最も近いクラスタ内
-                    # セル」にする。巨大クラスタ（地図外周の連続境界）だと重心が
-                    # 地図中心の既踏領域に来てしまい、そこへ向かっても何も探索でき
-                    # ないため。最近セルなら必ず未踏との境界の実セルを指す。
-                    rcx = int((rx - ox) / res)
-                    rcy = int((ry - oy) / res)
+                    # 代表点は「クラスタ重心に最も近いクラスタ内セル」にする。
+                    # 旧実装は「ロボットに最も近いセル」だったが、それだと遠方の大きな
+                    # 未踏クラスタでも代表点がロボット至近に来てしまい、ロボットが常に
+                    # 目の前へ向かい遠方へ展開しない（屋外で開拓が広がらない主因だった）。
+                    # 重心に最も近い実セルなら、クラスタの中心＝未踏の本体方向を指すので、
+                    # 大未踏ほど遠方の代表点になり、未開拓を広く開拓できる。重心そのもの
+                    # でなく「クラスタ内の実フロンティアセル」を選ぶので、必ず未踏との
+                    # 境界の到達しやすい点を指す（重心が既踏領域に落ちる問題も回避）。
+                    gcx = sum(c[0] for c in cells) / len(cells)
+                    gcy = sum(c[1] for c in cells) / len(cells)
                     best_c = min(
                         cells,
-                        key=lambda c: (c[0] - rcx) ** 2 + (c[1] - rcy) ** 2)
+                        key=lambda c: (c[0] - gcx) ** 2 + (c[1] - gcy) ** 2)
                     wx = ox + (best_c[0] + 0.5) * res
                     wy = oy + (best_c[1] + 0.5) * res
                     clusters.append((wx, wy, len(cells)))
