@@ -188,13 +188,16 @@ local_costmap:
       width: 3
       height: 3
       resolution: 0.05
-      robot_radius: 0.1
+      # 実機 waffle 相当(半径~0.22m)に。0.1 は小さすぎて planner が壁ぎりぎりまで寄る
+      # 経路を引き、マッピング中に壁へ衝突→自己位置がズレて地図が崩れる原因だった。
+      robot_radius: 0.22
       plugins: ["obstacle_layer", "voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        # 探索マッピング向けに縮小（既定 1.0 は屋内向けで過大。5x4m の自由空間を
-        # ほぼ高コストで塗りつぶし、フロンティアゴールへの planner が常に失敗する）。
-        inflation_radius: 0.35
+        # マッピング中に壁から十分離れるよう 0.35→0.5。大きすぎる(既定1.0)と狭い自由空間が
+        # 高コストで埋まりフロンティアゴールへ planner が失敗するので、0.5 で衝突回避と
+        # 到達性を両立する。
+        inflation_radius: 0.5
         cost_scaling_factor: 3.0
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -244,7 +247,8 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_link
       use_sim_time: True
-      robot_radius: 0.1
+      # 実機 waffle 相当に（local と揃える。0.1 は小さすぎて壁衝突の原因）。
+      robot_radius: 0.22
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "voxel_layer", "inflation_layer"]
@@ -288,8 +292,8 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        # 探索マッピング向けに縮小（既定 0.55 → 0.35。狭い隙間も通れるように）。
-        inflation_radius: 0.35
+        # マッピング中に壁から離れて衝突を防ぐ 0.5（local と揃える）。
+        inflation_radius: 0.5
       always_send_full_costmap: True
   global_costmap_client:
     ros__parameters:

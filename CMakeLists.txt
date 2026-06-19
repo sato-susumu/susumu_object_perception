@@ -126,6 +126,7 @@ install(PROGRAMS
   scripts/validate_colorized_pointcloud_quality.py
   scripts/test_object_seeker.py
   scripts/generate_waypoints.py
+  scripts/map_progress_monitor.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
