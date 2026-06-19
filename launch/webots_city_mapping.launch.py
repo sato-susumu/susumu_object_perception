@@ -49,9 +49,13 @@ def generate_launch_description():
     sweep_mode = LaunchConfiguration('sweep_mode')
     sweep_radius = LaunchConfiguration('sweep_radius')
 
-    # 探索向け Nav2 params（inflation を 0.35 に下げ、フロンティアゴールへの planner が
-    # 通るようにする。標準の 1.0 だと 5x4m の自由空間が高コストで埋まり経路が作れない）。
-    explore_params = os.path.join(pkg, 'config', 'nav2_params_webots_explore.yaml')
+    # 探索向け Nav2 params。屋内は static追従 costmap + Navfn の安定版、屋外(sweep_mode:=True)
+    # は rolling window(40m) + Smac planner の遠征版を使う（屋外は遠方ゴールが costmap 外に
+    # ならないよう rolling、Navfn の未知領域経路失敗を避けるため Smac）。sweep_mode で切替。
+    explore_params = PythonExpression([
+        "'", os.path.join(pkg, 'config', 'nav2_params_webots_explore_outdoor.yaml'),
+        "' if '", sweep_mode, "'.lower() == 'true' else '",
+        os.path.join(pkg, 'config', 'nav2_params_webots_explore.yaml'), "'"])
 
     # robot + Webots + Nav2 + slam_toolbox。地図作成の本体（slam_toolbox が /map を出す）。
     robot_nav = IncludeLaunchDescription(

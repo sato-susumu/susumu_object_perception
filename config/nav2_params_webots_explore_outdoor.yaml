@@ -249,10 +249,13 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_link
       use_sim_time: True
-      # 既定は static_layer(/map)追従（屋内向け・安定）。屋外の開放空間では遠方ゴールが
-      # costmap 外になり planner 失敗→動けないため、屋外専用に rolling window 版の params
-      # (nav2_params_webots_explore_outdoor.yaml)を別途使う（webots_city_mapping の
-      # outdoor_mode 引数で切替）。
+      # 【屋外専用】ロボット中心 40m 四方の rolling window。static 追従だと起動直後 costmap が
+      # 数m で遠方ゴールが範囲外→planner 失敗で動けないため。これで未知領域への遠征ゴールも
+      # costmap 内に収める。NavfnPlanner は広大な未知 costmap で「Failed to create a plan from
+      # potential」(既知バグ#4655)を多発するので planner は下で Smac に変更している。
+      rolling_window: true
+      width: 40
+      height: 40
       robot_radius: 0.22
       resolution: 0.05
       track_unknown_space: true
@@ -325,11 +328,18 @@ planner_server:
     expected_planner_frequency: 20.0
     use_sim_time: False
     planner_plugins: ["GridBased"]
+    # 【屋外専用】NavfnPlanner は広大な未知領域を含む rolling costmap で「Failed to create a
+    # plan from potential」(#4655)を多発するため、Smac 2D A* に変更。未知領域(allow_unknown)を
+    # 越える経路をより安定して引け、屋外の遠征ゴールへ到達できる。
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
+      plugin: "nav2_smac_planner/SmacPlanner2D"
       tolerance: 0.5
-      use_astar: false
       allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 3.5
+      cost_travel_multiplier: 2.0
+      use_final_approach_orientation: false
 
 planner_server_rclcpp_node:
   ros__parameters:
