@@ -122,7 +122,10 @@ def main():
         return px, py
 
     fig, ax = plt.subplots(figsize=(w / 40, h / 40))
-    ax.imshow(img, cmap='gray', vmin=0, vmax=255, origin='lower')
+    # PGM(map_server規約)は img[0] が画像最上行＝map y 最大。world点の py は origin からの
+    # 上方向距離 (my-oy)/res なので、PGM をそのまま origin='lower' で出すと上下が反転する
+    # （break_room で 180度ズレて見えた原因）。img を上下反転して y 向きを world と一致させる。
+    ax.imshow(img[::-1], cmap='gray', vmin=0, vmax=255, origin='lower')
     for (typ, (tx, ty), s, yaw) in objs:
         px, py = world_to_map_px(tx, ty)
         if typ in ('Floor', 'RectangleArena') and s:
