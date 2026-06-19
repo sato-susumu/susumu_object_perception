@@ -45,6 +45,7 @@ def generate_launch_description():
     gain = LaunchConfiguration('gain')
     min_frontier_cells = LaunchConfiguration('min_frontier_cells')
     goal_timeout = LaunchConfiguration('goal_timeout_sec')
+    forward_step = LaunchConfiguration('forward_step')
 
     # 探索向け Nav2 params（inflation を 0.35 に下げ、フロンティアゴールへの planner が
     # 通るようにする。標準の 1.0 だと 5x4m の自由空間が高コストで埋まり経路が作れない）。
@@ -96,6 +97,9 @@ def generate_launch_description():
                     # ワールド全体を探索しきるまで粘る。
                     'done_after_empty': 12,
                     'goal_timeout_sec': goal_timeout,
+                    # 至近フロンティアしか無い時の前進距離[m]。屋外の開放空間では大きくして
+                    # 植木の間を抜け遠くへ一気に展開させる（forward_step:=4.0 等）。
+                    'forward_step': forward_step,
                 }],
             ),
         ],
@@ -122,6 +126,10 @@ def generate_launch_description():
             'goal_timeout_sec', default_value='30.0',
             description='frontier の 1 ゴール到達猶予[s]。短いと狭い屋内で'
                         'ブラックリスト化が多発し探索が縮こまる'),
+        DeclareLaunchArgument(
+            'forward_step', default_value='2.0',
+            description='至近フロンティアしか無い時に前進する距離[m]。屋外の開放空間は'
+                        '4.0 程度に大きくすると遠くへ展開しやすい'),
         DeclareLaunchArgument(
             'map_name', default_value='city',
             description='保存する地図名（maps/<map_name>.pgm/.yaml）'),
