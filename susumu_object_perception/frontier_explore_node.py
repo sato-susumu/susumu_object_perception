@@ -86,7 +86,7 @@ class FrontierExploreNode(Node):
         # 引く（自由空間側に寄せて到達可能にする）。マッピング中に壁へ寄りすぎて衝突→
         # 自己位置ズレで地図が崩れるのを防ぐため 1.0（costmap の robot_radius 0.22 +
         # inflation 0.5 と併せて壁から離れる）。
-        self.declare_parameter('approach_setback', 1.0)
+        self.declare_parameter('approach_setback', 1.3)
         # ゴール到達判定/タイムアウト [s]（1 ゴールに留まり続けない保険）。
         # planner が失敗するゴールに長く粘らず、早めに別フロンティアへ移る。
         self.declare_parameter('goal_timeout_sec', 15.0)
