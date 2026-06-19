@@ -28,6 +28,10 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <!-- 自律マッピングの探索は explore_lite(m-explore-ros2)を使う。apt に無いので
+       ソース導入が前提: git clone https://github.com/robo-friends/m-explore-ros2
+       を ~/ros2_ws/src に置き colcon build。webots_city_mapping.launch.py が使う。 -->
+  <exec_depend>explore_lite</exec_depend>
 
   <!-- Teleop / auto-explore GUI node -->
   <exec_depend>geometry_msgs</exec_depend>
