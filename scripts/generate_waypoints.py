@@ -3,8 +3,9 @@
 
 frontier 探索で作った maps/<world>.pgm/.yaml を読み、自由空間のうち壁から十分
 離れた点を、地図全体をカバーするように間引いて巡回順に並べ、YAML に保存する。
-生成した YAML は waypoint_nav_node.py（FollowWaypoints 巡回）と
-waypoint_viz_node.py（RViz 可視化）が読む。
+生成した YAML は waypoint_nav_node.py（NavigateToPose 巡回）と
+waypoint_viz_node.py（RViz 可視化）が読む。併せて、地図にウェイポイント・巡回経路・
+起点・clearance 領域を重ねた確認用 PNG（<out> と同名 .png）も出力する（--no-png で抑止）。
 
 アルゴリズム:
   1. PGM を読み free(255 付近)/occupied(0 付近)/unknown(205) に分類。
@@ -150,6 +151,65 @@ def _nn_two_opt(dm, start_idx):
     return order
 
 
+def save_overlay(png_path, img, place, connectable, pts_cell, order,
+                 start_cell, place_cells, title):
+    """地図にウェイポイント・巡回経路・起点・clearance 領域を重ねた PNG を保存。
+
+    RViz を立てなくても巡回路が壁を跨がないか・カバー範囲を一目で確認できる。
+    ピクセル座標系のまま描く（imshow の行=y下向き）。matplotlib は Agg
+    バックエンドでヘッドレスでも動く。
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    h, w = img.shape
+    fig, ax = plt.subplots(figsize=(w / 50.0, h / 50.0), dpi=120)
+    # 背景: 地図(白=free/灰=unknown/黒=occ)。
+    ax.imshow(img, cmap='gray', vmin=0, vmax=255, origin='upper')
+    # 巡回対象の最大連結成分を薄青、配置 clearance を満たす領域を薄緑で塗る。
+    conn_rgba = np.zeros((h, w, 4))
+    conn_rgba[connectable] = (0.3, 0.6, 1.0, 0.18)   # 通行可能領域(連結成分)
+    ax.imshow(conn_rgba, origin='upper')
+    place_rgba = np.zeros((h, w, 4))
+    place_rgba[place] = (0.2, 0.8, 0.2, 0.18)         # 配置可能領域(clearance)
+    ax.imshow(place_rgba, origin='upper')
+
+    # 巡回順に並べたセル座標。
+    xs = [pts_cell[i][0] for i in order]
+    ys = [pts_cell[i][1] for i in order]
+    # 巡回経路線（順に点をつなぐ）。
+    ax.plot(xs, ys, '-', color='orange', linewidth=1.5, alpha=0.9, zorder=2,
+            label='patrol path')
+    # 番号付き点（巡回開始点=赤、他=青）。番号は巡回順。
+    ax.plot([], [], 'o', color='royalblue', markersize=5, label='waypoint')
+    ax.plot([], [], 'o', color='red', markersize=7, label='waypoint #0 (first)')
+    for rank, (cx, cy) in enumerate(zip(xs, ys)):
+        is_first = (rank == 0)
+        ax.plot(cx, cy, 'o', color='red' if is_first else 'royalblue',
+                markersize=7 if is_first else 5, zorder=3)
+        ax.annotate(str(rank), (cx, cy), color='black', fontsize=6,
+                    fontweight='bold', xytext=(3, 3),
+                    textcoords='offset points', zorder=4)
+    # ロボット起点（最大連結成分の重心）を×で明示。ラベルは日本語フォント非依存
+    # にするため英字（matplotlib 既定フォントに日本語グリフが無い環境向け）。
+    ax.plot(start_cell[0], start_cell[1], 'x', color='magenta',
+            markersize=11, markeredgewidth=2.5, zorder=5,
+            label='start (centroid)')
+
+    ax.set_title(title, fontsize=9)
+    ax.set_xlabel('x [cell]   (green=placeable area, blue tint=connected area)',
+                  fontsize=8)
+    ax.set_ylabel('y [cell]')
+    # 凡例は地図に被らないよう軸の外（下）へ。xlabel とも重ならないよう離す。
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.13),
+              ncol=2, fontsize=7, framealpha=0.9)
+    # 小さい地図では tight_layout が legend を収めきれず警告を出すため、
+    # savefig 側の bbox_inches='tight' で余白を自動確保する。
+    fig.savefig(png_path, bbox_inches='tight')
+    plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--map', required=True, help='地図 yaml のパス')
@@ -166,6 +226,9 @@ def main():
     ap.add_argument('--connect-clearance', type=float, default=0.30)
     # 巡回の最大ウェイポイント数（多すぎると 1 周が長い）。
     ap.add_argument('--max-waypoints', type=int, default=40)
+    # 地図にウェイポイントを重ねた確認用 PNG を出さない（既定は出す）。
+    ap.add_argument('--no-png', action='store_true',
+                    help='<out> と同名の確認用 .png を生成しない')
     args = ap.parse_args()
 
     with open(args.map) as f:
@@ -285,6 +348,19 @@ def main():
     if geo:
         print(f'  測地経路長={sum(geo):.1f}m 最大測地ジャンプ={max(geo):.1f}m '
               f'(直線最大={max(straight):.1f}m)')
+
+    # 地図にウェイポイント・巡回経路を重ねた確認用 PNG を生成（--no-png で抑止）。
+    if not args.no_png:
+        png_path = os.path.splitext(args.out)[0] + '.png'
+        title = (f'{os.path.basename(args.out)}  {len(ordered)}pts  '
+                 f'len={sum(geo):.0f}m  maxjump={max(geo):.1f}m'
+                 if geo else os.path.basename(args.out))
+        try:
+            save_overlay(png_path, img, place, connectable, pts_cell, order,
+                         (cx0, cy0), place_cells, title)
+            print(f'  オーバーレイ画像 -> {png_path}')
+        except Exception as e:  # 画像生成失敗で yaml 出力までは無駄にしない。
+            print(f'  注意: オーバーレイ画像の生成に失敗（yaml は出力済み）: {e}')
 
 
 if __name__ == '__main__':

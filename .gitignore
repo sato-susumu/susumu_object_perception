@@ -63,11 +63,13 @@ Thumbs.db
 # ===== Personal notes (not part of the package) =====
 指示内容.md
 
-# ===== 保存地図の PGM (バイナリ画像、リポジトリに含めない) =====
-# frontier 探索/SLAM で生成する占有格子地図。各自の環境で生成する前提。
-# 巡回ウェイポイント生成 generate_waypoints.py の入力。yaml メタと
-# <world>_waypoints.yaml はテキストなので追跡する。
+# ===== 保存地図の PGM / 確認用オーバーレイ PNG (バイナリ画像、含めない) =====
+# PGM は frontier 探索/SLAM で生成する占有格子地図（generate_waypoints.py の入力）。
+# PNG は generate_waypoints.py がウェイポイントを地図に重ねた確認用画像（再生成可能）。
+# どちらも各自の環境で生成する前提。yaml メタと <world>_waypoints.yaml はテキスト
+# なので追跡する。
 maps/*.pgm
+maps/*.png
 
 # ===== MID-360 scan pattern CSV (大容量 ~40MB、リポジトリに含めない) =====
 # Gazebo MID-360 プラグイン(liblivox_mid360_sensor)が読む scan pattern。
