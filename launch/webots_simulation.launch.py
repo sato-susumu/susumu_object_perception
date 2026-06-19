@@ -120,37 +120,38 @@ def generate_launch_description():
         }])
 
     # 2D LiDAR(LDS-01) を廃止したので /scan は 3D 点群から生成する（Gazebo 側と同構成）。
-    # Nav2 の AMCL / costmap obstacle_layer がこの /scan を使う。Webots の PointCloud2 は
-    # /lidar/points/point_cloud に出る（driver が /point_cloud サフィックスを付ける）。
+    # Nav2 の AMCL / costmap obstacle_layer と slam_toolbox がこの /scan を使う。
+    #
+    # 入力は生点群 /lidar/points/point_cloud（perception 非依存。OFF でも /scan が出る）。
+    #
+    # 【前提: wbt の Lidar tiltAngle=0】Webots Lidar は tiltAngle≠0 だと点の高さが過大に
+    # なるバグ(cyberbotics/webots #37, 未修正)があり、平地が原点中心の同心円状に持ち上がって
+    # 地図に「円形の影」を焼いていた。全 wbt で tiltAngle を 0 にして回避済み（点群解析で、
+    # 下向きビームの地上高さが正しく ≈0、上向きビームは空に抜けて消えることを確認）。
+    # tiltAngle=0 で FOV は対称（仰角 ±30deg 相当）になる。
+    #
+    # 高さ帯: lidar_link 基準（LiDAR は地上 0.2m）。地面は z≈-0.2（地上 0）に正しく乗るので、
+    # z>=0.1（地上約 0.3m）で地面を除外しつつ、屋内の低い家具〜壁、人を拾う。上限 z=2.0
+    # （地上 2.2m）で天井/壁上部を外す。range_min は屋内の近い壁(〜0.7m)を残すため 0.3。
     pointcloud_to_laserscan = Node(
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
         name='pointcloud_to_laserscan',
         output='screen',
-        remappings=[('cloud_in', lidar_points_topic),
+        remappings=[('cloud_in', '/lidar/points/point_cloud'),
                     ('scan', '/scan')],
         parameters=[{
             'use_sim_time': use_sim_time,
             'target_frame': lidar_frame,
             'transform_tolerance': 0.01,
-            # lidar_link 基準の高さ帯。MID-360 は俯角ビームが密で、どの高さでも
-            # 「地面に当たるビーム」が全方位リングを作る。下限が低いとそのリングの
-            # 最近傍点（例 z=0.3→水平1.7m）が各方位で選ばれ /scan が半径1.7mに
-            # 潰れて SLAM 地図が広がらない（city は 20m 四方の開放環境なのに）。
-            # 点群解析: 帯を上げるほど地面リングが遠ざかる（0.5-2.0m→近傍2.6m、
-            # 1.5-3.0m→近傍5.3m/最大6.7m）。下限 1.0 上限 3.0 で遠方建物を取りつつ
-            # 地面リングを 3.7m 先まで遠ざける。※恒久対策は ground_filter 済み点群で
-            # /scan を作ること（docs/autoware_perception.md 参照）。
-            'min_height': 1.0,
-            'max_height': 3.0,
+            # lidar_link 基準。z>=0.1（地上約0.3m）で地面(z≈-0.2)を確実に除外し、壁・家具・人を採る。
+            'min_height': 0.1,
+            'max_height': 2.0,
             'angle_min': -3.14159,
             'angle_max': 3.14159,
             'angle_increment': 0.0087,
             'scan_time': 0.1,
-            # 近接リング（ロボット自己構造 + 残留地面、全方位 1.1〜1.8m）を捨てて
-            # 遠方の建物・壁だけ /scan に乗せる。屋外の地図作成では近接障害物より
-            # 遠方が見えることを優先（min_height との併用で地面リングも遠ざける）。
-            'range_min': 1.8,
+            'range_min': 0.3,
             'range_max': 40.0,
             'use_inf': True,
         }])
@@ -212,6 +213,7 @@ def generate_launch_description():
     nav2_map = os.path.join(tb3_pkg, 'resource', 'turtlebot3_burger_example_map.yaml')
     default_nav2_params = os.path.join(tb3_pkg, 'resource', 'nav2_params.yaml')
     # nav_params_file が空なら従来の標準 params、指定があればそれを使う。
+    # マッピング（webots_city_mapping）は nav2_params_webots_explore.yaml を渡す。
     nav2_params = PythonExpression(
         ["'", nav_params_file, "' or '", default_nav2_params, "'"])
     turtlebot_navigation = IncludeLaunchDescription(

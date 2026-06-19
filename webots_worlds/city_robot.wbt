@@ -61,7 +61,7 @@ TurtleBot3Burger {
       horizontalResolution 720
       fieldOfView 6.283185
       verticalFieldOfView 1.029744
-      tiltAngle 0.392699
+      tiltAngle 0
       numberOfLayers 28
       near 0.1
       minRange 0.1

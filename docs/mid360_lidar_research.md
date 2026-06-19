@@ -448,9 +448,26 @@ Gazebo（`test_robot_empty.launch.py`、本番 `model.sdf`、空 world + 壁）:
 Webots（`webots_simulation.launch.py world:=indoor.wbt`）:
 
 - 標準 `Lidar` の MID-360 近似。`tiltAngle` 未設定だと仰角中心が 0°（[-29.8°,+45.0°]）で MID-360 と
-  ずれていたため、`indoor/outdoor/calibration.wbt` の Lidar に `tiltAngle 0.392699`（+22.5°）を追加。
-  → 仰角 [-7.3°,+52.2°] になり MID-360 仕様 [-7,+52] と一致。20160 点（720×28）を維持。
+  ずれていたため、当初 `indoor/outdoor/calibration.wbt` の Lidar に `tiltAngle 0.392699`（+22.5°）を追加
+  し仰角 [-7.3°,+52.2°]（MID-360 仕様 [-7,+52]）に合わせていた。20160 点（720×28）。
   - Webots の `tiltAngle` は正で上向き。最初 `-0.392699` を入れたら下（[-52.2°,+45.0°]）に向いたため符号を反転した。
+
+- **【重要・2026-06-19】`tiltAngle` を 0 に戻した（全 wbt）**。SLAM 地図の中心に「円形の影」が出る
+  問題を基礎から検証した結果、**Webots Lidar の既知バグ
+  [cyberbotics/webots #37 "Wrong Lidar Point Height when Tilt Angle is Non-Zero"](https://github.com/cyberbotics/webots/issues/37)**
+  （2018 報告・**未修正**）が原因と判明。`tiltAngle≠0` だと点の高さが過大に計算され、平らな地面が
+  **原点中心の同心円状に地上 0.5〜2.5m へ持ち上がって** 2D 地図に焼かれる（円形の影の正体）。
+  - 検証（outdoor 平地、点群を地上高さ=z_lidar+0.2 で解析）: `tiltAngle 0.39` では地上 0.5m 以上の
+    点が **3979 個**（原点中心の同心円。建物・植木は別途正しく見えるので world は正常）。`tiltAngle 0`
+    にすると **340 個**（建物/植木の実物体のみ）に激減し、下向きビームの地上高さが正しく ≈0、上向き
+    ビームは空に抜けて消えた。
+  - 副作用: `tiltAngle 0` で FOV は対称（仰角 ±29〜30° 相当）に戻り MID-360 実機の非対称 FOV [-7,+52]
+    からは外れる。だが 2D SLAM/Nav は水平中心の方がむしろ素直で、円形影が消え地図品質が大幅改善する
+    メリットが勝る。色付き点群（omni camera fusion）が上向き情報を使う場合は別途要検証。
+  - 関連: `mode:=fast` も odom を ~21% 過大積算しドリフトさせる（地図崩れ・「RViz では進むが Webots で
+    衝突」の主因）。マッピング/ナビは `mode:=realtime` を使う。/scan は生点群を高さ帯（lidar 基準
+    z>=0.1=地上約0.3m、地面は z≈-0.2 に正しく乗る）で 2D 化（`webots_simulation.launch.py` の
+    pointcloud_to_laserscan）。詳細は `docs/webots_simulation.md` のマッピング節も参照。
 
 ### 環境側の別問題（MID-360 とは無関係、ついでに修正）
 

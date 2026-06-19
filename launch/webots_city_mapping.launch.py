@@ -44,6 +44,7 @@ def generate_launch_description():
     save_map = LaunchConfiguration('save_map')
     gain = LaunchConfiguration('gain')
     min_frontier_cells = LaunchConfiguration('min_frontier_cells')
+    goal_timeout = LaunchConfiguration('goal_timeout_sec')
 
     # 探索向け Nav2 params（inflation を 0.35 に下げ、フロンティアゴールへの planner が
     # 通るようにする。標準の 1.0 だと 5x4m の自由空間が高コストで埋まり経路が作れない）。
@@ -90,6 +91,9 @@ def generate_launch_description():
                     # ワールド全体を探索しきるまで粘る（屋外 20m 級を半分でやめないよう、
                     # 連続空振り許容を増やす）。地図がワールド全体を抑えるのに必要。
                     'done_after_empty': 12,
+                    # 1 ゴールの到達猶予。短い(15s)と狭い屋内で遠いフロンティアに届かず
+                    # ブラックリスト化が多発し探索が縮こまる。余裕を持って 30s。
+                    'goal_timeout_sec': goal_timeout,
                 }],
             ),
         ],
@@ -107,10 +111,15 @@ def generate_launch_description():
             description='RViz2 を起動する（地図の育ちを見られる）'),
         DeclareLaunchArgument(
             'perception', default_value='False',
-            description='Autoware perception（地図作成に不要なので既定 OFF）'),
+            description='Autoware perception（地図作成に不要なので既定 OFF。/scan は生点群'
+                        'から作るので perception 非依存）'),
         DeclareLaunchArgument(
             'omni_perception', default_value='False',
             description='全天球カメラ連携（地図作成に不要なので既定 OFF）'),
+        DeclareLaunchArgument(
+            'goal_timeout_sec', default_value='30.0',
+            description='frontier の 1 ゴール到達猶予[s]。短いと狭い屋内で'
+                        'ブラックリスト化が多発し探索が縮こまる'),
         DeclareLaunchArgument(
             'map_name', default_value='city',
             description='保存する地図名（maps/<map_name>.pgm/.yaml）'),
