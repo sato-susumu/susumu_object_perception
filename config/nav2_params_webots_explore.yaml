@@ -249,7 +249,14 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_link
       use_sim_time: True
-      # 実機 waffle 相当に（local と揃える。0.1 は小さすぎて壁衝突の原因）。
+      # 【探索のための rolling window 大サイズ】static_layer(/map)のサイズに追従すると、
+      # 起動直後は costmap が数m しかなく「goal is off the global costmap」で遠方ゴールへの
+      # planner が常に失敗→ロボットが地図の縁(原点付近)から動けなかった（屋外で致命的）。
+      # ロボット中心 40m 四方の rolling window にして、未知領域への遠征ゴールも costmap 内に
+      # 収め planner が経路を引けるようにする。/map は slam_toolbox が別途育てる。
+      rolling_window: true
+      width: 40
+      height: 40
       robot_radius: 0.22
       resolution: 0.05
       track_unknown_space: true

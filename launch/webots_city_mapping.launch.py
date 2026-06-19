@@ -46,6 +46,8 @@ def generate_launch_description():
     min_frontier_cells = LaunchConfiguration('min_frontier_cells')
     goal_timeout = LaunchConfiguration('goal_timeout_sec')
     forward_step = LaunchConfiguration('forward_step')
+    sweep_mode = LaunchConfiguration('sweep_mode')
+    sweep_radius = LaunchConfiguration('sweep_radius')
 
     # 探索向け Nav2 params（inflation を 0.35 に下げ、フロンティアゴールへの planner が
     # 通るようにする。標準の 1.0 だと 5x4m の自由空間が高コストで埋まり経路が作れない）。
@@ -100,6 +102,10 @@ def generate_launch_description():
                     # 至近フロンティアしか無い時の前進距離[m]。屋外の開放空間では大きくして
                     # 植木の間を抜け遠くへ一気に展開させる（forward_step:=4.0 等）。
                     'forward_step': forward_step,
+                    # 非frontier的な sweep 探索（屋外の開放空間向け）。frontier 前に各方向へ
+                    # 遠征し領域を舐める。sweep:=True sweep_radius:=7.0 で有効化。
+                    'sweep_mode': sweep_mode,
+                    'sweep_radius': sweep_radius,
                 }],
             ),
         ],
@@ -130,6 +136,13 @@ def generate_launch_description():
             'forward_step', default_value='2.0',
             description='至近フロンティアしか無い時に前進する距離[m]。屋外の開放空間は'
                         '4.0 程度に大きくすると遠くへ展開しやすい'),
+        DeclareLaunchArgument(
+            'sweep_mode', default_value='False',
+            description='非frontier的な sweep 探索。屋外の開放空間で True にすると'
+                        'frontier 前に各方向へ遠征し領域を舐める'),
+        DeclareLaunchArgument(
+            'sweep_radius', default_value='7.0',
+            description='sweep の遠征半径[m]。20m world なら 7〜8'),
         DeclareLaunchArgument(
             'map_name', default_value='city',
             description='保存する地図名（maps/<map_name>.pgm/.yaml）'),

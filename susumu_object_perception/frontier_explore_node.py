@@ -103,6 +103,13 @@ class FrontierExploreNode(Node):
         self.declare_parameter(
             'map_save_path',
             os.path.expanduser('~/ros2_ws/src/susumu_object_perception/maps/city'))
+        # 【非frontier的な特殊探索: sweep モード】屋外の特徴が乏しい開放空間では frontier が
+        # ロボット至近にしか出ず原点付近から動けない。そこで frontier 探索の前に、ロボット
+        # 現在地から放射状の各方向へ sweep_radius[m] 先の遠征ゴールを順に送り、未知でも構わず
+        # 領域を舐めて回る（coverage 型）。各方向を一巡したら frontier 探索に移る。
+        self.declare_parameter('sweep_mode', False)
+        self.declare_parameter('sweep_radius', 7.0)
+        self.declare_parameter('sweep_dirs', 8)
 
         self.map_frame = self.get_parameter('map_frame').value
         self.robot_frame = self.get_parameter('robot_frame').value
@@ -113,6 +120,12 @@ class FrontierExploreNode(Node):
         self.dist_weight = float(self.get_parameter('dist_weight').value)
         self.min_goal_dist = float(self.get_parameter('min_goal_dist').value)
         self.forward_step = float(self.get_parameter('forward_step').value)
+        self.sweep_mode = bool(self.get_parameter('sweep_mode').value)
+        self.sweep_radius = float(self.get_parameter('sweep_radius').value)
+        self.sweep_dirs = int(self.get_parameter('sweep_dirs').value)
+        self._sweep_idx = 0           # 次に向かう sweep 方向のインデックス
+        self._sweep_origin = None     # sweep 起点（ロボット初期位置）
+        self._sweep_done = False      # sweep を一巡したか
         self.approach_setback = float(
             self.get_parameter('approach_setback').value)
         self.goal_timeout_sec = float(
@@ -198,6 +211,12 @@ class FrontierExploreNode(Node):
             self._do_bootstrap_spin()
             return
         self._did_bootstrap = True
+
+        # 【sweep モード】frontier 探索の前に、各方向へ遠征ゴールを順に送って領域を舐める。
+        # 一巡し終えたら（_sweep_done）通常の frontier 探索へ移る。
+        if self.sweep_mode and not self._sweep_done:
+            self._do_sweep_step()
+            return
 
         frontiers = self._find_frontiers()
         if not frontiers:
@@ -429,6 +448,34 @@ class FrontierExploreNode(Node):
         self._busy = False
         self._publish_status('bootstrap spin done')
         self._reschedule(1.0)
+
+    # ---- sweep (非frontier的な特殊探索) ----------------------------------
+
+    def _do_sweep_step(self):
+        """sweep 起点から放射状の各方向へ sweep_radius 先のゴールを順に送る。
+
+        frontier に頼らず未知でも構わず遠方へ向かわせて領域を舐める coverage 型探索。
+        全方向(sweep_dirs)を一巡したら _sweep_done=True にして frontier 探索へ移る。
+        各方向のゴール到達/タイムアウトは通常の nav コールバックが処理し、次サイクルで
+        _step→_do_sweep_step が呼ばれて次の方向へ進む。
+        """
+        if self._sweep_origin is None:
+            self._sweep_origin = self._robot_xy()
+        if self._sweep_idx >= self.sweep_dirs:
+            self._sweep_done = True
+            self._publish_status('sweep done; switching to frontier search')
+            self._reschedule(1.0)
+            return
+        ox, oy = self._sweep_origin
+        ang = 2.0 * math.pi * self._sweep_idx / self.sweep_dirs
+        gx = ox + self.sweep_radius * math.cos(ang)
+        gy = oy + self.sweep_radius * math.sin(ang)
+        self._publish_status(
+            f'sweep {self._sweep_idx + 1}/{self.sweep_dirs} '
+            f'-> ({gx:.1f}, {gy:.1f})')
+        self._sweep_idx += 1
+        # 通常の nav 送信を流用（到達/タイムアウトで次サイクル→次方向へ）。
+        self._navigate_to((gx, gy))
 
     # ---- navigate --------------------------------------------------------
 
