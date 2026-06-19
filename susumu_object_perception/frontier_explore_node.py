@@ -58,11 +58,16 @@ class FrontierExploreNode(Node):
         # フロンティアクラスタの最小セル数（ノイズ除去）。小さすぎる散在フロンティア
         # も拾うため小さめ（3）。大きいと地図外周の巨大クラスタしか残らず探索が早期に
         # 終わってしまう。
-        self.declare_parameter('min_frontier_cells', 3)
+        # 小さいフロンティア（ノイズ由来の小片）は無視して安定したゴールだけ追う。
+        # 小さいと細かいノイズへ向かい、ロボットが頻繁に向きを変えて slam マッチが乱れ
+        # 斜めノイズ→地図分断の原因に。8 セル(=0.4m級)以上のまとまりだけ狙う。
+        self.declare_parameter('min_frontier_cells', 8)
         # 情報利得スコア score = size_weight*log(size) - dist_weight*distance。
-        # size_weight を大きくすると遠くても大きな未踏領域を優先（局所滞留を防ぐ）。
-        self.declare_parameter('size_weight', 2.0)
-        self.declare_parameter('dist_weight', 0.4)
+        # 【近接優先に変更】遠い大領域へジャンプすると移動が大きく、slam が追従しきれず
+        # 誤マッチで地図が崩れる。屋内のような閉空間は「手前から連続的に塗りつぶす」方が
+        # slam が安定する。dist_weight を上げ size_weight を下げて近接フロンティア優先に。
+        self.declare_parameter('size_weight', 1.0)
+        self.declare_parameter('dist_weight', 1.0)
         # 旧 nearest 法の gain（互換のため残すが未使用）。
         self.declare_parameter('gain', 0.30)
         # 近すぎるフロンティア（既に居る場所）は無視する最小距離 [m]。

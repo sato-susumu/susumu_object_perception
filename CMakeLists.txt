@@ -127,6 +127,7 @@ install(PROGRAMS
   scripts/test_object_seeker.py
   scripts/generate_waypoints.py
   scripts/map_progress_monitor.py
+  scripts/eval_map_quality.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
