@@ -26,7 +26,8 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            TimerAction)
+                            SetLaunchConfiguration, TimerAction)
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
@@ -41,6 +42,8 @@ def generate_launch_description():
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
     use_image_recognition = LaunchConfiguration('image_recognition')
+    use_colored_slam = LaunchConfiguration('colored_slam')
+    use_collision_diagnostics = LaunchConfiguration('collision_diagnostics')
     map_name = LaunchConfiguration('map_name')
     save_map = LaunchConfiguration('save_map')
     gain = LaunchConfiguration('gain')
@@ -49,13 +52,24 @@ def generate_launch_description():
     forward_step = LaunchConfiguration('forward_step')
     sweep_mode = LaunchConfiguration('sweep_mode')
     sweep_radius = LaunchConfiguration('sweep_radius')
+    sweep_spacing = LaunchConfiguration('sweep_spacing')
+    sweep_pattern = LaunchConfiguration('sweep_pattern')
+    spin_after_goal = LaunchConfiguration('spin_after_goal')
+    mapping_world_hint = LaunchConfiguration('mapping_world_hint')
+
+    sweep_enabled = PythonExpression([
+        "'True' if ('", sweep_mode, "'.lower() == 'true' or "
+        "('", sweep_mode, "'.lower() == 'auto' and "
+        "('city' in '", world, "' or 'outdoor' in '", world, "'))) "
+        "else 'False'"
+    ])
 
     # 探索向け Nav2 params。屋内は static追従 costmap + Navfn の安定版、屋外(sweep_mode:=True)
     # は rolling window(40m) + Smac planner の遠征版を使う（屋外は遠方ゴールが costmap 外に
     # ならないよう rolling、Navfn の未知領域経路失敗を避けるため Smac）。sweep_mode で切替。
     explore_params = PythonExpression([
         "'", os.path.join(pkg, 'config', 'nav2_params_webots_explore_outdoor.yaml'),
-        "' if '", sweep_mode, "'.lower() == 'true' else '",
+        "' if '", sweep_enabled, "'.lower() == 'true' else '",
         os.path.join(pkg, 'config', 'nav2_params_webots_explore.yaml'), "'"])
 
     # robot + Webots + Nav2 + slam_toolbox。地図作成の本体（slam_toolbox が /map を出す）。
@@ -69,6 +83,7 @@ def generate_launch_description():
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
             ('image_recognition', use_image_recognition),
+            ('colored_slam', use_colored_slam),
             ('nav_params_file', explore_params),
         ],
     )
@@ -97,6 +112,7 @@ def generate_launch_description():
                     'use_sim_time': True,
                     'map_frame': 'map',
                     'robot_frame': 'base_footprint',
+                    'world_name': mapping_world_hint,
                     'min_frontier_cells': min_frontier_cells,
                     'gain': gain,
                     'save_map': save_map,
@@ -108,10 +124,14 @@ def generate_launch_description():
                     # 至近フロンティアしか無い時の前進距離[m]。屋外の開放空間では大きくして
                     # 植木の間を抜け遠くへ一気に展開させる（forward_step:=4.0 等）。
                     'forward_step': forward_step,
-                    # 非frontier的な sweep 探索（屋外の開放空間向け）。frontier 前に各方向へ
-                    # 遠征し領域を舐める。sweep:=True sweep_radius:=7.0 で有効化。
+                    # 非frontier的な sweep 探索（屋外/街の開放空間向け）。frontier 前に
+                    # perimeter/spiral coverage で領域を舐める。auto 判定は node 側で
+                    # world_name を見て行う。
                     'sweep_mode': sweep_mode,
                     'sweep_radius': sweep_radius,
+                    'sweep_spacing': sweep_spacing,
+                    'sweep_pattern': sweep_pattern,
+                    'spin_after_goal': spin_after_goal,
                 }],
             ),
         ],
@@ -120,10 +140,11 @@ def generate_launch_description():
     # 衝突診断ノード（break_room のバンパー /bumper/collision を監視）。移動物体の無い
     # 環境での衝突は「ナビが障害物を把握できていない or アルゴリズム不良」なので、衝突時に
     # scan/costmap/cmd_vel を突き合わせて原因(A:scan非検出 / B:costmap非マーク /
-    # C:回避失敗 / D:ドリフト)を切り分ける。バンパーの無い world では /bumper/* が来ない
-    # だけで無害なので常時起動する。Nav2/costmap が立ってから遅延起動。
+    # C:回避失敗 / D:ドリフト)を切り分ける。広域マッピング検証では CPU を SLAM/Nav2 に
+    # 回すため既定 OFF。必要なときだけ collision_diagnostics:=True で起動する。
     collision_diag = TimerAction(
         period=22.0,
+        condition=IfCondition(use_collision_diagnostics),
         actions=[
             Node(
                 package='susumu_object_perception',
@@ -156,20 +177,35 @@ def generate_launch_description():
             'image_recognition', default_value='False',
             description='YOLO 物体分類 + 全天球信号認識（地図作成に不要なので既定 OFF）'),
         DeclareLaunchArgument(
-            'goal_timeout_sec', default_value='30.0',
-            description='frontier の 1 ゴール到達猶予[s]。短いと狭い屋内で'
-                        'ブラックリスト化が多発し探索が縮こまる'),
+            'colored_slam', default_value='False',
+            description='色付き点群SLAMマップ（地図作成検証では重いので既定 OFF）'),
+        DeclareLaunchArgument(
+            'collision_diagnostics', default_value='False',
+            description='衝突診断ノードを起動する。break_room 等で衝突原因を切り分ける時だけ True'),
+        DeclareLaunchArgument(
+            'goal_timeout_sec', default_value='60.0',
+            description='frontier/sweep の 1 ゴール到達猶予[s]。短いと広い world で'
+                        '到達前にスキップし探索が縮こまる'),
         DeclareLaunchArgument(
             'forward_step', default_value='2.0',
             description='至近フロンティアしか無い時に前進する距離[m]。屋外の開放空間は'
                         '4.0 程度に大きくすると遠くへ展開しやすい'),
         DeclareLaunchArgument(
-            'sweep_mode', default_value='False',
-            description='非frontier的な sweep 探索。屋外の開放空間で True にすると'
-                        'frontier 前に各方向へ遠征し領域を舐める'),
+            'sweep_mode', default_value='auto',
+            description='非frontier的な sweep 探索。auto は city/outdoor で有効、屋内は無効。'
+                        'True/False で明示指定可'),
         DeclareLaunchArgument(
-            'sweep_radius', default_value='7.0',
-            description='sweep の遠征半径[m]。20m world なら 7〜8'),
+            'sweep_radius', default_value='8.0',
+            description='sweep の遠征半径[m]。20m world なら 8 前後'),
+        DeclareLaunchArgument(
+            'sweep_spacing', default_value='4.0',
+            description='spiral sweep の隣接リング間隔[m]。小さいほど密に面を舐める'),
+        DeclareLaunchArgument(
+            'sweep_pattern', default_value='perimeter',
+            description='sweep の形。perimeter（既定）/ spiral / radial'),
+        DeclareLaunchArgument(
+            'spin_after_goal', default_value='False',
+            description='各探索ゴール到達後に360度スピンして周囲を観測し直す。360度LiDARの広域探索では通常不要'),
         DeclareLaunchArgument(
             'map_name', default_value='city',
             description='保存する地図名（maps/<map_name>.pgm/.yaml）'),
@@ -183,6 +219,7 @@ def generate_launch_description():
             'min_frontier_cells', default_value='4',
             description='フロンティアクラスタの最小セル数（小さいと細かい未踏も追い'
                         'ワールド全体を探索しきる。大きいと早期完了で地図が狭くなる）'),
+        SetLaunchConfiguration('mapping_world_hint', world),
         robot_nav,
         frontier,
         collision_diag,

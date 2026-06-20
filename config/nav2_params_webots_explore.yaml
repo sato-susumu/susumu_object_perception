@@ -59,7 +59,8 @@ bt_navigator:
     robot_base_frame: base_link
     odom_topic: /odom
     default_bt_xml_filename: "navigate_w_replanning_and_recovery.xml"
-    bt_loop_duration: 10
+    # 探索マッピングでは 100Hz tick は不要で CPU/TF 遅延の原因になるため 20Hz に抑える。
+    bt_loop_duration: 50
     default_server_timeout: 20
     enable_groot_monitoring: True
     groot_zmq_publisher_port: 1666
@@ -116,10 +117,11 @@ controller_server:
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      # 低速旋回(max_vel_theta 0.3)だとゴール方向へ向き直るのに時間がかかり、10秒で
-      # 0.5m 動けず "Failed to make progress" を多発していた。猶予を 20s に緩める。
-      required_movement_radius: 0.5
-      movement_time_allowance: 20.0
+      # マッピング中は観測スピン・低速旋回・未知領域の迂回で局所的に足が遅くなる。
+      # 0.5m/20s では広い world の sweep 中に "Failed to make progress" が出やすいので、
+      # 探索用 params だけ判定を緩める。
+      required_movement_radius: 0.2
+      movement_time_allowance: 45.0
     
     general_goal_checker:
       stateful: True
@@ -138,7 +140,7 @@ controller_server:
     # DWB parameters
     FollowPath:
       plugin: "dwb_core::DWBLocalPlanner"
-      debug_trajectory_details: True
+      debug_trajectory_details: False
       min_vel_x: 0.0
       min_vel_y: 0.0
       max_vel_x: 0.22
@@ -330,7 +332,7 @@ map_saver:
 
 planner_server:
   ros__parameters:
-    expected_planner_frequency: 20.0
+    expected_planner_frequency: 5.0
     use_sim_time: False
     planner_plugins: ["GridBased"]
     # NavfnPlanner は「ロボット開始位置が inflation 半径内だと経路を引けない」既知バグ
@@ -401,9 +403,12 @@ waypoint_follower:
 #  - distance/angle_variance_penalty を小さく（0.3/0.6）: odom 予測解から離れにくくする
 #    （slam_toolbox では penalty が小さいほど odom 予測を信頼）。
 #  - correlation_search_space_dimension 0.5→0.3: マッチ探索窓を狭め、大きくズレない。
-#  - /scan は生点群を高さ帯(z>=0.7)で 2D 化した、地面リングを抑えたスキャン前提
-#    （launch 側 pointcloud_to_laserscan 参照）。
-#  - max_laser_range 20→15: 屋内(5〜10m)の遠い誤マッチを抑えつつ屋外も探索可能な妥協値。
+#  - /scan は生点群を高さ帯(z>=0.05, lidar_link基準, max_height=10m)で 2D 化（launch 側
+#    pointcloud_to_laserscan）。未ヒット ray は range_max(20m)+0.5=20.5m の有限値で出すが、
+#    Karto は `>= scan.range_max` の ray を完全無視するので free 上書きは起きない。
+#  - max_laser_range 18: scan の range_max(20) と未ヒット偽値(20.5) より小さく、屋外の建物
+#    遠方壁を実 hit として活用するための広めの設定（p2l range_max=20 > slam max_laser_range=18
+#    > 未ヒット偽値 20.5 で完全無視、実 hit は 18m まで占有マークされる）。
 #  - loop closure 強め(search 5.0): 一周時に確実に閉じ壁の二重化を防ぐ。
 slam_toolbox:
   ros__parameters:
@@ -424,7 +429,7 @@ slam_toolbox:
     transform_publish_period: 0.02
     map_update_interval: 1.0
     resolution: 0.05
-    max_laser_range: 15.0
+    max_laser_range: 18.0
     min_laser_range: 0.2
     minimum_time_interval: 0.3
     transform_timeout: 0.2

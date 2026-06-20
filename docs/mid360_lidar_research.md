@@ -469,6 +469,18 @@ Webots（`webots_simulation.launch.py world:=indoor.wbt`）:
     z>=0.1=地上約0.3m、地面は z≈-0.2 に正しく乗る）で 2D 化（`webots_simulation.launch.py` の
     pointcloud_to_laserscan）。詳細は `docs/webots_simulation.md` のマッピング節も参照。
 
+- **【重要・2026-06-20】広い outdoor/city で地図が原点周辺から育たない問題を対処**。Webots の
+  `/scan` で、障害物に当たらない方位を `+inf` のまま出すと `slam_toolbox` / OpenKarto が自由空間を
+  十分に rasterize せず、ロボットが移動しても地図が星形・小面積に留まりやすい。
+  `pointcloud_to_laserscan` を `range_max=16.0`、`use_inf=false`、`inf_epsilon=-0.5` にし、未ヒット ray を
+  15.5m の有限値に変更した。探索用 `slam_toolbox` は `max_laser_range=15.0` なので、この ray は
+  占有端点を作らず 15m まで free として扱われる。
+  - 実測: 変更後の `/scan` は 723 点すべて finite、未ヒット方向は主に 15.5m。
+  - `outdoor.wbt` 180s 検証では、旧 scan が既知面積 81.4m2 / 地図 9.1 x 9.0m 程度だったのに対し、
+    scan 修正 + perimeter sweep で既知面積 649.1m2 / 地図 33.5 x 22.2m / ロボット移動 49.2m まで拡大。
+  - あわせて `frontier_explore_node.py` に `perimeter` sweep を追加し、`webots_city_mapping.launch.py` は
+    `outdoor` / `city` で自動有効化する。広い world では純 frontier より先に外周へ出て bbox を広げる。
+
 ### 環境側の別問題（MID-360 とは無関係、ついでに修正）
 
 ワークスペースに dangling な install 残骸（`susumu_object_tracker` / `susumu_gtts` / `susumu_dummy_agi`）が

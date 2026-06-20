@@ -31,10 +31,12 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import (QoSProfile, ReliabilityPolicy, HistoryPolicy,
                        DurabilityPolicy)
+from rcl_interfaces.msg import ParameterDescriptor
 
 import tf2_ros
 from tf2_ros import TransformException
 
+from action_msgs.msg import GoalStatus
 from std_msgs.msg import String, ColorRGBA
 from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import OccupancyGrid
@@ -55,6 +57,7 @@ class FrontierExploreNode(Node):
 
         self.declare_parameter('map_frame', 'map')
         self.declare_parameter('robot_frame', 'base_footprint')
+        self.declare_parameter('world_name', '')
         # フロンティアクラスタの最小セル数（ノイズ除去）。小さすぎる散在フロンティア
         # も拾うため小さめ（3）。大きいと地図外周の巨大クラスタしか残らず探索が早期に
         # 終わってしまう。
@@ -88,12 +91,13 @@ class FrontierExploreNode(Node):
         # inflation 0.5 と併せて壁から離れる）。
         self.declare_parameter('approach_setback', 1.3)
         # ゴール到達判定/タイムアウト [s]（1 ゴールに留まり続けない保険）。
-        # planner が失敗するゴールに長く粘らず、早めに別フロンティアへ移る。
-        self.declare_parameter('goal_timeout_sec', 15.0)
+        # 広い world の sweep は隣接点でも 5m 程度走るため、短すぎると到達前に
+        # タイムアウトして探索が縮こまる。
+        self.declare_parameter('goal_timeout_sec', 60.0)
         # 【経路事前検証】ゴールを NavigateToPose で送る前に ComputePathToPose で「そこへ
         # 経路が引けるか」を検証する（Nav2 標準のフロンティア探索のベストプラクティス。
         # 参照: AniArka/Autonomous-Explorer 等）。引けなければ即 blacklist して次候補を検証
-        # する。これにより「到達不能ゴールへ送る→15s タイムアウト→blacklist」の無駄な往復
+        # する。これにより「到達不能ゴールへ送る→timeout→blacklist」の無駄な往復
         # （no valid path 多発・停滞の主因）を無くし、最初から到達可能なフロンティアだけへ
         # 向かう。検証は軽量なのでタイムアウトは短く。
         self.declare_parameter('validate_path', True)
@@ -125,15 +129,21 @@ class FrontierExploreNode(Node):
             'map_save_path',
             os.path.expanduser('~/ros2_ws/src/susumu_object_perception/maps/city'))
         # 【非frontier的な特殊探索: sweep モード】屋外の特徴が乏しい開放空間では frontier が
-        # ロボット至近にしか出ず原点付近から動けない。そこで frontier 探索の前に、ロボット
-        # 現在地から放射状の各方向へ sweep_radius[m] 先の遠征ゴールを順に送り、未知でも構わず
-        # 領域を舐めて回る（coverage 型）。各方向を一巡したら frontier 探索に移る。
-        self.declare_parameter('sweep_mode', False)
-        self.declare_parameter('sweep_radius', 7.0)
+        # ロボット至近にしか出ず原点付近から動けない。そこで frontier 探索の前に、外周/spiral
+        # の遠征ゴールを順に送り、未知でも構わず領域を舐めて回る（coverage 型）。全体を一巡
+        # したら frontier 探索に移る。360度 LiDAR では各ゴール後の spin は既定 OFF。
+        self.declare_parameter(
+            'sweep_mode', False,
+            ParameterDescriptor(dynamic_typing=True))
+        self.declare_parameter('sweep_radius', 8.0)
+        self.declare_parameter('sweep_spacing', 4.0)
         self.declare_parameter('sweep_dirs', 8)
+        self.declare_parameter('sweep_pattern', 'perimeter')
+        self.declare_parameter('spin_after_goal', False)
 
         self.map_frame = self.get_parameter('map_frame').value
         self.robot_frame = self.get_parameter('robot_frame').value
+        self.world_name = str(self.get_parameter('world_name').value).lower()
         self.min_frontier_cells = int(
             self.get_parameter('min_frontier_cells').value)
         self.gain = float(self.get_parameter('gain').value)
@@ -141,17 +151,21 @@ class FrontierExploreNode(Node):
         self.dist_weight = float(self.get_parameter('dist_weight').value)
         self.min_goal_dist = float(self.get_parameter('min_goal_dist').value)
         self.forward_step = float(self.get_parameter('forward_step').value)
-        self.sweep_mode = bool(self.get_parameter('sweep_mode').value)
+        self.sweep_mode = self._sweep_enabled_param()
         self.sweep_radius = float(self.get_parameter('sweep_radius').value)
+        self.sweep_spacing = float(self.get_parameter('sweep_spacing').value)
         self.sweep_dirs = int(self.get_parameter('sweep_dirs').value)
+        self.sweep_pattern = str(self.get_parameter('sweep_pattern').value)
+        self.spin_after_goal = self._bool_param('spin_after_goal')
         self._sweep_idx = 0           # 次に向かう sweep 方向のインデックス
         self._sweep_origin = None     # sweep 起点（ロボット初期位置）
+        self._sweep_goals = []        # sweep 起点基準で生成した遠征ゴール列
         self._sweep_done = False      # sweep を一巡したか
         self.approach_setback = float(
             self.get_parameter('approach_setback').value)
         self.goal_timeout_sec = float(
             self.get_parameter('goal_timeout_sec').value)
-        self.validate_path = bool(self.get_parameter('validate_path').value)
+        self.validate_path = self._bool_param('validate_path')
         self.validate_timeout_sec = float(
             self.get_parameter('validate_timeout_sec').value)
         self.done_after_empty = int(
@@ -164,12 +178,11 @@ class FrontierExploreNode(Node):
             self.get_parameter('stall_min_growth_cells').value)
         self.start_delay_sec = float(
             self.get_parameter('start_delay_sec').value)
-        self.bootstrap_spin = bool(
-            self.get_parameter('bootstrap_spin').value)
+        self.bootstrap_spin = self._bool_param('bootstrap_spin')
         self.bootstrap_yaw = float(self.get_parameter('bootstrap_yaw').value)
         self.bootstrap_time_allowance = float(
             self.get_parameter('bootstrap_time_allowance').value)
-        self.save_map = bool(self.get_parameter('save_map').value)
+        self.save_map = self._bool_param('save_map')
         self.map_save_path = self.get_parameter('map_save_path').value
 
         self._map = None
@@ -187,6 +200,8 @@ class FrontierExploreNode(Node):
         # (gx, gy) を blacklist_cell[m] グリッドに丸めたキーで持つ。
         self._blacklist = set()
         self._last_goal = None
+        self._active_goal_kind = None
+        self._active_goal_xy = None
         # 直近の到達失敗回数（連続失敗で setback を一時的に増やす）。
         self._fail_streak = 0
 
@@ -219,6 +234,28 @@ class FrontierExploreNode(Node):
             f'(min_cells={self.min_frontier_cells} gain={self.gain} '
             f'save={self.save_map} -> {self.map_save_path})')
 
+    def _bool_param(self, name):
+        value = self.get_parameter(name).value
+        if isinstance(value, str):
+            return value.strip().lower() in ('1', 'true', 'yes', 'on')
+        return bool(value)
+
+    def _sweep_enabled_param(self):
+        value = self.get_parameter('sweep_mode').value
+        if isinstance(value, str):
+            mode = value.strip().lower()
+            if mode == 'auto':
+                # The Webots include may rewrite the launch 'world' argument to
+                # a temporary generated WBT path. Keep map_save_path as a second
+                # hint so map_name:=city/outdoor still enables wide-world sweep.
+                hint = ' '.join([
+                    self.world_name,
+                    str(self.get_parameter('map_save_path').value).lower(),
+                ])
+                return ('city' in hint) or ('outdoor' in hint)
+            return mode in ('1', 'true', 'yes', 'on')
+        return bool(value)
+
     # ---- callbacks -------------------------------------------------------
 
     def _on_map(self, msg):
@@ -245,7 +282,7 @@ class FrontierExploreNode(Node):
         if (not self._did_bootstrap and self.bootstrap_spin
                 and self._map_is_tiny()):
             self._did_bootstrap = True
-            self._do_bootstrap_spin()
+            self._do_observation_spin('bootstrap: spinning to seed the map')
             return
         self._did_bootstrap = True
 
@@ -274,7 +311,7 @@ class FrontierExploreNode(Node):
                 return
             # まだ地図が育つ余地があるかもしれないので軽く回って再評価。
             if self.bootstrap_spin:
-                self._do_bootstrap_spin()
+                self._do_observation_spin('frontier sparse; spinning to rescan')
             else:
                 self._reschedule(2.0)
             return
@@ -304,8 +341,7 @@ class FrontierExploreNode(Node):
             self._busy = True
             self._try_candidates(cands, 0, total_frontier_cells)
         else:
-            self._last_goal = cands[0][1]  # repr（None=前進ゴール）
-            self._navigate_to(cands[0][0])
+            self._navigate_to(cands[0][0], repr_xy=cands[0][1])
 
     def _check_stall_and_maybe_finish(self):
         """既知面積(free+occ)の伸びを監視し、進展が無ければ打ち切る。
@@ -445,7 +481,7 @@ class FrontierExploreNode(Node):
         (forward push)ゴールを 1 つだけ末尾に積む。
 
         旧 _choose_goal は「最良 1 点だけ返す」同期実装だったが、これだと到達不能でも
-        送ってしまい 15s タイムアウトを待つ羽目になる。リストで返し、呼び出し側が先頭から
+        送ってしまい goal_timeout_sec を待つ羽目になる。リストで返し、呼び出し側が先頭から
         ComputePathToPose で検証して到達可能な最初の候補へ向かうことで停滞を無くす。
         """
         rx, ry = self._robot_xy()
@@ -501,13 +537,13 @@ class FrontierExploreNode(Node):
 
     # ---- bootstrap spin --------------------------------------------------
 
-    def _do_bootstrap_spin(self):
+    def _do_observation_spin(self, status_text):
         if not self._spin_client.wait_for_server(timeout_sec=5.0):
             self._publish_status('spin server unavailable; retrying')
             self._reschedule(3.0)
             return
         self._busy = True
-        self._publish_status('bootstrap: spinning to seed the map')
+        self._publish_status(status_text)
         goal = Spin.Goal()
         goal.target_yaw = self.bootstrap_yaw
         sec = int(self.bootstrap_time_allowance)
@@ -528,36 +564,87 @@ class FrontierExploreNode(Node):
 
     def _on_spin_result(self, future):
         self._busy = False
-        self._publish_status('bootstrap spin done')
+        self._publish_status('observation spin done')
         self._reschedule(1.0)
 
     # ---- sweep (非frontier的な特殊探索) ----------------------------------
 
     def _do_sweep_step(self):
-        """sweep 起点から放射状の各方向へ sweep_radius 先のゴールを順に送る。
+        """sweep 起点から coverage ゴールを順に送る。
 
-        frontier に頼らず未知でも構わず遠方へ向かわせて領域を舐める coverage 型探索。
-        全方向(sweep_dirs)を一巡したら _sweep_done=True にして frontier 探索へ移る。
-        各方向のゴール到達/タイムアウトは通常の nav コールバックが処理し、次サイクルで
-        _step→_do_sweep_step が呼ばれて次の方向へ進む。
+        frontier に頼らず未知でも構わず遠方へ向かわせて領域を舐める coverage 型探索。既定は
+        perimeter で、早めに外周へ出て map bounding box を広げる。spiral は中心から順に外周へ
+        広げる補助パターン。旧来の radial 8方向 sweep は遠方の線を数本引くだけで、広い world
+        では地図が星形になりやすい。
         """
         if self._sweep_origin is None:
             self._sweep_origin = self._robot_xy()
-        if self._sweep_idx >= self.sweep_dirs:
+            self._sweep_goals = self._build_sweep_goals(self._sweep_origin)
+            self._publish_status(
+                f'sweep {self.sweep_pattern}: {len(self._sweep_goals)} goals '
+                f'(radius={self.sweep_radius:.1f}m spacing={self.sweep_spacing:.1f}m)')
+        if self._sweep_idx >= len(self._sweep_goals):
             self._sweep_done = True
             self._publish_status('sweep done; switching to frontier search')
             self._reschedule(1.0)
             return
-        ox, oy = self._sweep_origin
-        ang = 2.0 * math.pi * self._sweep_idx / self.sweep_dirs
-        gx = ox + self.sweep_radius * math.cos(ang)
-        gy = oy + self.sweep_radius * math.sin(ang)
+        gx, gy = self._sweep_goals[self._sweep_idx]
         self._publish_status(
-            f'sweep {self._sweep_idx + 1}/{self.sweep_dirs} '
+            f'sweep {self._sweep_idx + 1}/{len(self._sweep_goals)} '
             f'-> ({gx:.1f}, {gy:.1f})')
         self._sweep_idx += 1
         # 通常の nav 送信を流用（到達/タイムアウトで次サイクル→次方向へ）。
-        self._navigate_to((gx, gy))
+        self._navigate_to((gx, gy), repr_xy=None, goal_kind='sweep')
+
+    def _build_sweep_goals(self, origin):
+        ox, oy = origin
+        radius = max(0.5, self.sweep_radius)
+        if self.sweep_pattern.lower() == 'radial':
+            return [
+                (ox + radius * math.cos(2.0 * math.pi * i / self.sweep_dirs),
+                 oy + radius * math.sin(2.0 * math.pi * i / self.sweep_dirs))
+                for i in range(max(1, self.sweep_dirs))
+            ]
+
+        if self.sweep_pattern.lower() == 'perimeter':
+            # 20m 前後の開放 world では、中心から小さな螺旋を描くより、早めに外周へ出て
+            # 縦横の bbox を広げた方が SLAM map の外形が育つ。北端から時計回りに外周の
+            # 中点/角を回り、最後に frontier 探索へ渡す。
+            local = [
+                (0.0, radius),
+                (radius, radius),
+                (radius, 0.0),
+                (radius, -radius),
+                (0.0, -radius),
+                (-radius, -radius),
+                (-radius, 0.0),
+                (-radius, radius),
+                (0.0, radius),
+            ]
+            return [(ox + lx, oy + ly) for lx, ly in local]
+
+        step = max(0.5, self.sweep_spacing)
+        rings = max(1, int(math.ceil(radius / step)))
+        local = []
+        for k in range(1, rings + 1):
+            a = min(radius, k * step)
+            prev = min(radius, (k - 1) * step)
+            # Square spiral: east -> north -> west -> south -> east, then expand.
+            local.extend([
+                (a, -prev),
+                (a, a),
+                (-a, a),
+                (-a, -a),
+                (a, -a),
+            ])
+        goals = []
+        last = None
+        for lx, ly in local:
+            g = (ox + lx, oy + ly)
+            if last is None or math.hypot(g[0] - last[0], g[1] - last[1]) > 0.2:
+                goals.append(g)
+                last = g
+        return goals
 
     # ---- path validation (送る前に到達可能か検証) ------------------------
 
@@ -587,7 +674,7 @@ class FrontierExploreNode(Node):
         if not self._plan_client.wait_for_server(timeout_sec=3.0):
             # planner サーバが居なければ検証を諦めて先頭をそのまま送る（従来動作）。
             self._publish_status('planner unavailable; sending without validate')
-            self._navigate_to(cands[0][0])
+            self._navigate_to(cands[0][0], repr_xy=cands[0][1])
             return
 
         wx, wy = goal_xy
@@ -634,12 +721,11 @@ class FrontierExploreNode(Node):
             ok = False
         if ok:
             goal_xy, repr_xy = cands[idx]
-            self._last_goal = repr_xy  # 前進ゴール(None)はタイムアウトで blacklist しない
             self._fail_streak = 0
             self._publish_status(
                 f'path valid; navigating [{idx + 1}/{len(cands)}]')
             # _busy 維持のまま実際のナビへ。
-            self._navigate_to(goal_xy, already_busy=True)
+            self._navigate_to(goal_xy, already_busy=True, repr_xy=repr_xy)
         else:
             self._reject_candidate(cands, idx, total_cells, 'no path')
 
@@ -668,7 +754,8 @@ class FrontierExploreNode(Node):
 
     # ---- navigate --------------------------------------------------------
 
-    def _navigate_to(self, goal_xy, already_busy=False):
+    def _navigate_to(self, goal_xy, already_busy=False, repr_xy=None,
+                     goal_kind='frontier'):
         # 即座に busy ロックして再入を防ぐ（wait_for_server 中に別の _step が
         # 走ると同じゴールを連発してしまう）。
         self._busy = True
@@ -678,6 +765,9 @@ class FrontierExploreNode(Node):
             self._reschedule(3.0)
             return
         wx, wy = goal_xy
+        self._last_goal = repr_xy
+        self._active_goal_kind = goal_kind
+        self._active_goal_xy = goal_xy
         ps = PoseStamped()
         ps.header.frame_id = self.map_frame
         ps.header.stamp = self.get_clock().now().to_msg()
@@ -693,7 +783,7 @@ class FrontierExploreNode(Node):
         goal.pose = ps
         self._busy = True
         self._publish_status(
-            f'exploring frontier ({wx:.1f}, {wy:.1f})')
+            f'exploring {goal_kind} ({wx:.1f}, {wy:.1f})')
         # ゴールに留まり続けないようタイムアウトで打ち切って再評価。
         self._goal_timer = self.create_timer(
             self.goal_timeout_sec, self._on_goal_timeout)
@@ -714,9 +804,29 @@ class FrontierExploreNode(Node):
     def _on_nav_result(self, future):
         self._busy = False
         self._cancel_goal_timer()
-        # ここまで来たら（タイムアウトでなく）ゴール処理が完了した＝多くは到達成功。
-        # 連続失敗カウンタをリセットして setback を通常値に戻す。
-        self._fail_streak = 0
+        try:
+            result = future.result()
+            status = result.status
+        except Exception:  # noqa: BLE001
+            status = GoalStatus.STATUS_UNKNOWN
+
+        if status == GoalStatus.STATUS_SUCCEEDED:
+            # ゴール到達。連続失敗カウンタをリセットして setback を通常値に戻す。
+            self._fail_streak = 0
+            if self.spin_after_goal:
+                kind = self._active_goal_kind or 'goal'
+                self._do_observation_spin(
+                    f'{kind} reached; spinning to update map')
+            else:
+                self._reschedule(0.5)
+            return
+
+        if self._last_goal is not None:
+            self._blacklist.add(self._blkey(*self._last_goal))
+        self._fail_streak += 1
+        self._publish_status(
+            f'nav failed status={status}; trying another '
+            f'(blacklist={len(self._blacklist)})')
         self._reschedule(0.5)
 
     def _on_goal_timeout(self):
