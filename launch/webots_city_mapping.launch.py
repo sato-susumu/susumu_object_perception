@@ -115,6 +115,24 @@ def generate_launch_description():
         ],
     )
 
+    # 衝突診断ノード（break_room のバンパー /bumper/collision を監視）。移動物体の無い
+    # 環境での衝突は「ナビが障害物を把握できていない or アルゴリズム不良」なので、衝突時に
+    # scan/costmap/cmd_vel を突き合わせて原因(A:scan非検出 / B:costmap非マーク /
+    # C:回避失敗 / D:ドリフト)を切り分ける。バンパーの無い world では /bumper/* が来ない
+    # だけで無害なので常時起動する。Nav2/costmap が立ってから遅延起動。
+    collision_diag = TimerAction(
+        period=22.0,
+        actions=[
+            Node(
+                package='susumu_object_perception',
+                executable='collision_diagnostic_node.py',
+                name='collision_diagnostic',
+                output='screen',
+                parameters=[{'use_sim_time': True}],
+            ),
+        ],
+    )
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'world', default_value='city_robot.wbt',
@@ -162,4 +180,5 @@ def generate_launch_description():
                         'ワールド全体を探索しきる。大きいと早期完了で地図が狭くなる）'),
         robot_nav,
         frontier,
+        collision_diag,
     ])

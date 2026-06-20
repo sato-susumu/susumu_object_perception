@@ -52,7 +52,9 @@
 
 ```bash
 # 1) 事前地図なしの環境を frontier 探索で自律マッピング（完了時 maps/<name> に自動保存）
-ros2 launch susumu_object_perception webots_city_mapping.launch.py world:=city_robot.wbt map_name:=city mode:=fast
+#    ★ mode は realtime 必須。fast は odom が ~21% 過大積算しドリフト→地図が崩れる
+#      （docs/mid360_lidar_research.md / メモリ参照）。break_room なら world:=break_room.wbt map_name:=break_room
+ros2 launch susumu_object_perception webots_city_mapping.launch.py world:=city_robot.wbt map_name:=city mode:=realtime
 
 # 2) 保存地図から巡回ウェイポイントを生成（壁から離れた自由空間を巡回順に）
 ros2 run susumu_object_perception generate_waypoints.py \

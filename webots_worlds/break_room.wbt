@@ -1208,5 +1208,36 @@ TurtleBot3Burger {
       type "rotating"
       pointCloud TRUE
     }
+    # 4 方向バンパー（type "bumper" の TouchSensor）。地図がぶれる原因が
+    # 「ナビが障害物を把握できずロボットが衝突している」かを切り分けるための計測器。
+    # 本体 boundingObject（中心 -0.032,0,0.08 / 前後左右 ~0.135m）と常時干渉しない
+    # よう外周に薄い板状 Box を置く。bumper 型は Physics 不要・boundingObject 必須で、
+    # 他 Solid の boundingObject と交差した瞬間 getValue()=1 を返す。
+    # webots_ros2_driver には TouchSensor 用 ROS プラグインが無いため、自作 python
+    # driver plugin（bumper_plugin.py）がこの 4 つを読んで std_msgs/Bool を publish する。
+    TouchSensor {
+      translation 0.08 0 0.08
+      name "bumper_front"
+      type "bumper"
+      boundingObject Box { size 0.02 0.14 0.10 }
+    }
+    TouchSensor {
+      translation -0.15 0 0.08
+      name "bumper_back"
+      type "bumper"
+      boundingObject Box { size 0.02 0.14 0.10 }
+    }
+    TouchSensor {
+      translation -0.032 0.09 0.08
+      name "bumper_left"
+      type "bumper"
+      boundingObject Box { size 0.16 0.02 0.10 }
+    }
+    TouchSensor {
+      translation -0.032 -0.09 0.08
+      name "bumper_right"
+      type "bumper"
+      boundingObject Box { size 0.16 0.02 0.10 }
+    }
   ]
 }

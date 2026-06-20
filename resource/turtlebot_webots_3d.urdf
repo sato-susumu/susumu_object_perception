@@ -61,6 +61,11 @@
         </plugin>
 
         <plugin type="webots_ros2_control::Ros2Control" />
+
+        <!-- 4 方向バンパー(TouchSensor)を std_msgs/Bool で publish する自作 python
+             plugin。webots_ros2_driver に TouchSensor 用 ROS プラグインが無いため。
+             バンパーが無い world では各 TouchSensor が None になり安全にスキップ。 -->
+        <plugin type="susumu_object_perception.bumper_plugin.BumperPlugin" />
     </webots>
 
     <ros2_control name="WebotsControl" type="system">
