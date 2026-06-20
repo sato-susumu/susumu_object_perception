@@ -15,6 +15,7 @@
 | `webots_indoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=indoor 固定ショートカット |
 | `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
 | `webots_indoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **屋内 world の frontier 探索自律マッピング**。`world:=<屋内wbt> map_name:=<name>`。完了時 `maps/` に自動保存。屋外 world は未対応 |
+| `webots_outdoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **屋外マッピング実験用（実用品質ではない）**。屋内 launch / 屋内 params とは完全分離。`world:=village_center.wbt explore_radius:=12.0` で半径 12m に範囲制限して走らせる。詳細は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md) |
 | `webots_waypoint_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ○ | **保存ウェイポイントを Nav2 で巡回**。`world:=<wbt> waypoints:=<world>_waypoints.yaml`。`perception:=True` で巡回中の物体認識も |
 | `webots_colored_slam.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **全天球画像で LiDAR 点群に色を付け、2D SLAM/odom 座標へ蓄積**。`/slam/colorized_points_map` |
 | `webots_glim_colored_slam.launch.py` | Webots | ✅ | — | GLIM | ○ | — | ○ | **GLIM の補正済み 3D 座標へ色付き点群を蓄積**。`/slam/glim_colorized_points_map` |

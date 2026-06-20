@@ -140,6 +140,10 @@ class FrontierExploreNode(Node):
         self.declare_parameter('sweep_dirs', 8)
         self.declare_parameter('sweep_pattern', 'perimeter')
         self.declare_parameter('spin_after_goal', False)
+        # 【探索範囲制限】ロボット初期位置から半径 R[m] 以内の frontier だけ採用する。
+        # 0 以下なら無制限（既定）。広大な world で「特徴の多い局所領域だけマッピング」したい
+        # ときに使う（例: village_center の Cypress + Fence エリア周辺だけ）。
+        self.declare_parameter('explore_radius', 0.0)
 
         self.map_frame = self.get_parameter('map_frame').value
         self.robot_frame = self.get_parameter('robot_frame').value
@@ -157,10 +161,12 @@ class FrontierExploreNode(Node):
         self.sweep_dirs = int(self.get_parameter('sweep_dirs').value)
         self.sweep_pattern = str(self.get_parameter('sweep_pattern').value)
         self.spin_after_goal = self._bool_param('spin_after_goal')
+        self.explore_radius = float(self.get_parameter('explore_radius').value)
         self._sweep_idx = 0           # 次に向かう sweep 方向のインデックス
         self._sweep_origin = None     # sweep 起点（ロボット初期位置）
         self._sweep_goals = []        # sweep 起点基準で生成した遠征ゴール列
         self._sweep_done = False      # sweep を一巡したか
+        self._explore_origin = None   # explore_radius 制限用、初回 _robot_xy で確定
         self.approach_setback = float(
             self.get_parameter('approach_setback').value)
         self.goal_timeout_sec = float(
@@ -485,6 +491,13 @@ class FrontierExploreNode(Node):
         ComputePathToPose で検証して到達可能な最初の候補へ向かうことで停滞を無くす。
         """
         rx, ry = self._robot_xy()
+        # explore_radius が有効なら、初回の _robot_xy を中心として固定し、
+        # 以後 frontier の代表点も setback 後ゴールも中心から半径内に収める。
+        if self.explore_radius > 0.0 and self._explore_origin is None:
+            self._explore_origin = (rx, ry)
+            self._publish_status(
+                f'explore_radius={self.explore_radius:.1f}m '
+                f'around origin ({rx:.2f}, {ry:.2f})')
         scored = []
         for (wx, wy, size) in frontiers:
             d = math.hypot(wx - rx, wy - ry)
@@ -492,6 +505,11 @@ class FrontierExploreNode(Node):
                 continue
             if self._blkey(wx, wy) in self._blacklist:
                 continue
+            # explore_radius の外にある frontier 代表点は除外する。
+            if self._explore_origin is not None:
+                ox, oy = self._explore_origin
+                if math.hypot(wx - ox, wy - oy) > self.explore_radius:
+                    continue
             score = self.size_weight * math.log(size + 1) - self.dist_weight * d
             # 代表点の手前に setback したゴールにする（境界そのものは planner が失敗
             # しやすい）。連続失敗中は setback を増やしてさらに手前を狙う。
@@ -506,6 +524,14 @@ class FrontierExploreNode(Node):
             if math.hypot(gx - rx, gy - ry) < self.min_goal_dist:
                 self._blacklist.add(self._blkey(wx, wy))
                 continue
+            # setback 後ゴールが explore_radius の外なら、半径境界上にクリップする。
+            if self._explore_origin is not None:
+                ox, oy = self._explore_origin
+                d_og = math.hypot(gx - ox, gy - oy)
+                if d_og > self.explore_radius:
+                    t = self.explore_radius / d_og
+                    gx = ox + (gx - ox) * t
+                    gy = oy + (gy - oy) * t
             scored.append((score, (gx, gy), (wx, wy)))
         scored.sort(key=lambda e: e[0], reverse=True)
         cands = [(g, r) for (_, g, r) in scored]
@@ -516,12 +542,24 @@ class FrontierExploreNode(Node):
         # 前進ゴールは代表点を持たない（repr=None）→検証失敗しても blacklist しない。
         cand = [(wx, wy, size) for (wx, wy, size) in frontiers
                 if self._blkey(wx, wy) not in self._blacklist]
+        if self._explore_origin is not None:
+            ox, oy = self._explore_origin
+            cand = [(wx, wy, size) for (wx, wy, size) in cand
+                    if math.hypot(wx - ox, wy - oy) <= self.explore_radius]
         if not cand:
             return []
         tx, ty, _ = max(cand, key=lambda f: f[2])
         ang = math.atan2(ty - ry, tx - rx)
         fx = rx + self.forward_step * math.cos(ang)
         fy = ry + self.forward_step * math.sin(ang)
+        # 前進ゴールも explore_radius 内に収める。
+        if self._explore_origin is not None:
+            ox, oy = self._explore_origin
+            d_of = math.hypot(fx - ox, fy - oy)
+            if d_of > self.explore_radius:
+                t = self.explore_radius / d_of
+                fx = ox + (fx - ox) * t
+                fy = oy + (fy - oy) * t
         self._publish_status(
             f'no distant frontier; push forward {self.forward_step:.1f}m '
             f'toward largest frontier')
