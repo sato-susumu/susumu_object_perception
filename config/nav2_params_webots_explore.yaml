@@ -125,7 +125,15 @@ controller_server:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      # 【探索では最終姿勢(yaw)を問わない】frontier 探索のゴールは「その位置へ行けば
+      # 新しい領域が見える」のが目的で、ゴール地点での向きはどうでもよい。yaw_tolerance
+      # を 0.25(14°)に厳しくすると、ロボットが位置には着いたのに最終 yaw を合わせきれず
+      # その場で oscillate→20s 進展なし→"Failed to make progress"→frontier 側 goal
+      # timeout→blacklist となり、ゴールに着いているのに「到達失敗」扱いで地図が育たない
+      # （break_room で全ゴールがこれにハマり部屋の半分しか取れなかった）。yaw を実質
+      # 無制限(π)にして「位置だけ合えば到達」とし、姿勢調整の空回りを無くす。
+      # ナビ(waypoint_nav)用の本番 params は別ファイルなのでここを緩めても巡回には影響しない。
+      yaw_goal_tolerance: 3.15
 
     # DWB parameters
     FollowPath:

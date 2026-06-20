@@ -125,7 +125,10 @@ controller_server:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      # 探索では最終姿勢(yaw)を問わない（位置に着けば新領域が見える）。yaw を厳しくすると
+      # ゴール地点で姿勢調整の oscillate→"Failed to make progress"→到達失敗扱いで地図が
+      # 育たない。yaw 実質無制限で「位置だけ合えば到達」。詳細は explore.yaml の同箇所コメント。
+      yaw_goal_tolerance: 3.15
 
     # DWB parameters
     FollowPath:

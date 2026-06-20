@@ -38,7 +38,7 @@ from tf2_ros import TransformException
 from std_msgs.msg import String, ColorRGBA
 from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import OccupancyGrid
-from nav2_msgs.action import NavigateToPose, Spin
+from nav2_msgs.action import NavigateToPose, Spin, ComputePathToPose
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -90,8 +90,29 @@ class FrontierExploreNode(Node):
         # ゴール到達判定/タイムアウト [s]（1 ゴールに留まり続けない保険）。
         # planner が失敗するゴールに長く粘らず、早めに別フロンティアへ移る。
         self.declare_parameter('goal_timeout_sec', 15.0)
-        # この回数連続でフロンティアが無ければ探索完了とみなす。
+        # 【経路事前検証】ゴールを NavigateToPose で送る前に ComputePathToPose で「そこへ
+        # 経路が引けるか」を検証する（Nav2 標準のフロンティア探索のベストプラクティス。
+        # 参照: AniArka/Autonomous-Explorer 等）。引けなければ即 blacklist して次候補を検証
+        # する。これにより「到達不能ゴールへ送る→15s タイムアウト→blacklist」の無駄な往復
+        # （no valid path 多発・停滞の主因）を無くし、最初から到達可能なフロンティアだけへ
+        # 向かう。検証は軽量なのでタイムアウトは短く。
+        self.declare_parameter('validate_path', True)
+        self.declare_parameter('validate_timeout_sec', 5.0)
+        # 【done 判定】本来の完了条件は「探索可能な領域が壁/障害物で閉じている＆その領域に
+        # 未開拓(unknown)が無い」。これは「到達可能なフロンティアの総セル数が十分小さい」と
+        # ほぼ等価。フロンティア総セル数が done_frontier_cells 未満が done_after_empty 回連続
+        # で完了とする。全フロンティアが blacklist でも、まだ大きなフロンティアが残っていれば
+        # 完了にしない（早期完了で未踏を残すのを防ぐ）。
         self.declare_parameter('done_after_empty', 3)
+        self.declare_parameter('done_frontier_cells', 15)
+        # 【打ち切り】無限探索を防ぐ。既知面積(free+occ)が stall_timeout_sec 間ほとんど
+        # 増えなければ（進展が無ければ）強制終了する。
+        # ※ かつて break_room で「全ゴールに着いているのに yaw 調整で oscillate→到達失敗扱い
+        #   →地図が育たず stall 打ち切り」が起きたが、それは真因(yaw_goal_tolerance が厳しい)
+        #   を params 側で直したので、ここは正常時に十分な 120s に戻す。stall は「真に進展が
+        #   無い」ときの最後の保険であって、ゴール到達ペースの遅さを吸収する場所ではない。
+        self.declare_parameter('stall_timeout_sec', 120.0)
+        self.declare_parameter('stall_min_growth_cells', 150)
         # 開始前の起動猶予 [s]（SLAM が地図を出し始めるまで待つ）。
         self.declare_parameter('start_delay_sec', 10.0)
         # 初期スキャンの Spin（地図ブートストラップ）を行うか・回す角度/許容時間。
@@ -130,8 +151,17 @@ class FrontierExploreNode(Node):
             self.get_parameter('approach_setback').value)
         self.goal_timeout_sec = float(
             self.get_parameter('goal_timeout_sec').value)
+        self.validate_path = bool(self.get_parameter('validate_path').value)
+        self.validate_timeout_sec = float(
+            self.get_parameter('validate_timeout_sec').value)
         self.done_after_empty = int(
             self.get_parameter('done_after_empty').value)
+        self.done_frontier_cells = int(
+            self.get_parameter('done_frontier_cells').value)
+        self.stall_timeout_sec = float(
+            self.get_parameter('stall_timeout_sec').value)
+        self.stall_min_growth_cells = int(
+            self.get_parameter('stall_min_growth_cells').value)
         self.start_delay_sec = float(
             self.get_parameter('start_delay_sec').value)
         self.bootstrap_spin = bool(
@@ -149,6 +179,10 @@ class FrontierExploreNode(Node):
         self._did_bootstrap = False
         self._goal_timer = None
         self._resched_timer = None
+        # 打ち切り判定用: 既知セル数(free+occ)が伸びた最後の時刻と、そのときの既知セル数。
+        # stall_timeout_sec 間 stall_min_growth_cells 以上伸びなければ進展なしで打ち切る。
+        self._max_known = 0
+        self._last_progress_t = None
         # 到達不能だったゴール近傍のブラックリスト（同じ場所に粘らない）。
         # (gx, gy) を blacklist_cell[m] グリッドに丸めたキーで持つ。
         self._blacklist = set()
@@ -173,6 +207,9 @@ class FrontierExploreNode(Node):
 
         self._nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self._spin_client = ActionClient(self, Spin, 'spin')
+        # 経路事前検証用。nav2_planner が提供する ComputePathToPose アクション。
+        self._plan_client = ActionClient(
+            self, ComputePathToPose, 'compute_path_to_pose')
 
         self._start_timer = self.create_timer(
             self.start_delay_sec, self._kick_start_once)
@@ -218,39 +255,85 @@ class FrontierExploreNode(Node):
             self._do_sweep_step()
             return
 
+        # 進展(既知面積の増加)を監視し、停滞が続けば打ち切る（無限探索防止）。
+        if self._check_stall_and_maybe_finish():
+            return
+
         frontiers = self._find_frontiers()
-        if not frontiers:
+        # 本来の done 条件: 探索可能領域が壁/障害物で閉じ、その中に未開拓が無い。
+        # ＝ 到達可能なフロンティアの「総セル数」が十分小さい。総セル数が
+        # done_frontier_cells 未満なら「未開拓の縁がほぼ無い」とみなす。
+        total_frontier_cells = sum(size for (_, _, size) in frontiers)
+        if total_frontier_cells < self.done_frontier_cells:
             self._empty_count += 1
             self._publish_status(
-                f'no frontier ({self._empty_count}/{self.done_after_empty})')
+                f'frontier nearly gone ({total_frontier_cells} cells, '
+                f'{self._empty_count}/{self.done_after_empty})')
             if self._empty_count >= self.done_after_empty:
                 self._finish()
                 return
             # まだ地図が育つ余地があるかもしれないので軽く回って再評価。
-            if not self._did_bootstrap:
-                self._did_bootstrap = True
+            if self.bootstrap_spin:
                 self._do_bootstrap_spin()
             else:
                 self._reschedule(2.0)
             return
 
+        # まだ未開拓の縁(フロンティア)が十分ある＝完了でない。empty_count をリセット。
+        self._empty_count = 0
         self._publish_markers(frontiers)
-        goal = self._choose_goal(frontiers)
-        if goal is None:
-            # _choose_goal は「至近フロンティアしか無い」ときも最大フロンティア方向への前進
-            # ゴールを返すので、None になるのは全フロンティアがブラックリスト済み＝本当に
-            # 行き場が無いとき。ここは（spin でなく）待機して完了判定を進める。
+        cands = self._rank_goals(frontiers)
+        if not cands:
+            # 候補ゼロ = 全フロンティアがブラックリスト済み＝到達できない未開拓が残って
+            # いる（家具で塞がれた隙間など物理的に行けない領域）。blacklist を消すと同じ
+            # 到達不能ゴールへ無限に再挑戦して高速ループ→CPU 枯渇→webots 落ちになるので
+            # blacklist は維持する。empty_count を進めて done_after_empty 回で完了扱いに
+            # する（5秒間隔で詰めるので高速ループにならない）。
             self._empty_count += 1
             self._publish_status(
-                f'no reachable frontier '
+                f'unreachable frontier remains ({total_frontier_cells} cells); '
                 f'({self._empty_count}/{self.done_after_empty})')
             if self._empty_count >= self.done_after_empty:
                 self._finish()
                 return
-            self._reschedule(2.0)
+            self._reschedule(5.0)
             return
-        self._empty_count = 0
-        self._navigate_to(goal)
+        # 候補を「スコア降順」で持ち、先頭から ComputePathToPose で経路検証して
+        # 到達可能な最初の候補へ向かう。検証 OFF なら先頭をそのまま送る（従来動作）。
+        if self.validate_path:
+            self._busy = True
+            self._try_candidates(cands, 0, total_frontier_cells)
+        else:
+            self._last_goal = cands[0][1]  # repr（None=前進ゴール）
+            self._navigate_to(cands[0][0])
+
+    def _check_stall_and_maybe_finish(self):
+        """既知面積(free+occ)の伸びを監視し、進展が無ければ打ち切る。
+
+        無限探索を防ぐための保険。stall_timeout_sec 間に既知セルが stall_min_growth_cells
+        以上増えなければ「進展なし」とみなして _finish する。done 判定(フロンティア枯渇)が
+        正しく働けば通常はこちらに来ないが、到達不能な未開拓が残り続ける等で frontier が
+        消えないケースを打ち切る。戻り値 True なら打ち切った（呼び出し側は return）。
+        """
+        m = self._map
+        known = sum(1 for v in m.data if v == 0 or v == 100)
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if self._last_progress_t is None:
+            self._last_progress_t = now
+            self._max_known = known
+            return False
+        if known >= self._max_known + self.stall_min_growth_cells:
+            # 十分伸びた＝進展あり。基準を更新。
+            self._max_known = known
+            self._last_progress_t = now
+            return False
+        if now - self._last_progress_t >= self.stall_timeout_sec:
+            self._publish_status(
+                f'no progress for {self.stall_timeout_sec:.0f}s '
+                f'(known={known}); finishing')
+            self._finish()
+            return True
+        return False
 
     def _reschedule(self, sec):
         # 単一タイマで管理する（多重生成すると _step が高頻度で連発し、同じゴールを
@@ -351,16 +434,22 @@ class FrontierExploreNode(Node):
         # 0.5m グリッドに丸めてブラックリストキーにする。
         return (round(x * 2.0), round(y * 2.0))
 
-    def _choose_goal(self, frontiers):
+    def _rank_goals(self, frontiers):
+        """到達候補をスコア降順で返す。各要素 = (goal_xy, repr_xy)。
+
+        goal_xy は setback 適用後の実際に送るゴール、repr_xy は元のフロンティア
+        代表点（blacklist キー算出用）。情報利得スコア
+          score = size_weight*log(size) - dist_weight*distance
+        で大きな未踏領域を優先。blacklist 済み・近すぎ(min_goal_dist 未満)は除外。
+        到達距離以上のフロンティアが 1 つも無ければ、最大クラスタ方向への前進
+        (forward push)ゴールを 1 つだけ末尾に積む。
+
+        旧 _choose_goal は「最良 1 点だけ返す」同期実装だったが、これだと到達不能でも
+        送ってしまい 15s タイムアウトを待つ羽目になる。リストで返し、呼び出し側が先頭から
+        ComputePathToPose で検証して到達可能な最初の候補へ向かうことで停滞を無くす。
+        """
         rx, ry = self._robot_xy()
-        # 情報利得スコアリング: 大きな未踏領域（=size 大）を優先しつつ、近すぎ
-        # （既踏で利得小）・遠すぎ（移動コスト大）を避ける。
-        #   score = size_weight*log(size) - dist_weight*distance
-        # size は対数で効かせ、巨大クラスタ1個に偏らないようにする。
-        # 近傍フロンティアばかり選ぶ最近傍法だと局所に留まり地図が広がらないため、
-        # size をしっかり効かせて遠方の大領域へ向かわせる。
-        best = None
-        best_score = -float('inf')
+        scored = []
         for (wx, wy, size) in frontiers:
             d = math.hypot(wx - rx, wy - ry)
             if d < self.min_goal_dist:
@@ -368,46 +457,39 @@ class FrontierExploreNode(Node):
             if self._blkey(wx, wy) in self._blacklist:
                 continue
             score = self.size_weight * math.log(size + 1) - self.dist_weight * d
-            if score > best_score:
-                best_score = score
-                best = (wx, wy)
-        if best is None:
-            # 到達距離(min_goal_dist)以上のフロンティアが無い＝目の前にしか境界が無い。
-            # 屋外で free が小円に留まる典型。ここで諦めて spin/待機すると「その場でぐるぐる
-            # するだけで未踏が埋まらない」。代わりに **最大フロンティアの方向へ実際に前進する
-            # ゴール** を作り、ロボットを動き回らせて新領域を既知化する（その先に新たな
-            # フロンティアが生まれ探索が前へ進む）。ブラックリスト外の最大クラスタ方向を採る。
-            cand = [(wx, wy, size) for (wx, wy, size) in frontiers
-                    if self._blkey(wx, wy) not in self._blacklist]
-            if not cand:
-                return None
-            tx, ty, _ = max(cand, key=lambda f: f[2])  # 最大クラスタ
-            ang = math.atan2(ty - ry, tx - rx)
-            # その方向へ前進距離 forward_step[m] 進んだ点をゴールにする（free 内を進む）。
-            fx = rx + self.forward_step * math.cos(ang)
-            fy = ry + self.forward_step * math.sin(ang)
-            self._publish_status(
-                f'no distant frontier; push forward {self.forward_step:.1f}m '
-                f'toward largest frontier')
-            return (fx, fy)
-        # 代表点（ロボットに最も近いフロンティアセル）の手前に setback してゴール
-        # にする。セルは未踏との境界なので、そこへ直接プランすると planner が失敗
-        # しやすい。連続失敗中は setback を増やしてさらに手前を狙う。
-        gx, gy = best
-        setback = self.approach_setback + 0.4 * min(self._fail_streak, 3)
-        d = math.hypot(gx - rx, gy - ry)
-        if d > setback:
-            t = (d - setback) / d
-            gx = rx + (gx - rx) * t
-            gy = ry + (gy - ry) * t
-        # setback 後のゴールが現在地とほぼ同じ＝その境界の手前にはもう居る。Nav2 が
-        # 即「到達済み」を返し同じゴールを連発するので、この代表点はブラックリストに
-        # 入れて次回は別のフロンティアを選ぶ（探索は終了させず継続する）。
-        if math.hypot(gx - rx, gy - ry) < self.min_goal_dist:
-            self._blacklist.add(self._blkey(*best))
-            return None
-        self._last_goal = best
-        return (gx, gy)
+            # 代表点の手前に setback したゴールにする（境界そのものは planner が失敗
+            # しやすい）。連続失敗中は setback を増やしてさらに手前を狙う。
+            gx, gy = wx, wy
+            setback = self.approach_setback + 0.4 * min(self._fail_streak, 3)
+            if d > setback:
+                t = (d - setback) / d
+                gx = rx + (gx - rx) * t
+                gy = ry + (gy - ry) * t
+            # setback 後のゴールが現在地とほぼ同じ＝もう手前に居る。送ると Nav2 が即
+            # 到達済みを返し連発するので、この代表点は blacklist して候補から外す。
+            if math.hypot(gx - rx, gy - ry) < self.min_goal_dist:
+                self._blacklist.add(self._blkey(wx, wy))
+                continue
+            scored.append((score, (gx, gy), (wx, wy)))
+        scored.sort(key=lambda e: e[0], reverse=True)
+        cands = [(g, r) for (_, g, r) in scored]
+        if cands:
+            return cands
+        # 到達距離以上のフロンティアが無い＝目の前にしか境界が無い（屋外で free が
+        # 小円に留まる典型）。最大クラスタ方向へ前進する push ゴールを 1 つ作る。
+        # 前進ゴールは代表点を持たない（repr=None）→検証失敗しても blacklist しない。
+        cand = [(wx, wy, size) for (wx, wy, size) in frontiers
+                if self._blkey(wx, wy) not in self._blacklist]
+        if not cand:
+            return []
+        tx, ty, _ = max(cand, key=lambda f: f[2])
+        ang = math.atan2(ty - ry, tx - rx)
+        fx = rx + self.forward_step * math.cos(ang)
+        fy = ry + self.forward_step * math.sin(ang)
+        self._publish_status(
+            f'no distant frontier; push forward {self.forward_step:.1f}m '
+            f'toward largest frontier')
+        return [((fx, fy), None)]
 
     def _robot_xy(self):
         try:
@@ -477,9 +559,116 @@ class FrontierExploreNode(Node):
         # 通常の nav 送信を流用（到達/タイムアウトで次サイクル→次方向へ）。
         self._navigate_to((gx, gy))
 
+    # ---- path validation (送る前に到達可能か検証) ------------------------
+
+    def _try_candidates(self, cands, idx, total_cells):
+        """候補リスト cands の idx 番目を ComputePathToPose で検証して向かう。
+
+        到達可能なら NavigateToPose で向かう。経路が引けなければ、その候補の代表点を
+        blacklist して次の候補(idx+1)を検証する。全候補が到達不能なら empty_count を
+        進める（全フロンティア到達不能＝_step 冒頭の候補ゼロ分岐と同じ扱い）。
+        _busy は呼び出し側で True 済み。検証〜送信完了まで _busy を保持する。
+        """
+        if idx >= len(cands):
+            # 全候補が到達不能だった。候補ゼロと同様に done に近づける。
+            self._busy = False
+            self._empty_count += 1
+            self._publish_status(
+                f'all {len(cands)} candidates unreachable '
+                f'({total_cells} cells); ({self._empty_count}/'
+                f'{self.done_after_empty})')
+            if self._empty_count >= self.done_after_empty:
+                self._finish()
+                return
+            self._reschedule(5.0)
+            return
+
+        goal_xy, repr_xy = cands[idx]
+        if not self._plan_client.wait_for_server(timeout_sec=3.0):
+            # planner サーバが居なければ検証を諦めて先頭をそのまま送る（従来動作）。
+            self._publish_status('planner unavailable; sending without validate')
+            self._navigate_to(cands[0][0])
+            return
+
+        wx, wy = goal_xy
+        ps = PoseStamped()
+        ps.header.frame_id = self.map_frame
+        ps.header.stamp = self.get_clock().now().to_msg()
+        ps.pose.position.x = wx
+        ps.pose.position.y = wy
+        ps.pose.orientation.w = 1.0
+
+        g = ComputePathToPose.Goal()
+        g.goal = ps
+        g.use_start = False  # 現在位置から計画させる
+        self._publish_status(
+            f'validating path to ({wx:.1f}, {wy:.1f}) '
+            f'[{idx + 1}/{len(cands)}]')
+        # 検証が応答しない場合の保険タイムアウト。
+        self._validate_timer = self.create_timer(
+            self.validate_timeout_sec,
+            lambda: self._on_validate_timeout(cands, idx, total_cells))
+        fut = self._plan_client.send_goal_async(g)
+        fut.add_done_callback(
+            lambda f: self._on_validate_goal_response(
+                f, cands, idx, total_cells))
+
+    def _on_validate_goal_response(self, future, cands, idx, total_cells):
+        gh = future.result()
+        if not gh.accepted:
+            self._reject_candidate(cands, idx, total_cells, 'rejected')
+            return
+        self._validate_goal_handle = gh
+        gh.get_result_async().add_done_callback(
+            lambda f: self._on_validate_result(f, cands, idx, total_cells))
+
+    def _on_validate_result(self, future, cands, idx, total_cells):
+        self._cancel_validate_timer()
+        ok = False
+        try:
+            res = future.result()
+            # 経路が返り、ポーズが 2 点以上あれば到達可能とみなす。
+            path = res.result.path
+            ok = path is not None and len(path.poses) >= 2
+        except Exception:  # noqa: BLE001
+            ok = False
+        if ok:
+            goal_xy, repr_xy = cands[idx]
+            self._last_goal = repr_xy  # 前進ゴール(None)はタイムアウトで blacklist しない
+            self._fail_streak = 0
+            self._publish_status(
+                f'path valid; navigating [{idx + 1}/{len(cands)}]')
+            # _busy 維持のまま実際のナビへ。
+            self._navigate_to(goal_xy, already_busy=True)
+        else:
+            self._reject_candidate(cands, idx, total_cells, 'no path')
+
+    def _on_validate_timeout(self, cands, idx, total_cells):
+        self._cancel_validate_timer()
+        gh = getattr(self, '_validate_goal_handle', None)
+        if gh is not None:
+            gh.cancel_goal_async()
+        self._reject_candidate(cands, idx, total_cells, 'validate timeout')
+
+    def _reject_candidate(self, cands, idx, total_cells, reason):
+        """idx 番目の候補を到達不能として blacklist し、次候補を検証する。"""
+        goal_xy, repr_xy = cands[idx]
+        if repr_xy is not None:
+            self._blacklist.add(self._blkey(*repr_xy))
+        self._publish_status(
+            f'candidate [{idx + 1}/{len(cands)}] {reason}; '
+            f'blacklist={len(self._blacklist)}, trying next')
+        self._try_candidates(cands, idx + 1, total_cells)
+
+    def _cancel_validate_timer(self):
+        t = getattr(self, '_validate_timer', None)
+        if t is not None:
+            t.cancel()
+            self._validate_timer = None
+
     # ---- navigate --------------------------------------------------------
 
-    def _navigate_to(self, goal_xy):
+    def _navigate_to(self, goal_xy, already_busy=False):
         # 即座に busy ロックして再入を防ぐ（wait_for_server 中に別の _step が
         # 走ると同じゴールを連発してしまう）。
         self._busy = True
