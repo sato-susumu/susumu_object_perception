@@ -400,12 +400,11 @@ waypoint_follower:
 #  - distance/angle_variance_penalty を小さく（0.3/0.6）: odom 予測解から離れにくくする
 #    （slam_toolbox では penalty が小さいほど odom 予測を信頼）。
 #  - correlation_search_space_dimension 0.5→0.3: マッチ探索窓を狭め、大きくズレない。
-#  - /scan は生点群を高さ帯(z>=0.05, lidar_link基準, max_height=10m)で 2D 化（launch 側
-#    pointcloud_to_laserscan）。未ヒット ray は range_max(20m)+0.5=20.5m の有限値で出すが、
-#    Karto は `>= scan.range_max` の ray を完全無視するので free 上書きは起きない。
-#  - max_laser_range 18: scan の range_max(20) と未ヒット偽値(20.5) より小さく、屋外の建物
-#    遠方壁を実 hit として活用するための広めの設定（p2l range_max=20 > slam max_laser_range=18
-#    > 未ヒット偽値 20.5 で完全無視、実 hit は 18m まで占有マークされる）。
+#  - /scan は生点群を高さ帯(z>=0.05, lidar_link基準, max_height=2.5m)で 2D 化（launch 側
+#    pointcloud_to_laserscan）。未ヒット ray は `+inf` のまま（use_inf:True）。
+#    Karto は inf/range_max超えの ray を完全無視するので free 上書きは起きない。
+#  - max_laser_range 15: 屋内(5〜10m)の遠い誤マッチを抑えつつ屋外の建物近傍も拾える妥協値。
+#    18 に上げて遠方を活用しようとしたが scan match が不安定化し自己位置喪失したので 15 維持。
 #  - loop closure 強め(search 5.0): 一周時に確実に閉じ壁の二重化を防ぐ。
 slam_toolbox:
   ros__parameters:
@@ -426,7 +425,7 @@ slam_toolbox:
     transform_publish_period: 0.02
     map_update_interval: 1.0
     resolution: 0.05
-    max_laser_range: 18.0
+    max_laser_range: 15.0
     min_laser_range: 0.2
     minimum_time_interval: 0.3
     transform_timeout: 0.2

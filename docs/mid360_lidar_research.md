@@ -478,8 +478,16 @@ Webots（`webots_simulation.launch.py world:=indoor.wbt`）:
   - 実測: 変更後の `/scan` は 723 点すべて finite、未ヒット方向は主に 15.5m。
   - `outdoor.wbt` 180s 検証では、旧 scan が既知面積 81.4m2 / 地図 9.1 x 9.0m 程度だったのに対し、
     scan 修正 + perimeter sweep で既知面積 649.1m2 / 地図 33.5 x 22.2m / ロボット移動 49.2m まで拡大。
-  - あわせて `frontier_explore_node.py` に `perimeter` sweep を追加し、`webots_city_mapping.launch.py` は
-    `outdoor` / `city` で自動有効化する。広い world では純 frontier より先に外周へ出て bbox を広げる。
+  - **ただし 2026-06-20 の追検証で重大バグが判明**: `use_inf:False, inf_epsilon:-0.5` の 15.5m 偽 hit を
+    slam_toolbox / Karto は「打ち切って free raytrace」として処理し、本物の建物 occupied を
+    別 ray の free 通過で上書きしてしまい、地図全体が free（occ=0、建物・木・車が完全消失）に
+    なる。`use_inf:True` に戻すと建物 occupied は守られるが scan match に必要な hit 数が
+    足りず自己位置を見失う。両立する scan 仕様が見つからず、**屋外マッピングは未対応**扱い
+    （docs/tasks/mapping_outdoor.md 参照）。屋内向け設定は 065efb3 当時の値
+    （min_height:0.1, max_height:2.0, range_max:40, use_inf:True）に戻している。
+  - あわせて `frontier_explore_node.py` に `perimeter` sweep を実装した（屋外向け実験コード）。
+    屋外が未対応扱いになった現在は、屋内マッピング（webots_indoor_mapping.launch.py）で
+    `sweep_mode:=False` 固定にして無効化している。
 
 ### 環境側の別問題（MID-360 とは無関係、ついでに修正）
 

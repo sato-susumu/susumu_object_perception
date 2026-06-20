@@ -1,32 +1,37 @@
-# Webots city（city_robot.wbt）で「事前地図なし→自律探索→地図作成→保存」を 1 コマンドで。
+# Webots 屋内 world（indoor.wbt / break_room.wbt 等）で「事前地図なし→自律探索→地図作成→保存」
+# を 1 コマンドで実行する屋内マッピング専用 launch。
+#
+# 屋内マッピングと屋外マッピングはタスクとして完全に分離されている（docs/tasks/mapping_indoor.md と
+# docs/tasks/mapping_outdoor.md を参照）。この launch は屋内 world 専用で、屋外 world
+# （outdoor.wbt / city_robot.wbt）には対応しない。屋外向けの sweep_mode auto 判定や、
+# 屋外専用 Nav2 params（rolling window + Smac）への分岐は意図的に持たない。
 #
 # 最終目標は地図を作ること。frontier-based exploration（Yamauchi 1997 / explore_lite と
 # 同系）でロボットが未知領域へ向かい続け、slam_toolbox が /map を育てる。フロンティアが
-# 尽きたら探索完了として maps/city.{pgm,yaml} に保存する。
+# 尽きたら探索完了として maps/<map_name>.{pgm,yaml} に保存する。
 #
-#   - webots_nav.launch.py を world:=city_robot.wbt で include
+#   - webots_nav.launch.py を world:=<屋内wbt> で include
 #     （robot + Webots + Nav2 + slam_toolbox。slam_toolbox が地図を作る本体）。
 #   - frontier_explore_node が /map のフロンティアを検出し NavigateToPose で探索。
 #
 # 使い方:
-#   ros2 launch susumu_object_perception webots_city_mapping.launch.py
-#   ros2 launch susumu_object_perception webots_city_mapping.launch.py mode:=fast
-#   # 別の world でも探索マッピングできる:
-#   ros2 launch susumu_object_perception webots_city_mapping.launch.py world:=outdoor.wbt map_name:=outdoor
+#   ros2 launch susumu_object_perception webots_indoor_mapping.launch.py world:=indoor.wbt map_name:=indoor
+#   ros2 launch susumu_object_perception webots_indoor_mapping.launch.py world:=break_room.wbt map_name:=break_room
 #
 # 完了後の地図は maps/<map_name>.pgm / .yaml。SLAM 中の手動保存も可能:
-#   ros2 run nav2_map_server map_saver_cli -f ~/ros2_ws/src/susumu_object_perception/maps/city
+#   ros2 run nav2_map_server map_saver_cli -f ~/ros2_ws/src/susumu_object_perception/maps/<map_name>
 #
 # 罠:
 #   - Webots は GUI(X) を要求。ヘッドレスなら DISPLAY を環境側で設定する。
 #   - 認識(perception/omni)は地図作成に不要なので既定 OFF（CPU を SLAM/Nav2 に回す）。
+#   - mode は realtime 必須。fast は odom が過大積算しドリフトする。
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            SetLaunchConfiguration, TimerAction)
+                            TimerAction)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -49,28 +54,12 @@ def generate_launch_description():
     gain = LaunchConfiguration('gain')
     min_frontier_cells = LaunchConfiguration('min_frontier_cells')
     goal_timeout = LaunchConfiguration('goal_timeout_sec')
-    forward_step = LaunchConfiguration('forward_step')
-    sweep_mode = LaunchConfiguration('sweep_mode')
-    sweep_radius = LaunchConfiguration('sweep_radius')
-    sweep_spacing = LaunchConfiguration('sweep_spacing')
-    sweep_pattern = LaunchConfiguration('sweep_pattern')
-    spin_after_goal = LaunchConfiguration('spin_after_goal')
-    mapping_world_hint = LaunchConfiguration('mapping_world_hint')
 
-    sweep_enabled = PythonExpression([
-        "'True' if ('", sweep_mode, "'.lower() == 'true' or "
-        "('", sweep_mode, "'.lower() == 'auto' and "
-        "('city' in '", world, "' or 'outdoor' in '", world, "'))) "
-        "else 'False'"
-    ])
-
-    # 探索向け Nav2 params。屋内は static追従 costmap + Navfn の安定版、屋外(sweep_mode:=True)
-    # は rolling window(40m) + Smac planner の遠征版を使う（屋外は遠方ゴールが costmap 外に
-    # ならないよう rolling、Navfn の未知領域経路失敗を避けるため Smac）。sweep_mode で切替。
-    explore_params = PythonExpression([
-        "'", os.path.join(pkg, 'config', 'nav2_params_webots_explore_outdoor.yaml'),
-        "' if '", sweep_enabled, "'.lower() == 'true' else '",
-        os.path.join(pkg, 'config', 'nav2_params_webots_explore.yaml'), "'"])
+    # 屋内専用 Nav2 params（static追従 costmap + NavfnPlanner の安定版）。屋外専用 params
+    # (nav2_params_webots_explore_outdoor.yaml) はここからは絶対に参照しない（屋内に副作用を
+    # 持ち込まないため）。
+    indoor_params = os.path.join(
+        pkg, 'config', 'nav2_params_webots_explore.yaml')
 
     # robot + Webots + Nav2 + slam_toolbox。地図作成の本体（slam_toolbox が /map を出す）。
     robot_nav = IncludeLaunchDescription(
@@ -84,7 +73,7 @@ def generate_launch_description():
             ('omni_perception', use_omni_perception),
             ('image_recognition', use_image_recognition),
             ('colored_slam', use_colored_slam),
-            ('nav_params_file', explore_params),
+            ('nav_params_file', indoor_params),
         ],
     )
 
@@ -94,12 +83,9 @@ def generate_launch_description():
             '~/ros2_ws/src/susumu_object_perception/maps/'), "' + '",
         map_name, "'"])
 
-    # フロンティア探索（自作 frontier_explore_node）。explore_lite(m-explore-ros2)を試したが、
-    # 屋外で「最小ゴール距離チェックが無く至近フロンティアで即到達→前進しない」「初期 spin が
-    # 無く free が小さいまま鶏卵問題に陥る」弱点があり（ソース確認・公式 troubleshooting でも
-    # spin 推奨）、自作ノードの方が min_goal_dist と bootstrap_spin でこれに対処できるので自作に
-    # 戻す。Nav2 へ NavigateToPose で投げる設計は同じ。完了時に地図も自動保存する。
-    # Nav2 のアクションサーバが立つのを待って遅延起動する。
+    # フロンティア探索（自作 frontier_explore_node）。屋内 world では純 frontier で十分。
+    # sweep_mode は False（屋外用の perimeter sweep は使わない）、forward_step は屋内向けの
+    # 控えめな値で固定する。Nav2 のアクションサーバが立つのを待って遅延起動する。
     frontier = TimerAction(
         period=22.0,
         actions=[
@@ -112,26 +98,19 @@ def generate_launch_description():
                     'use_sim_time': True,
                     'map_frame': 'map',
                     'robot_frame': 'base_footprint',
-                    'world_name': mapping_world_hint,
+                    'world_name': world,
                     'min_frontier_cells': min_frontier_cells,
                     'gain': gain,
                     'save_map': save_map,
                     'map_save_path': save_path,
                     'start_delay_sec': 8.0,
-                    # ワールド全体を探索しきるまで粘る。
                     'done_after_empty': 12,
                     'goal_timeout_sec': goal_timeout,
-                    # 至近フロンティアしか無い時の前進距離[m]。屋外の開放空間では大きくして
-                    # 植木の間を抜け遠くへ一気に展開させる（forward_step:=4.0 等）。
-                    'forward_step': forward_step,
-                    # 非frontier的な sweep 探索（屋外/街の開放空間向け）。frontier 前に
-                    # perimeter/spiral coverage で領域を舐める。auto 判定は node 側で
-                    # world_name を見て行う。
-                    'sweep_mode': sweep_mode,
-                    'sweep_radius': sweep_radius,
-                    'sweep_spacing': sweep_spacing,
-                    'sweep_pattern': sweep_pattern,
-                    'spin_after_goal': spin_after_goal,
+                    'forward_step': 2.0,
+                    # 屋外専用の sweep_mode は明示的に無効化する。屋内では純 frontier で
+                    # 部屋全体を回り尽くせる。
+                    'sweep_mode': False,
+                    'spin_after_goal': False,
                 }],
             ),
         ],
@@ -158,11 +137,13 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument(
-            'world', default_value='city_robot.wbt',
-            description='探索マッピングする world（city_robot.wbt / outdoor.wbt 等）'),
+            'world', default_value='indoor.wbt',
+            description='探索マッピングする屋内 world（indoor.wbt / break_room.wbt）。'
+                        '屋外 world は未対応（docs/tasks/mapping_outdoor.md 参照）'),
         DeclareLaunchArgument(
             'mode', default_value='realtime',
-            description='Webots 起動モード（realtime / fast / pause）'),
+            description='Webots 起動モード（realtime / fast / pause）。'
+                        'マッピング品質を評価するときは realtime 必須'),
         DeclareLaunchArgument(
             'rviz', default_value='True',
             description='RViz2 を起動する（地図の育ちを見られる）'),
@@ -183,31 +164,11 @@ def generate_launch_description():
             'collision_diagnostics', default_value='False',
             description='衝突診断ノードを起動する。break_room 等で衝突原因を切り分ける時だけ True'),
         DeclareLaunchArgument(
-            'goal_timeout_sec', default_value='60.0',
-            description='frontier/sweep の 1 ゴール到達猶予[s]。短いと広い world で'
-                        '到達前にスキップし探索が縮こまる'),
+            'goal_timeout_sec', default_value='30.0',
+            description='frontier の 1 ゴール到達猶予[s]。短いと狭い屋内で'
+                        'ブラックリスト化が多発し探索が縮こまる'),
         DeclareLaunchArgument(
-            'forward_step', default_value='2.0',
-            description='至近フロンティアしか無い時に前進する距離[m]。屋外の開放空間は'
-                        '4.0 程度に大きくすると遠くへ展開しやすい'),
-        DeclareLaunchArgument(
-            'sweep_mode', default_value='auto',
-            description='非frontier的な sweep 探索。auto は city/outdoor で有効、屋内は無効。'
-                        'True/False で明示指定可'),
-        DeclareLaunchArgument(
-            'sweep_radius', default_value='8.0',
-            description='sweep の遠征半径[m]。20m world なら 8 前後'),
-        DeclareLaunchArgument(
-            'sweep_spacing', default_value='4.0',
-            description='spiral sweep の隣接リング間隔[m]。小さいほど密に面を舐める'),
-        DeclareLaunchArgument(
-            'sweep_pattern', default_value='perimeter',
-            description='sweep の形。perimeter（既定）/ spiral / radial'),
-        DeclareLaunchArgument(
-            'spin_after_goal', default_value='False',
-            description='各探索ゴール到達後に360度スピンして周囲を観測し直す。360度LiDARの広域探索では通常不要'),
-        DeclareLaunchArgument(
-            'map_name', default_value='city',
+            'map_name', default_value='indoor',
             description='保存する地図名（maps/<map_name>.pgm/.yaml）'),
         DeclareLaunchArgument(
             'save_map', default_value='True',
@@ -219,7 +180,6 @@ def generate_launch_description():
             'min_frontier_cells', default_value='4',
             description='フロンティアクラスタの最小セル数（小さいと細かい未踏も追い'
                         'ワールド全体を探索しきる。大きいと早期完了で地図が狭くなる）'),
-        SetLaunchConfiguration('mapping_world_hint', world),
         robot_nav,
         frontier,
         collision_diag,

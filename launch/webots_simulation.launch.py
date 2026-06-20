@@ -130,22 +130,18 @@ def generate_launch_description():
     # 下向きビームの地上高さが正しく ≈0、上向きビームは空に抜けて消えることを確認）。
     # tiltAngle=0 で FOV は対称（仰角 ±30deg 相当）になる。
     #
-    # 高さ帯: lidar_link 基準（LiDAR は地上 0.2m）。地面は z≈-0.2（地上 0）に乗るので、
-    # z>=0.05（地上約 0.25m）で地面リング(z≈-0.2)を除外しつつ建物基礎・低い家具・植木の幹を拾う。
-    # 上限 z=10.0 は屋外の SimpleBuilding の壁(高さ数m〜10m)を遠方からでも拾うため
-    # （MID-360 は対称 ±30°なので 17m先で z≈10m まで届く）。range_min は近い壁(〜0.7m)を
-    # 残すため 0.3。range_max は屋外で建物の遠方の壁を拾うため 20m まで広げた。
+    # 高さ帯: lidar_link 基準（LiDAR は地上 0.2m）。地面は z≈-0.2（地上 0）に正しく乗るので、
+    # z>=0.1（地上約 0.3m）で地面を除外しつつ、屋内の低い家具〜壁、人を拾う。上限 z=2.0
+    # （地上 2.2m）で天井/壁上部を外す。range_min は屋内の近い壁(〜0.7m)を残すため 0.3。
     #
-    # 未ヒット ray は `use_inf:False, inf_epsilon:+0.5` で `range_max+0.5 = 20.5m` の有限値にする
-    # （Karto/slam_toolbox のソース AddScan() の挙動を踏まえた hybrid 戦略）:
-    # - Karto は `rangeReading >= scan.range_max` の ray は **完全に無視**（free すら書かない）。
-    #   未ヒットを range_max 超え(20.5m)にしておけば「完全無視」され、本物 hit の occupied が
-    #   別 ray の free 通過で上書きされる事故を防ぐ。`use_inf:True` の inf も完全無視扱いだが、
-    #   range_max 超えの有限値の方が `/scan` の点数を保つので RViz/costmap の見え方が安定。
-    # - 以前 `inf_epsilon:-0.5` で 15.5m にしていたとき: 15.5 < scan.range_max(16) かつ
-    #   15.5 >= slam.RangeThreshold(15) なので Karto は「打ち切って free raytrace」として動き、
-    #   占有方向にも free を盛大に書き込んで、本物 hit を上書きしていた（地図全体 free /
-    #   occ=0 / 障害物消失の重大バグ）。inf_epsilon は **必ず +（range_max 超え）** にする。
+    # 【屋内専用設定】この設定は indoor / break_room / cafe など特徴の多い屋内向けに最適化
+    # してある。outdoor / city_robot のような特徴の少ない広域 world（20m級 + 建物/植木のみ）
+    # は **未対応**（建物 occupied と SLAM 姿勢安定の両立ができず、地図が崩れるか自己位置喪失）。
+    # 詳細は docs/tasks/mapping.md「特徴の少ない広域世界は未対応」を参照。
+    # 過去に試した設定（いずれも片方しか満たせない）:
+    #   (a) use_inf:False, inf_epsilon:-0.5（15.5m偽hit）→ 広い free 地図は出るが建物 occ 全消失
+    #   (b) use_inf:True, min/max_height:0.05/10, range_max:20, slam max_laser_range:18
+    #       → 建物 occ は出るが /scan の有効 hit が疎で SLAM scan match が不安定化し自己位置喪失
     pointcloud_to_laserscan = Node(
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
@@ -157,16 +153,16 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'target_frame': lidar_frame,
             'transform_tolerance': 0.01,
-            'min_height': 0.05,
-            'max_height': 10.0,
+            # lidar_link 基準。z>=0.1（地上約0.3m）で地面(z≈-0.2)を確実に除外し、壁・家具・人を採る。
+            'min_height': 0.1,
+            'max_height': 2.0,
             'angle_min': -3.14159,
             'angle_max': 3.14159,
             'angle_increment': 0.0087,
             'scan_time': 0.1,
             'range_min': 0.3,
-            'range_max': 20.0,
-            'use_inf': False,
-            'inf_epsilon': 0.5,
+            'range_max': 40.0,
+            'use_inf': True,
         }])
 
     # ROS 2 control spawners（webots_ros2_turtlebot 踏襲）
@@ -226,7 +222,7 @@ def generate_launch_description():
     nav2_map = os.path.join(tb3_pkg, 'resource', 'turtlebot3_burger_example_map.yaml')
     default_nav2_params = os.path.join(tb3_pkg, 'resource', 'nav2_params.yaml')
     # nav_params_file が空なら従来の標準 params、指定があればそれを使う。
-    # マッピング（webots_city_mapping）は nav2_params_webots_explore.yaml を渡す。
+    # マッピング（webots_indoor_mapping）は nav2_params_webots_explore.yaml を渡す。
     nav2_params = PythonExpression(
         ["'", nav_params_file, "' or '", default_nav2_params, "'"])
     turtlebot_navigation = IncludeLaunchDescription(

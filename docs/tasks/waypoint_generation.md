@@ -76,6 +76,6 @@ ros2 run susumu_object_perception generate_waypoints.py \
 
 ## 関連
 
-- [マッピングタスク](mapping.md)
+- [マッピング（屋内）タスク](mapping_indoor.md)
 - [巡回ナビタスク](waypoint_navigation.md)
 - [launch 一覧](../launch.md)

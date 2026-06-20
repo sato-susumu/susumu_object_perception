@@ -81,5 +81,5 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
 ## 関連
 
 - [ウェイポイント生成タスク](waypoint_generation.md)
-- [マッピングタスク](mapping.md)
+- [マッピング（屋内）タスク](mapping_indoor.md)
 - [Nav2 tuning](../nav2_tuning.md)

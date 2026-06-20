@@ -5,7 +5,8 @@
 
 | タスク | ページ |
 |---|---|
-| マッピング | [mapping.md](mapping.md) |
+| マッピング（屋内） | [mapping_indoor.md](mapping_indoor.md) |
+| マッピング（屋外） | [mapping_outdoor.md](mapping_outdoor.md)（**現状未対応**） |
 | ウェイポイント生成 | [waypoint_generation.md](waypoint_generation.md) |
 | 巡回ナビ | [waypoint_navigation.md](waypoint_navigation.md) |
 | 認識 | [recognition.md](recognition.md) |

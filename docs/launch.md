@@ -14,7 +14,7 @@
 | `webots_outdoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=outdoor 固定ショートカット |
 | `webots_indoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=indoor 固定ショートカット |
 | `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
-| `webots_city_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **frontier 探索で事前地図なし環境を自律マッピング**。`world:=<wbt> map_name:=<name>`。完了時 `maps/` に自動保存 |
+| `webots_indoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **屋内 world の frontier 探索自律マッピング**。`world:=<屋内wbt> map_name:=<name>`。完了時 `maps/` に自動保存。屋外 world は未対応 |
 | `webots_waypoint_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ○ | **保存ウェイポイントを Nav2 で巡回**。`world:=<wbt> waypoints:=<world>_waypoints.yaml`。`perception:=True` で巡回中の物体認識も |
 | `webots_colored_slam.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **全天球画像で LiDAR 点群に色を付け、2D SLAM/odom 座標へ蓄積**。`/slam/colorized_points_map` |
 | `webots_glim_colored_slam.launch.py` | Webots | ✅ | — | GLIM | ○ | — | ○ | **GLIM の補正済み 3D 座標へ色付き点群を蓄積**。`/slam/glim_colorized_points_map` |
@@ -31,14 +31,14 @@
 ## 代表的なタスクフロー
 
 事前地図なし環境を地図化し、巡回する最小フロー。詳細な合格基準は
-[`tasks/mapping.md`](tasks/mapping.md)、[`tasks/waypoint_generation.md`](tasks/waypoint_generation.md)、
+[`tasks/mapping_indoor.md`](tasks/mapping_indoor.md)、[`tasks/waypoint_generation.md`](tasks/waypoint_generation.md)、
 [`tasks/waypoint_navigation.md`](tasks/waypoint_navigation.md) を参照。
 
 ```bash
 # 1) 事前地図なしの環境を frontier 探索で自律マッピング（完了時 maps/<name> に自動保存）
 #    ★ mode は realtime 必須。fast は odom が ~21% 過大積算しドリフト→地図が崩れる
 #      （docs/mid360_lidar_research.md / メモリ参照）。break_room なら world:=break_room.wbt map_name:=break_room
-ros2 launch susumu_object_perception webots_city_mapping.launch.py world:=city_robot.wbt map_name:=city mode:=realtime
+ros2 launch susumu_object_perception webots_indoor_mapping.launch.py world:=indoor.wbt map_name:=indoor mode:=realtime
 
 # 2) 保存地図から巡回ウェイポイントを生成（壁から離れた自由空間を巡回順に）
 ros2 run susumu_object_perception generate_waypoints.py \
