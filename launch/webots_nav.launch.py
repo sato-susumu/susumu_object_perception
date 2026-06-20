@@ -9,8 +9,8 @@
 #     "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 0.8, y: 0.0}, orientation: {w: 1.0}}}}" --feedback
 #
 # 使い方:
-#   ros2 launch susumu_object_perception webots_nav.launch.py world:=outdoor
-#   ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor
+#   ros2 launch susumu_object_perception webots_nav.launch.py world:=outdoor.wbt
+#   ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor.wbt
 #
 # 罠: nav/slam の小文字 true は launch 評価時に NameError でクラッシュする（大文字必須）。
 #     本 launch は内部で大文字 True/False を固定で渡すので、利用者は world だけ意識すればよい。
@@ -32,6 +32,7 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('rviz')
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
+    use_image_recognition = LaunchConfiguration('image_recognition')
     indoor_objects = LaunchConfiguration('indoor_objects')
     use_colored_slam = LaunchConfiguration('colored_slam')
     lidar_model = LaunchConfiguration('lidar_model')
@@ -54,6 +55,7 @@ def generate_launch_description():
             ('rviz', use_rviz),
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
+            ('image_recognition', use_image_recognition),
             ('indoor_objects', indoor_objects),
             ('colored_slam', use_colored_slam),
             ('lidar_model', lidar_model),
@@ -81,7 +83,10 @@ def generate_launch_description():
             description='室内物体検出（高所除外+床付近の家具を検出/識別）。室内 world で True'),
         DeclareLaunchArgument(
             'omni_perception', default_value='True',
-            description='全天球カメラ連携を起動する'),
+            description='全天球カメラ連携（色付き点群/クロップ補助）を起動する'),
+        DeclareLaunchArgument(
+            'image_recognition', default_value='True',
+            description='YOLO 物体分類 + 全天球信号認識を起動する。重いときは False'),
         DeclareLaunchArgument(
             'colored_slam', default_value='True',
             description='色付き点群SLAMマップを /slam/colorized_points_map に出す'),

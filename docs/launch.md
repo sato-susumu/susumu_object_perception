@@ -1,14 +1,7 @@
 # launch（エントリポイント）一覧と引数
 
-各 launch が何を起動するか、および引数の一覧。概要・機能は [`../README.md`](../README.md) を参照。
-
-> このページは README.md のタスク一覧「② ウェイポイント生成」「③ 巡回ナビ」の詳細ページも兼ねる。
-> - **② ウェイポイント生成のゴール**: 連結した到達可能領域を漏れなく巡る、Nav2 で完走できる点列が
->   できていること（`generate_waypoints.py`。最大連結成分＋clearance 分離＋測地距離 TSP）。
-> - **③ 巡回ナビのゴール**: 各点に到達（詰まってもスキップして一巡）し、転倒せず巡回しきること
->   （`webots_waypoint_nav.launch.py` の `waypoint_nav_node.py`）。
->
-> 生成/巡回の設計詳細・落とし穴は [`../AGENTS.md`](../AGENTS.md)「自律マッピング・ウェイポイント巡回」を参照。
+各 launch が何を起動するか、および引数の一覧。タスク別の目的・合格基準・確認手順は
+[`tasks/`](tasks/) 配下を参照。
 
 ## 何が起動するか一覧
 
@@ -23,6 +16,8 @@
 | `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
 | `webots_city_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **frontier 探索で事前地図なし環境を自律マッピング**。`world:=<wbt> map_name:=<name>`。完了時 `maps/` に自動保存 |
 | `webots_waypoint_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ○ | **保存ウェイポイントを Nav2 で巡回**。`world:=<wbt> waypoints:=<world>_waypoints.yaml`。`perception:=True` で巡回中の物体認識も |
+| `webots_colored_slam.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **全天球画像で LiDAR 点群に色を付け、2D SLAM/odom 座標へ蓄積**。`/slam/colorized_points_map` |
+| `webots_glim_colored_slam.launch.py` | Webots | ✅ | — | GLIM | ○ | — | ○ | **GLIM の補正済み 3D 座標へ色付き点群を蓄積**。`/slam/glim_colorized_points_map` |
 | `webots_slam.launch.py` | — | — | — | ✅ | — | — | — | slam_toolbox を1個だけ起動する補助 |
 | `webots_city.launch.py` | Webots | ✅ | ✅ | — | ✅ | — | ✅ | **既定 `ros2:=True`: city にセンサ付き TB3 を置き ROS2 認識（LiDAR + 全天球 + YOLO 物体分類 + 信号認識）。`ros2:=False` で SUMO 車100台の眺めるデモ**※ |
 
@@ -30,25 +25,14 @@
 既定の `ros2:=True` は `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号 + センサ付き TB3）を
 起動し、`/cmd_vel` で対象に近づくと car/person/信号を認識する（遠方は全天球で小さく映り苦手）。
 
-> **Webots のセンサ構成**: indoor/outdoor.wbt は **3D LiDAR（MID-360 近似）+ RGB カメラ + 全天球カメラ**を搭載
-> （2D LiDAR LDS-01 は廃止）。
-> - 3D LiDAR → `/lidar/points/point_cloud`(PointCloud2, frame `lidar_link`)
-> - カメラ → `/camera/image_raw/image_color`(Image, 1920×1080, Intel RealSense R200 相当)
-> - `/scan` は `pointcloud_to_laserscan` が 3D 点群から生成（2D LiDAR の代替、Nav2/AMCL 用）
->
-> **Webots の perception**: 上記 3D LiDAR を入力に Gazebo と同じ Autoware perception パイプライン
-> （検出・追跡・予測・可視化）が既定 `perception:=True` で動く。RViz2 も既定 `rviz:=True`。
-> 見るだけにしたいときは `perception:=False rviz:=False` を付ける。
->
-> **Webots の nav/SLAM の住み分け**: `webots_simulation`/`outdoor`/`indoor` は `nav` 既定 `True`
-> で Nav2(AMCL ベース)が立つが、自律走行には初期位置指定が要る。SLAM で地図を作りながら
-> 完全自走したいときは `webots_nav.launch.py`（slam_toolbox 同梱）を使う。
-> Webots を見るだけなら `nav:=False` を付ける。詳細は [`webots_simulation.md`](webots_simulation.md)。
+> センサ構成・topic/frame は [`robot_lidar.md`](robot_lidar.md)、world の使い分けは
+> [`worlds.md`](worlds.md)、Webots の詳しい起動手順は [`webots_simulation.md`](webots_simulation.md) を参照。
 
-## 自律マッピングとウェイポイント巡回
+## 代表的なタスクフロー
 
-事前地図のない Webots 環境を frontier 探索で自律マッピングし、地図からウェイポイントを生成して
-巡回する一連のフロー（詳細は [`mapping_and_patrol.md`](mapping_and_patrol.md) があれば参照）:
+事前地図なし環境を地図化し、巡回する最小フロー。詳細な合格基準は
+[`tasks/mapping.md`](tasks/mapping.md)、[`tasks/waypoint_generation.md`](tasks/waypoint_generation.md)、
+[`tasks/waypoint_navigation.md`](tasks/waypoint_navigation.md) を参照。
 
 ```bash
 # 1) 事前地図なしの環境を frontier 探索で自律マッピング（完了時 maps/<name> に自動保存）
@@ -62,7 +46,8 @@ ros2 run susumu_object_perception generate_waypoints.py \
 
 # 3) ウェイポイントに沿って Nav2 で巡回（perception:=True で巡回中の物体認識も）
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
-  world:=city_robot.wbt waypoints:=city_waypoints.yaml perception:=True omni_perception:=True
+  world:=city_robot.wbt waypoints:=city_waypoints.yaml mode:=realtime \
+  perception:=True omni_perception:=True image_recognition:=True
 ```
 
 > **注**: 連続したクリーン再起動で FastRTPS の共有メモリトランスポートが壊れ `/scan` が出なく
@@ -78,10 +63,27 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
 | `nav` | `True` | simulation/outdoor/indoor | Nav2 を起動（大文字必須。小文字 `true` は NameError） |
 | `slam` | `False` | simulation/outdoor/indoor | SLAM(slam_toolbox)を起動（大文字必須） |
 | `perception` | `True` | simulation/outdoor/indoor | Autoware perception を起動（3D LiDAR `/lidar/points/point_cloud` 入力） |
-| `omni_perception` | `True` | webots_nav 等 | 全天球色付き点群 + YOLO 物体分類 + 信号認識 |
+| `omni_perception` | `True` | webots_nav 等 | 全天球色付き点群/全天球クロップ補助を起動する |
+| `image_recognition` | 入口による | webots_simulation/outdoor/indoor/nav/city/waypoint/SLAM 等 | YOLO 物体分類 + 全天球信号認識を起動する。通常入口は `True`、巡回/色付き点群/キャリブレーション系は既定 `False` |
+| `colored_slam` | `True` | webots_simulation/nav | `/perception/colorized_points` を SLAM/odom 座標へ蓄積し `/slam/colorized_points_map` を出す |
 | `rviz` | `True` | simulation/outdoor/indoor | RViz2 を起動 |
 | `mode` | `realtime` | webots 全般 | Webots 起動モード（realtime / fast / pause） |
 | `nav_params_file` | （空） | webots_simulation/nav | Nav2 params 差し替え（探索は `config/nav2_params_webots_explore.yaml`） |
+
+## 色付き点群系 launch の主な引数
+
+| launch | 引数 | 既定 | 意味 |
+|---|---|---|---|
+| `webots_colored_slam.launch.py` | `world` | `calibration.wbt` | 色付き点群を確認する world |
+| `webots_colored_slam.launch.py` | `mode` | `fast` | Webots 起動モード。厳密検証は `realtime` |
+| `webots_colored_slam.launch.py` | `perception` | `False` | Autoware perception を併走するか |
+| `webots_colored_slam.launch.py` | `image_recognition` | `False` | YOLO 物体分類 + 全天球信号認識を併走するか |
+| `webots_colored_slam.launch.py` | `omni_calibration_json` | 空 | LiDAR-camera 外部キャリブレーション結果 |
+| `webots_glim_colored_slam.launch.py` | `glim_config_path` | `config/glim_webots` | GLIM 設定ディレクトリ |
+| `webots_glim_colored_slam.launch.py` | `image_recognition` | `False` | YOLO 物体分類 + 全天球信号認識を併走するか |
+| `webots_glim_colored_slam.launch.py` | `lidar_model` | `mid360` | LiDAR model metadata |
+
+詳細は [`tasks/colorized_pointcloud.md`](tasks/colorized_pointcloud.md) を参照。
 
 ## `simulation.launch.py`（Gazebo）の主な引数
 

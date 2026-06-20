@@ -1,146 +1,110 @@
 # susumu_object_perception
 
-ROS 2 Humble のシミュレーター統合パッケージ。**3D LiDAR + 全天球カメラを載せた移動ロボット**が、
-シミュレータ上の環境を**自律的に地図化し・巡回し・周囲の物体を検出/識別する**ところまでを一貫して扱う。
+ROS 2 Humble のシミュレーター統合パッケージ。3D LiDAR と全天球カメラを載せた移動ロボットが、
+シミュレータ上で「地図を作る → 巡回する → 周囲を認識する → 点群をカラー化する」流れを検証する。
 
 ## 目指す構想
 
-実機の自律移動ロボットに必要な「**地図を作る → 経路を巡る → 周囲を認識する**」のループを、
-シミュレータ上で統合・検証することを目指す。
+実機の自律移動ロボットに必要な一連のループを、Gazebo Classic / Webots 上で統合して確認する。
 
-1. **環境を知る（マッピング）** — 事前地図のない環境を frontier 探索で自律的に動き回り SLAM 地図を作る
-2. **環境を巡る（ナビゲーション）** — 作った地図から巡回ウェイポイントを生成し Nav2 で巡回する
-3. **環境を理解する（認識）** — 巡回しながら LiDAR で物体を検出・追跡し、カメラ画像（YOLO）で種類を識別、
-   信号も認識する。人の進路先は予測して Nav2 の障害物回避に先回りで反映する
-
----
+1. **環境を知る**: 事前地図のない環境を frontier 探索で自律的に地図化する
+2. **環境を巡る**: 保存地図から巡回ウェイポイントを生成し、Nav2 で巡回する
+3. **環境を理解する**: LiDAR と全天球カメラで物体・信号を認識し、人の進路先を Nav2 に反映する
+4. **環境を記録する**: 全天球画像で LiDAR 点群に色を付け、カラー点群として出力・保存する
 
 ## タスク一覧
 
-このパッケージが扱う作業は、下表の **4 つのタスク**に分かれる。各タスクは前のタスクの成果物を
-入力に取り、繋がって 1 つのループを成す。**ゴール条件・パラメータ・落とし穴などの詳細は
-「タスク別ページ」**を参照（README には概要のみ記す）。
+詳細なゴール条件、制約、確認手順は各タスクページに置く。README は全体の入口だけを扱う。
 
-| # | タスク | やること | ゴール | タスク別ページ |
+| # | タスク | やること | 成果物 / 主な出力 | 詳細 |
 |---|---|---|---|---|
-| 1 | **マッピング** | 事前地図のない環境を frontier 探索で動き回り SLAM 地図を作成・保存する | 到達可能な未踏領域を残さず広く開拓し、実 world の壁・障害物と一致した地図ができている | [`docs/webots_simulation.md`](docs/webots_simulation.md) |
-| 2 | **ウェイポイント生成** | 保存地図から巡回ウェイポイントを自動生成・可視化する | 連結した到達可能領域を漏れなく巡る、Nav2 で完走できる点列ができている | [`docs/launch.md`](docs/launch.md) |
-| 3 | **巡回ナビ** | 生成したウェイポイントを Nav2 で順に巡回する | 各点に到達（詰まってもスキップして一巡）し、転倒せず巡回しきる | [`docs/launch.md`](docs/launch.md) |
-| 4 | **認識** | 巡回しながら LiDAR 物体検出・追跡・予測と、カメラの画像分類・信号認識を行う | 周囲の物体を検出/識別し、人の進路先を予測して Nav2 の障害物回避に反映できている | [`docs/autoware_perception.md`](docs/autoware_perception.md) |
+| 1 | **マッピング** | 事前地図のない world を frontier 探索で動き回り、SLAM 地図を作る | `maps/<world>.pgm/.yaml` | [docs/tasks/mapping.md](docs/tasks/mapping.md) |
+| 2 | **ウェイポイント生成** | 保存地図から巡回ウェイポイントと確認 PNG を生成する | `maps/<world>_waypoints.yaml/.png` | [docs/tasks/waypoint_generation.md](docs/tasks/waypoint_generation.md) |
+| 3 | **巡回ナビ** | ウェイポイントを Nav2 `NavigateToPose` で順に巡回する | `/waypoint_nav/status`、`/waypoints/markers` | [docs/tasks/waypoint_navigation.md](docs/tasks/waypoint_navigation.md) |
+| 4 | **認識** | LiDAR 検出・追跡・予測と、全天球画像の物体分類・信号認識を行う | `/perception/tracked_objects*`、`/perception/predicted_costmap`、`/perception/traffic_signals` | [docs/tasks/recognition.md](docs/tasks/recognition.md) |
+| 5 | **カラー点群出力** | 全天球画像で LiDAR 点群に RGB を付け、必要なら SLAM/GLIM 座標に蓄積する | `/perception/colorized_points`、`/slam/*colorized_points_map`、PLY | [docs/tasks/colorized_pointcloud.md](docs/tasks/colorized_pointcloud.md) |
 
-### タスクのつながり
+## タスクのつながり
 
 ```mermaid
+%%{init: {"themeVariables": {"fontSize": "20px"}}}%%
 flowchart LR
-  ENV(["事前地図のない<br/>シミュレータ環境"]):::ext
-
-  MAP["① マッピング<br/>frontier 探索で地図作成"]:::task
-  WP["② ウェイポイント生成<br/>地図→巡回点列"]:::task
-  NAV["③ 巡回ナビ<br/>Nav2 で各点を巡回"]:::task
-  REC["④ 認識<br/>物体検出/識別・信号・予測"]:::task
+  ENV["事前地図なし環境"]:::ext
+  MAP["1 マッピング"]:::task
+  WP["2 ウェイポイント生成"]:::task
+  NAV["3 巡回ナビ"]:::task
+  REC["4 認識"]:::task
+  COL["5 カラー点群出力"]:::task
 
   ENV --> MAP
-  MAP -->|"保存地図 (PGM/YAML)"| WP
-  WP -->|"ウェイポイント (YAML)"| NAV
-  NAV -->|"巡回しながら周囲を観測"| REC
-  REC -.->|"人の進路先を予測し<br/>障害物回避に反映"| NAV
+  MAP -->|"地図"| WP
+  WP -->|"点列"| NAV
+  NAV -->|"走りながら観測"| REC
+  NAV -->|"走りながら記録"| COL
+  REC -.->|"予測 costmap"| NAV
 
   classDef task fill:#e65100,stroke:#bf360c,color:#fff;
   classDef ext fill:#455a64,stroke:#263238,color:#fff;
 ```
 
-> ①マッピングと②③④は別タスク。マッピングは「地図そのものの品質」だけを対象にし、
-> 巡回・認識はその合格した地図を前提に動く。各タスクの合格基準は [`AGENTS.md`](AGENTS.md) と
-> 上記タスク別ページに定義する。
+成果物の流れ:
 
-> 「人を検知して右隣を歩く」追従機能は持たない（旧 `susumu_lidar_perception` へ分離）。
+| 前段 | 渡すもの | 次段 |
+|---|---|---|
+| マッピング | `maps/<world>.yaml` | ウェイポイント生成 |
+| ウェイポイント生成 | `maps/<world>_waypoints.yaml` | 巡回ナビ |
+| 巡回ナビ | 走行中の LiDAR/全天球画像 | 認識 / カラー点群出力 |
+| 認識 | `/perception/predicted_costmap` | Nav2 costmap |
 
----
+「人を検知して右隣を歩く」追従機能は持たない。旧実装は別パッケージ側の過去機能で、このパッケージの
+現在の主対象ではない。
 
-## ドキュメント
+## ドキュメント構成
 
-| ドキュメント | 内容 |
-|---|---|
-| [`docs/webots_simulation.md`](docs/webots_simulation.md) | Webots 版シミュレーション（マッピングタスクの詳細を含む） |
-| [`docs/launch.md`](docs/launch.md) | 各 launch が何を起動するか・全引数（ウェイポイント生成/巡回タスクの詳細を含む） |
-| [`docs/autoware_perception.md`](docs/autoware_perception.md) | 認識タスクの詳細（perception パイプライン・予測コストマップ連携） |
-| [`docs/node_topology.md`](docs/node_topology.md) | ノード接続図 / トピック I/O 一覧（Mermaid 図） |
-| [`docs/software_design.md`](docs/software_design.md) | 設計（全体構造・状態遷移・シーケンス図・パラメータ・ディレクトリ構成） |
-| [`docs/nav2_tuning.md`](docs/nav2_tuning.md) | Nav2 の調整（パラメータ・症状別の指針・変更履歴） |
-| [`docs/traffic_light_recognition.md`](docs/traffic_light_recognition.md) | 信号認識（全天球画像の透視ビュー展開・色判定・3D 位置推定） |
-| [`docs/omni_lidar_camera.md`](docs/omni_lidar_camera.md) | 全天球カメラ・色付き点群 |
-| [`docs/semantic_object_memory.md`](docs/semantic_object_memory.md) | セマンティック物体メモリ |
-| [`docs/mid360_lidar_research.md`](docs/mid360_lidar_research.md) | MID-360 LiDAR 調査・Webots マッピングの罠 |
-| [`SETUP.md`](SETUP.md) | 構築の詳細手順・ハマりどころ |
-| [`AGENTS.md`](AGENTS.md) | 作業ガイド（規約・制約・タスク合格基準） |
-
----
-
-## world について
-
-既定は **cafe world**。家（house world）の素材も同梱しているが、house は狭い通路・家具密集により
-歩行者が固着しやすい（[`SETUP.md`](SETUP.md) Phase H）。人がよく動き回るのは cafe。house に切り替えるには
-起動引数で `map`・`base_world`・`configuration_file` を house 用に渡す。Webots 系の world
-（屋内外・街・室内）は [`docs/webots_simulation.md`](docs/webots_simulation.md) を参照。
-
----
+| 区分 | ドキュメント | 内容 |
+|---|---|---|
+| タスク | [マッピング](docs/tasks/mapping.md) | 地図作成の実行、制約、合格基準 |
+| タスク | [ウェイポイント生成](docs/tasks/waypoint_generation.md) | 保存地図から巡回点列を作る手順と判定 |
+| タスク | [巡回ナビ](docs/tasks/waypoint_navigation.md) | Nav2 でウェイポイントを巡回する手順と判定 |
+| タスク | [認識](docs/tasks/recognition.md) | 認識タスクの入口。詳細は Autoware perception / 信号認識へ分岐 |
+| タスク | [カラー点群出力](docs/tasks/colorized_pointcloud.md) | 色付き点群とカラー点群地図の出力・保存 |
+| 構成 | [world 一覧](docs/worlds.md) | Gazebo / Webots world の使い分け |
+| 構成 | [ロボット / LiDAR 構成](docs/robot_lidar.md) | センサ、topic、frame、制約 |
+| 構成 | [launch 一覧](docs/launch.md) | 各 launch が起動するものと引数 |
+| 設計 | [software_design.md](docs/software_design.md) | 全体構造、状態遷移、シーケンス |
+| 設計 | [node_topology.md](docs/node_topology.md) | ノード接続図、トピック I/O |
+| 認識 | [autoware_perception.md](docs/autoware_perception.md) | LiDAR perception と prediction costmap |
+| 認識 | [traffic_light_recognition.md](docs/traffic_light_recognition.md) | 全天球信号認識 |
+| センサ | [omni_lidar_camera.md](docs/omni_lidar_camera.md) | 全天球カメラ、色付き点群、キャリブレーション |
+| ナビ | [nav2_tuning.md](docs/nav2_tuning.md) | Nav2 パラメータの現在値と調整履歴 |
+| 構築 | [SETUP.md](SETUP.md) | 構築の詳細手順・ハマりどころ |
+| 作業規約 | [AGENTS.md](AGENTS.md) | AI エージェント / 新規参加者向け作業ガイド |
 
 ## 必要環境・依存
 
 | 種別 | 内容 |
 |---|---|
-| ベース | ROS 2 Humble / Gazebo Classic 11 / Nav2 / TurtleBot3(waffle) |
-| 外部クローン | HuNavSim `hunav_sim` / `hunav_gazebo_wrapper`（`v1.0-humble`）、`people_msgs`（ソース） |
-| ヘッダlib | `lightsfm`（`/usr/local/include` へ `make install`） |
-| Python | tkinter（GUI） |
+| ベース | ROS 2 Humble / Gazebo Classic 11 / Webots / Nav2 / TurtleBot3 |
+| 外部クローン | HuNavSim `hunav_sim` / `hunav_gazebo_wrapper`（`v1.0-humble`）、`people_msgs` |
+| ヘッダ lib | `lightsfm`（`/usr/local/include` へ `make install`） |
+| Python | tkinter、YOLO 系依存、SciPy など |
 
-セットアップ手順は [`SETUP.md`](SETUP.md) の「Phase 0」を参照。
+セットアップ手順は [SETUP.md](SETUP.md) を参照。
 
----
-
-## ビルド・実行
+## ビルド・最小起動
 
 ```bash
 cd ~/ros2_ws
-colcon build --symlink-install
-# ★ source は setup.bash ではなく local_setup.bash を使うこと（理由は SETUP.md 参照）
+colcon build --packages-select susumu_object_perception --symlink-install
 source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/local_setup.bash
 export TURTLEBOT3_MODEL=waffle
 
-ros2 launch susumu_object_perception simulation.launch.py   # Gazebo 全部入り
+ros2 launch susumu_object_perception simulation.launch.py
 ```
 
-**各 launch が何を起動するか・全引数・タスク別の起動手順は [`docs/launch.md`](docs/launch.md) を参照。**
-
----
-
-## ロボット / LiDAR 構成と制約
-
-Gazebo Classic の標準ロボットは TurtleBot3 Waffle に上部 3D LiDAR を載せた構成で、
-URDF/SDF の識別子、topic、frame はセンサ製品名に依存しない汎用名にしている。LiDAR link は
-`lidar_link`、点群 topic は `/lidar/points`。標準 `lidar_model:=mid360` は
-`liblivox_mid360_sensor.so`（LCAS/livox_laser_simulation_ros2 由来、ODE MultiRayShape 方式）が
-MID-360 の scan pattern CSV（`config/mid360_scan_patterns/mid360.csv`）を読み、`x,y,z,intensity,tag,line`
-付き PointCloud2 を出す（frame は sensor 名 = `lidar_link`）。VLP-16 版は `models/turtlebot3_waffle_vlp16/` と
-`urdf/turtlebot3_waffle_vlp16.urdf.xacro` に残してあり、`lidar_model:=vlp16` で使う。
-
-Webots の標準 world は Webots 標準 `Lidar` による MID-360 近似で、device 名は `lidar3d`、
-frame は `lidar_link`、topic は `/lidar/points/point_cloud`。
-
-制約事項:
-
-- Gazebo Classic 版 MID-360 は ODE MultiRayShape で CSV の非反復角度列に実 ray を撃つ。
-  per-point timestamp は出さない（`x,y,z,intensity,tag,line`、tag/line はダミー 0）。
-- Webots 標準 `Lidar` では Livox/MID-360 の非反復 scan pattern を直接指定できないため、FOV・レンジ・点密度の近似に留めている。
-- Nav2/AMCL 用 `/scan` は 2D LiDAR ではなく、3D LiDAR 点群から `pointcloud_to_laserscan` で生成する。
-- downstream の perception、色付き点群、GLIM 設定は汎用 topic/frame に寄せており、旧 `/velodyne_points` / `velodyne_link` 前提ではない。
-
-詳細は [`docs/mid360_lidar_research.md`](docs/mid360_lidar_research.md)。
-
----
+各タスクの実行コマンドはタスクページを参照。各 launch の引数は [docs/launch.md](docs/launch.md) にまとめる。
 
 ## ライセンス
 
-MIT License（[`LICENSE`](LICENSE)）。TurtleBot3 モデルは ROBOTIS、HuNavSim は
-robotics-upo に帰属。
+MIT License（[LICENSE](LICENSE)）。TurtleBot3 モデルは ROBOTIS、HuNavSim は robotics-upo に帰属。

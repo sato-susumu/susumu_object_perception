@@ -1,13 +1,13 @@
 # 全部入りシミュレーション。
 #
-#   Gazebo（house world）+ HuNavSim 歩行者5人          （hunav_house.launch.py より）
+#   Gazebo（cafe world）+ HuNavSim 歩行者5人           （hunav_house.launch.py より）
 #   + 3D-LiDAR TurtleBot3（waffle + Livox MID-360）    （spawn_robot.launch.py より）
-#   + Nav2（AMCL 自己位置推定 + 3D点群による障害物回避）
+#   + Nav2（AMCL 自己位置推定 + /scan obstacle_layer + predicted_layer）
 #   + RViz2
 #   + Teleop / 自動巡回 GUI
 #
-# RViz2 の「2D Goal Pose」でゴールを与えると、歩く人（3D LiDAR が costmap に
-# マークする）を避けながら家の中を自律移動する。GUI からは手動操縦・部屋の自動巡回もできる。
+# RViz2 の「2D Goal Pose」でゴールを与えると、/scan の障害物層と予測層を使って
+# 歩く人を避けながらカフェ world 内を自律移動する。GUI からは手動操縦・自動巡回もできる。
 
 import os
 
@@ -86,7 +86,7 @@ def generate_launch_description():
     ])
 
     # ------------------------------------------------------------------
-    # 1) Gazebo house world + HuNavSim 歩行者5人。
+    # 1) Gazebo cafe world + HuNavSim 歩行者5人。
     #    navigation:=True は HuNav launch に静的な map->odom を publish させない
     #    ことを伝える（代わりに Nav2/AMCL が提供する）。
     # ------------------------------------------------------------------

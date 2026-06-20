@@ -21,6 +21,7 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('rviz')
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
+    use_image_recognition = LaunchConfiguration('image_recognition')
     use_colored_slam = LaunchConfiguration('colored_slam')
     lidar_model = LaunchConfiguration('lidar_model')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
@@ -37,6 +38,7 @@ def generate_launch_description():
             ('rviz', use_rviz),
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
+            ('image_recognition', use_image_recognition),
             ('colored_slam', use_colored_slam),
             ('lidar_model', lidar_model),
             ('omni_calibration_json', omni_calibration_json),
@@ -55,6 +57,8 @@ def generate_launch_description():
                               description='Autoware perception を起動する'),
         DeclareLaunchArgument('omni_perception', default_value='True',
                               description='全天球カメラ連携を起動する'),
+        DeclareLaunchArgument('image_recognition', default_value='False',
+                              description='YOLO 物体分類 + 全天球信号認識を起動する。キャリブレーションだけなら False'),
         DeclareLaunchArgument('colored_slam', default_value='True',
                               description='色付き点群SLAMマップを /slam/colorized_points_map に出す'),
         DeclareLaunchArgument('lidar_model', default_value='mid360',

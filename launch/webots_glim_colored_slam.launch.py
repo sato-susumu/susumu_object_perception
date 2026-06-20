@@ -22,6 +22,7 @@ def generate_launch_description():
     mode = LaunchConfiguration('mode')
     use_rviz = LaunchConfiguration('rviz')
     use_perception = LaunchConfiguration('perception')
+    use_image_recognition = LaunchConfiguration('image_recognition')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
     glim_config_path = LaunchConfiguration('glim_config_path')
@@ -37,6 +38,7 @@ def generate_launch_description():
             ('slam', 'False'),
             ('rviz', use_rviz),
             ('perception', use_perception),
+            ('image_recognition', use_image_recognition),
             ('omni_perception', 'True'),
             ('colored_slam', 'True'),
             ('lidar_model', lidar_model),
@@ -97,6 +99,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'perception', default_value='False',
             description='Autoware perception を起動する。GLIM検証だけなら False'),
+        DeclareLaunchArgument(
+            'image_recognition', default_value='False',
+            description='YOLO 物体分類 + 全天球信号認識を起動する。色付き点群検証だけなら False'),
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='direct_visual_lidar_calibration の calib.json。空なら初期TF'),

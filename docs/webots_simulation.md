@@ -1,10 +1,8 @@
 # Webots シミュレーション環境ガイド（ROS2 Humble）
 
-> このページは [`README.md`](../README.md) のタスク一覧「① マッピング」の詳細ページを兼ねる
-> （Webots 環境全般の手引きでもある）。**マッピングタスクのゴール**: 到達可能な未踏領域を残さず
-> 広く開拓し、実 world の壁・障害物と一致した地図ができていること。frontier 探索の合格基準・
-> 落とし穴は [`AGENTS.md`](../AGENTS.md)「自律マッピング・ウェイポイント巡回」と
-> [`mid360_lidar_research.md`](mid360_lidar_research.md) にも定義する。
+Webots 環境全般の手引き。マッピングタスクの目的・合格基準・確認手順は
+[`tasks/mapping.md`](tasks/mapping.md)、world の使い分けは [`worlds.md`](worlds.md)、
+ロボット/LiDAR 構成は [`robot_lidar.md`](robot_lidar.md) に分離している。
 
 屋外・屋内の大型シミュレーションを Webots で動かすための手引き。**実際に動かして確認した手順**を
 まとめている（車・信号・歩行者が動く街、屋内外切替、ROS2 連携、Nav2 自律ナビまで）。
@@ -104,11 +102,11 @@ export SUMO_HOME=/usr/share/sumo   # city_traffic 用。未設定だと「SUMO n
 
 | launch | 役割 | 主な引数（既定） | 起動例 |
 |---|---|---|---|
-| `webots_simulation.launch.py` | TurtleBot3 + Webots 同梱 world を起動。ROS2 連携の基本。**LiDAR perception + 全天球色付き点群 + 画像認識（YOLO 物体分類 + 全天球信号認識）を含む**（outdoor/indoor/city 等はこれを include するので全部に波及） | `world`(`outdoor.wbt` 拡張子込み), `mode`, `nav`(**True**), `slam`(False), `perception`(True), `omni_perception`(True), `image_recognition`(True), `use_sim_time`(True) | `ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt` |
-| `webots_outdoor.launch.py` / `webots_indoor.launch.py` | 上記の world 固定ショートカット（`world` 引数不要）。`nav`(**True**) / `slam`(False) / `mode` は渡せる | `mode`, `nav`(True), `slam`(False), `use_sim_time` | `ros2 launch susumu_object_perception webots_outdoor.launch.py` |
+| `webots_simulation.launch.py` | TurtleBot3 + Webots 同梱 world を起動。ROS2 連携の基本。**LiDAR perception + 全天球色付き点群 + 画像認識（YOLO 物体分類 + 全天球信号認識）を含む**。wrapper launch はこの引数を渡すか、用途に応じて明示OFFにする | `world`(`outdoor.wbt` 拡張子込み), `mode`, `nav`(**True**), `slam`(False), `perception`(True), `omni_perception`(True), `image_recognition`(True), `use_sim_time`(True) | `ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt` |
+| `webots_outdoor.launch.py` / `webots_indoor.launch.py` | 上記の world 固定ショートカット（`world` 引数不要）。`nav`(**True**) / `slam`(False) / `mode` / 認識系引数は渡せる | `mode`, `nav`(True), `slam`(False), `perception`(True), `omni_perception`(True), `image_recognition`(True), `use_sim_time` | `ros2 launch susumu_object_perception webots_outdoor.launch.py` |
 | `webots_slam.launch.py` | `slam_toolbox` を単独起動する補助（robot を別 launch で起動済みのとき用）。通常は `slam:=True` で足りるので不要 | `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_slam.launch.py` |
-| `webots_nav.launch.py` | robot + Nav2 + SLAM フルスタック。内部で simulation を `nav:=True slam:=True` で呼ぶだけ（bringup が slam_toolbox を1個起動・AMCL は無効。二重起動なし） | `world`(outdoor.wbt / indoor.wbt), `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor.wbt` |
-| `webots_city.launch.py` | **既定 `ros2:=True`: city にセンサ付き TurtleBot3 を組み込んだ `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号）を起動し ROS2 認識（LiDAR perception + 全天球色付き点群 + YOLO 物体分類 + 信号認識）を回す。** `ros2:=False` で従来の眺めるだけの街デモ（city_traffic + SUMO 車100台、ROS2 連携なし）。`SUMO_HOME` を内部既定設定 | `ros2`(True), `mode`(realtime / fast / pause), `world`(ros2:=False 用 city_traffic / city / village 等) | `ros2 launch susumu_object_perception webots_city.launch.py mode:=fast` |
+| `webots_nav.launch.py` | robot + Nav2 + SLAM フルスタック。内部で simulation を `nav:=True slam:=True` で呼ぶだけ（bringup が slam_toolbox を1個起動・AMCL は無効。二重起動なし） | `world`(outdoor.wbt / indoor.wbt), `perception`(True), `omni_perception`(True), `image_recognition`(True), `use_sim_time`(true) | `ros2 launch susumu_object_perception webots_nav.launch.py world:=indoor.wbt` |
+| `webots_city.launch.py` | **既定 `ros2:=True`: city にセンサ付き TurtleBot3 を組み込んだ `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号）を起動し ROS2 認識（LiDAR perception + 全天球色付き点群 + YOLO 物体分類 + 信号認識）を回す。** `ros2:=False` で従来の眺めるだけの街デモ（city_traffic + SUMO 車100台、ROS2 連携なし）。`SUMO_HOME` を内部既定設定 | `ros2`(True), `mode`(realtime / fast / pause), `image_recognition`(True), `world`(ros2:=False 用 city_traffic / city / village 等) | `ros2 launch susumu_object_perception webots_city.launch.py mode:=fast` |
 
 > `webots_simulation.launch.py` は外部 `webots_ros2_turtlebot/robot_launch.py` の driver 配線
 > （`WebotsLauncher` + `WebotsController` + `robot_state_publisher` + ros2_control spawner）を踏襲し、
@@ -122,7 +120,7 @@ export SUMO_HOME=/usr/share/sumo   # city_traffic 用。未設定だと「SUMO n
 ### 4-1. ROS2 連携でロボットを動かす（最小）
 
 ```bash
-ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor
+ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt
 ```
 
 出てくる ROS2 トピック: `/scan`(2D LiDAR) `/scan/point_cloud` `/odom` `/cmd_vel` `/imu` `/tf`
@@ -143,7 +141,7 @@ ros2 topic echo /odom --once   # 別端末: 位置が変化していれば ROS2 
 
 ```bash
 # 端末1: robot + Nav2 + slam_toolbox を一括（下のシーケンス図の端末1+2を兼ねる）
-ros2 launch susumu_object_perception webots_nav.launch.py world:=outdoor
+ros2 launch susumu_object_perception webots_nav.launch.py world:=outdoor.wbt
 
 # 端末2: ゴールを送って自律ナビ
 ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
@@ -171,7 +169,7 @@ sequenceDiagram
 
 ```bash
 # 端末1: TurtleBot3 + Nav2（SLAM はここでは起動しない＝二重起動回避）
-ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor nav:=True slam:=False
+ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt nav:=True slam:=False
 #  ↑ nav:=True は大文字！ slam:=False で同梱 SLAM の二重起動を防ぐ
 
 # 端末2: slam_toolbox を「1個だけ」起動（map->odom TF を供給）
@@ -231,10 +229,10 @@ ros2:=False 起動後、ログに `Using SUMO from /usr/share/sumo` / `Connect t
 
 ```bash
 # 屋外（/scan /odom /cmd_vel /gps が出る）
-ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor
+ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt
 
 # 屋内（/scan /odom /cmd_vel が出る）
-ros2 launch susumu_object_perception webots_simulation.launch.py world:=indoor
+ros2 launch susumu_object_perception webots_simulation.launch.py world:=indoor.wbt
 ```
 
 どちらも `nav:=True` を足せば各 world で Nav2 自律ナビも可能（§4-2 参照）。実証済み:
@@ -283,7 +281,7 @@ ros2 launch susumu_object_perception webots_simulation.launch.py world:=indoor
 | `/scan` が「全周の一部しか出ていない」ように見える | **`ros2 topic echo /scan` のテキスト出力が長い `ranges` 配列を省略表示**するのを手作業パースで誤読しただけ（実際は 723 点・全周 -180〜180 正常） | **点数/分布は echo テキストでなく `sensor_msgs_py.point_cloud2` / LaserScan を Python でデコードして数える**。echo の見た目で判断しない |
 | 起動直後ロボットが動かない・controller が `Passing new path` を繰り返すだけ | **TF(map/odom)が未安定**な起動直後。`Invalid frame ID "odom"` 等が出る | 数十秒待つと TF が揃い `Reached the goal!` で正常探索に入る。遅延起動値（frontier は +22s 等）をむやみに詰めない |
 | `nav2_params_webots_explore.yaml` の `use_sim_time` が `False` だらけで不安になる | **nav2_bringup の RewrittenYaml が起動時に `True` で上書き**するので実害なし | 実行値は `ros2 param get /controller_server use_sim_time` で確認（全ノード True になる）。yaml の値に惑わされない |
-| 地図がぶれる（二重壁/斜め/星形） | 最有力は **`mode:=fast` の odom 21% 過大積算**（[mid360_lidar_research](mid360_lidar_research.md)）。`mode:=realtime` 前提なら衝突や TF 不整合を疑う | `mode:=realtime` で再現するか確認。バンパー(`/bumper/collision`)＋衝突診断ノードで「衝突しているか／scan・costmap に障害物が乗っているか」を切り分ける（AGENTS.md「自律マッピング」表） |
+| 地図がぶれる（二重壁/斜め/星形） | 最有力は **`mode:=fast` の odom 21% 過大積算**（[mid360_lidar_research](mid360_lidar_research.md)）。`mode:=realtime` 前提なら衝突や TF 不整合を疑う | `mode:=realtime` で再現するか確認。バンパー(`/bumper/collision`)＋衝突診断ノードで「衝突しているか／scan・costmap に障害物が乗っているか」を切り分ける。合格基準は [マッピングタスク](tasks/mapping.md) |
 
 > ヘッドレス環境では Webots も X を要求するため `DISPLAY=:0` が要る（X サーバが居る前提）。
 > GUI を見たいときは `--no-rendering`/`--minimize` を外して起動する。

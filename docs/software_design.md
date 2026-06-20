@@ -86,7 +86,7 @@ flowchart LR
 | ファイル | 役割 | 単体起動 |
 |---|---|---|
 | `launch/simulation.launch.py` | 全部入り（下記すべて + RViz2 + GUI）。エントリポイント | ○ |
-| `launch/include/hunav_house.launch.py` | Gazebo（house world）+ HuNavSim 歩行者5人 | ○ |
+| `launch/include/hunav_house.launch.py` | Gazebo（既定 cafe world）+ HuNavSim 歩行者5人 | ○ |
 | `launch/include/spawn_robot.launch.py` | 3D-LiDAR TurtleBot3 を spawn + robot_state_publisher | ○（要 Gazebo 起動済み） |
 | `launch/include/test_robot_empty.launch.py` | 空 world + ロボット単体（3D LiDAR / TF 確認用）。`simulation` からは include されない検証専用 | ○ |
 
@@ -94,7 +94,7 @@ flowchart LR
 
 | 時刻 | 起動対象 | 遅延の理由 |
 |---|---|---|
-| +0s | Gazebo（house world）+ HuNavSim 5人 | — |
+| +0s | Gazebo（既定 cafe world）+ HuNavSim 5人 | — |
 | +8s | ロボット spawn + robot_state_publisher | Gazebo が先に立ち上がっている必要がある |
 | +12s | Nav2（AMCL + costmap + planner/controller） | ロボット／TF が揃っている必要がある |
 | +12s | RViz2 | — |
@@ -448,6 +448,9 @@ susumu_object_perception/
 ├── maps/house.{pgm,yaml}          # house のマップ
 ├── rviz/simulation.rviz           # RViz設定（3D点群 + perception 可視化付き）
 ├── docs/software_design.md        # 本ドキュメント
+├── docs/tasks/                    # タスク別の制約・合格基準・実行手順
+├── docs/worlds.md                 # Gazebo/Webots world の使い分け
+├── docs/robot_lidar.md            # ロボット / LiDAR 構成と topic/frame 契約
 ├── docs/autoware_perception.md    # perception パイプライン詳細
 ├── docs/nav2_tuning.md            # Nav2 調整ガイド
 ├── LICENSE                        # MIT License

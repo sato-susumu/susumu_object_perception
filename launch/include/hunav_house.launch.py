@@ -1,8 +1,8 @@
-# 複数の部屋がつながった house world で HuNavSim が制御する歩行者を動かす。
+# 既定では cafe world で HuNavSim が制御する歩行者を動かす。
 #
 # この launch は HuNav Gazebo wrapper のワールド生成パイプラインを再利用する:
 #   1. hunav_loader            -> 5人のエージェント設定（agents_house.yaml）を読み込む
-#   2. hunav_gazebo_world_generator -> house.world + エージェントを統合し
+#   2. hunav_gazebo_world_generator -> base_world + エージェントを統合し
 #                                       generatedWorld.world を生成（HuNav プラグイン付き）
 #   3. gzserver/gzclient       -> 生成したワールドを実行する
 #   4. hunav_agent_manager     -> エージェントの behavior を駆動（Social Force Model）

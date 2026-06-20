@@ -9,8 +9,9 @@
 # 使い方:
 #   ros2 launch susumu_object_perception webots_city_patrol.launch.py
 #   ros2 launch susumu_object_perception webots_city_patrol.launch.py mode:=fast
-#   # 認識が重ければ perception/omni を切る:
-#   ros2 launch susumu_object_perception webots_city_patrol.launch.py perception:=False omni_perception:=False
+#   # 認識が重ければ perception/omni/image_recognition を切る:
+#   ros2 launch susumu_object_perception webots_city_patrol.launch.py \
+#     perception:=False omni_perception:=False image_recognition:=False
 #
 # 罠:
 #   - Webots は GUI(X) を要求。ヘッドレスなら DISPLAY を環境側で設定する。
@@ -35,6 +36,7 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('rviz')
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
+    use_image_recognition = LaunchConfiguration('image_recognition')
     sample_step = LaunchConfiguration('sample_step')
     robot_radius = LaunchConfiguration('robot_radius')
     max_waypoints = LaunchConfiguration('max_waypoints')
@@ -51,6 +53,7 @@ def generate_launch_description():
             ('rviz', use_rviz),
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
+            ('image_recognition', use_image_recognition),
         ],
     )
 
@@ -93,6 +96,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'omni_perception', default_value='True',
             description='全天球カメラ連携を起動する（重ければ False）'),
+        DeclareLaunchArgument(
+            'image_recognition', default_value='True',
+            description='YOLO 物体分類 + 全天球信号認識を起動する（重ければ False）'),
         DeclareLaunchArgument(
             'sample_step', default_value='2.0',
             description='巡回ウェイポイントのグリッド間隔 [m]（city は広いので粗め）'),

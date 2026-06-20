@@ -40,6 +40,7 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('rviz')
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
+    use_image_recognition = LaunchConfiguration('image_recognition')
     map_name = LaunchConfiguration('map_name')
     save_map = LaunchConfiguration('save_map')
     gain = LaunchConfiguration('gain')
@@ -67,6 +68,7 @@ def generate_launch_description():
             ('rviz', use_rviz),
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
+            ('image_recognition', use_image_recognition),
             ('nav_params_file', explore_params),
         ],
     )
@@ -150,6 +152,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'omni_perception', default_value='False',
             description='全天球カメラ連携（地図作成に不要なので既定 OFF）'),
+        DeclareLaunchArgument(
+            'image_recognition', default_value='False',
+            description='YOLO 物体分類 + 全天球信号認識（地図作成に不要なので既定 OFF）'),
         DeclareLaunchArgument(
             'goal_timeout_sec', default_value='30.0',
             description='frontier の 1 ゴール到達猶予[s]。短いと狭い屋内で'

@@ -10,6 +10,7 @@
 # 使い方:
 #   ros2 launch susumu_object_perception webots_city.launch.py                 # ros2 認識あり(city_robot)
 #   ros2 launch susumu_object_perception webots_city.launch.py mode:=fast
+#   ros2 launch susumu_object_perception webots_city.launch.py image_recognition:=False  # YOLO/信号認識OFF
 #   ros2 launch susumu_object_perception webots_city.launch.py ros2:=false world:=city_traffic  # 眺めるデモ
 #
 # 罠（docs/webots_simulation.md）:
@@ -49,10 +50,10 @@ def generate_launch_description():
     pkg = get_package_share_directory('susumu_object_perception')
     use_ros2 = LaunchConfiguration('ros2')
     mode = LaunchConfiguration('mode')
+    use_image_recognition = LaunchConfiguration('image_recognition')
 
     # ros2:=true: city にロボットを組み込んだ city_robot.wbt を webots_simulation 経由で起動。
     # webots_simulation.launch.py が driver 配線・perception・全天球色付き点群を担う。
-    # ros2:=true: city にロボットを組み込んだ city_robot.wbt を webots_simulation 経由で起動。
     # 画像認識（YOLO 物体分類 + 全天球信号認識）は webots_simulation の image_recognition に
     # 任せる（個別起動はせず DRY に）。LiDAR perception・全天球色付き点群も同 launch が担う。
     sim = IncludeLaunchDescription(
@@ -65,7 +66,7 @@ def generate_launch_description():
             ('slam', 'False'),
             ('perception', 'True'),          # LiDAR perception（検出・追跡・予測）
             ('omni_perception', 'True'),     # 全天球色付き点群
-            ('image_recognition', 'True'),   # YOLO 物体分類 + 全天球信号認識
+            ('image_recognition', use_image_recognition),  # YOLO 物体分類 + 全天球信号認識
         ],
         condition=IfCondition(use_ros2))
 
@@ -77,6 +78,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'mode', default_value='realtime',
             description='Webots 起動モード（realtime / fast / pause）'),
+        DeclareLaunchArgument(
+            'image_recognition', default_value='True',
+            description='YOLO 物体分類 + 全天球信号認識を起動する。重いときは False'),
         DeclareLaunchArgument(
             'world', default_value='city_traffic',
             description=('ros2:=false の眺めるデモで使う標準 world 名（拡張子不要）。'

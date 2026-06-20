@@ -11,7 +11,7 @@
 # これで sudo cp が不要になる。URDF/ros2control 等の resource は webots_ros2_turtlebot の
 # share をそのまま参照する（複製しない）。
 #
-#   world:=outdoor （既定）/ world:=indoor          … webots_worlds/<world>.wbt を読む
+#   world:=outdoor.wbt （既定）/ world:=indoor.wbt … webots_worlds/<world> を読む
 #   nav:=True   … Nav2（turtlebot3_navigation2）を起動（大文字必須）
 #   slam:=True  … SLAM(slam_toolbox)で地図生成しつつ自律走行（AMCL は起動しない。大文字必須）
 #   rviz:=False … （webots_ros2_turtlebot 既定の RViz は本 launch では起動しない）
