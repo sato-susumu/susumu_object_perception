@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """検出物体を map 座標で永続記憶し、無くなったものは消す「物体メモリ」ノード。
 
-docs/semantic_object_memory_research.md の「軽量 self-built object map」方式の MVP 実装。
-研究記録では RGB-D 追加が前提だったが、本実装は既存 perception が出す
+本実装は既存 perception が出す
 `tracked_objects_classified`（map 照合済み・YOLO 分類済み・existence_probability 付き）を
-入力にすることで RGB-D を省き、MVP を軽くしている。
+入力にすることで RGB-D を省き、記憶と可視化に絞っている。
 
 ────────────────────────────────────────────────────────────────────────────
-やること（research.md の ①②）:
+やること:
 
   ① 座標を記憶 = semantic / object-level mapping
      - tracked_objects_classified の各物体を tracking_frame → map 座標に変換し、
@@ -22,9 +21,8 @@ docs/semantic_object_memory_research.md の「軽量 self-built object map」方
        （map の occupied セルが間にあるか）で判定する。閾値割れで DB から削除。
        (Dengler et al. の hits/misses ベイズ更新 + LTC-Mapping の遮蔽判定の縮小版)
 
-既存 object_tracker_node.py の existence_probability ベイズ更新式をそのまま流用する
-（research.md が「②の核心は tracker が既に持っている」と指摘した部分）。
-独自 .msg は作らず、出力は MarkerArray（可視化）と semantic_query_node が読む DB のみ。
+既存 object_tracker_node.py の existence_probability ベイズ更新式をそのまま流用する。
+独自 .msg は作らず、出力は MarkerArray（可視化）と SQLite DB のみ。
 ────────────────────────────────────────────────────────────────────────────
 """
 
@@ -48,8 +46,8 @@ from std_msgs.msg import ColorRGBA
 from diagnostic_msgs.msg import DiagnosticArray
 
 
-# Autoware ObjectClassification.label → 人間可読クラス名。DB に文字列で保存し、
-# semantic_query_node の固定辞書（「椅子」→ chair 等）と突き合わせる。検出器が COCO
+# Autoware ObjectClassification.label → DB に保存する class_name。
+# 検出器が COCO
 # 由来でも Autoware label に丸められているので、ここでは Autoware の語彙で持つ。
 LABEL_NAMES = {
     ObjectClassification.UNKNOWN: 'unknown',
@@ -411,7 +409,7 @@ class ObjectMemoryNode(Node):
                     fine_name is None or fine_conf < self.min_fine_conf):
                 continue
             # class_name は COCO 細クラス(chair 等)を優先し、無ければ Autoware label 名。
-            # これで什器を区別して記憶でき、クエリ「椅子」で引ける。
+            # これで什器を区別して記憶でき、class_name exact match で引ける。
             class_name = normalize_class_name(
                 fine_name or LABEL_NAMES.get(label, 'unknown'))
             if self.require_map_support and not self._has_map_support(

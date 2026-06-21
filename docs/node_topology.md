@@ -3,7 +3,7 @@
 このパッケージの ROS 2 ノードのつながりと、各ノードの入力・出力トピックをまとめる。
 ノードが増えて全体像が見えにくくなったため、**どのノードがどのトピックで繋がっているか**を
 一望できるようにしたもの。各ノードの内部設計は [`software_design.md`](software_design.md)、
-セマンティック物体メモリ系は [`semantic_object_memory.md`](semantic_object_memory.md) を参照。
+セマンティック物体メモリは [`semantic_object_memory.md`](semantic_object_memory.md) を参照。
 
 > 凡例: 図中の色は **緑=Autoware 純正モジュール / オレンジ=自作 Python ノード /
 > 青=外部（Gazebo/Nav2/地図）/ 灰=GUI・補助**。トピック名は `simulation.launch.py` の
@@ -18,7 +18,7 @@ flowchart TD
   GZ["Gazebo Classic 11<br/>(SDF: MID-360 LiDAR / 6面カメラ)"]:::ext
   PERC["perception パイプライン<br/>(検出→追跡→予測)"]:::own
   IMG["画像認識<br/>(全天球合成→YOLO分類 / 信号認識)"]:::own
-  MEM["セマンティック物体メモリ + 行動層<br/>(記憶→クエリ/追従/探索)"]:::own
+  MEM["セマンティック物体メモリ<br/>(記憶→DB/RViz表示)"]:::own
   NAV["Nav2<br/>(AMCL / costmap / planner)"]:::ext
   GUI["GUI 群<br/>(teleop / 記憶一覧)"]:::aux
 
@@ -28,8 +28,7 @@ flowchart TD
   PERC -->|"/perception/tracked_objects"| IMG
   IMG -->|"/perception/tracked_objects_classified"| MEM
   PERC -->|"/perception/predicted_costmap"| NAV
-  MEM -->|"NavigateToPose"| NAV
-  GUI -->|"/cmd_vel / /semantic_query / /object_seek"| MEM
+  GUI -->|"DB読出"| MEM
   GUI -->|"/cmd_vel / NavigateToPose"| NAV
   NAV -->|"/cmd_vel"| GZ
 
@@ -134,10 +133,10 @@ flowchart TD
 
 ---
 
-## 3. セマンティック物体メモリ + 行動層
+## 3. セマンティック物体メモリ
 
-`semantic_memory:=True` で起動。検出物体を map 座標で永続記憶し、自然語クエリで移動・
-追従・探索する。SQLite DB（`~/.ros/object_memory.sqlite3`）を介して疎結合。
+`semantic_memory:=True` で起動。検出物体を map 座標で永続記憶し、RViz marker と
+SQLite DB（`~/.ros/object_memory.sqlite3`）に出す。物体問い合わせ、探索、追従、Nav2 goal 生成はしない。
 
 ```mermaid
 flowchart TD
@@ -147,11 +146,7 @@ flowchart TD
 
   MEM["object_memory"]:::own
   DB[("object_memory.sqlite3")]:::ext
-  QRY["semantic_query"]:::own
-  SEEK["object_seeker"]:::own
   MGUI["object_memory_gui"]:::aux
-  TGUI["teleop_gui"]:::aux
-  NAV(["Nav2 NavigateToPose"]):::ext
 
   TC --> MEM
   FC --> MEM
@@ -159,22 +154,7 @@ flowchart TD
   MEM -->|"書込"| DB
   MEM -->|"/semantic_memory/markers"| RVIZ(["RViz"]):::ext
 
-  DB -->|"読出"| QRY
-  DB -->|"読出"| SEEK
   DB -->|"読出"| MGUI
-
-  TGUI -->|"/semantic_query (String)"| QRY
-  MGUI -->|"/semantic_query (String)"| QRY
-  QRY -->|"NavigateToPose"| NAV
-  QRY -->|"/semantic_query/result"| OUT(["結果通知"]):::aux
-
-  TGUI -->|"/object_seek (String)"| SEEK
-  TC --> SEEK
-  SEEK -->|"NavigateToPose"| NAV
-  SEEK -->|"/object_seek/status"| OUT
-  SEEK -->|"/cmd_vel (見失い停止)"| GZ(["Gazebo"]):::ext
-
-  TGUI -->|"/cmd_vel / /initialpose / NavigateToPose"| NAV
 
   classDef own fill:#e65100,stroke:#bf360c,color:#fff;
   classDef ext fill:#1565c0,stroke:#0d47a1,color:#fff;
@@ -215,18 +195,16 @@ flowchart TD
 | `colorized_pointcloud` | `/omni_camera/image_raw` + `/lidar/points` | `/perception/colorized_points` |
 | `pointcloud_intensity` | `/lidar/points` | `/lidar/points_intensity` |
 
-### セマンティック物体メモリ / 行動層 / GUI
+### セマンティック物体メモリ / GUI
 
 | ノード | 入力 | 出力・接続 |
 |---|---|---|
 | `object_memory` | `/perception/tracked_objects_classified` + `/perception/object_fine_classes` + `/map` + TF | `/semantic_memory/markers` + **DB 書込** |
-| `semantic_query` | `/semantic_query` (String) + **DB 読** + TF | `/semantic_query/result` (String) + **NavigateToPose** |
-| `object_seeker` | `/object_seek` (String) + `/perception/tracked_objects_classified` + **DB 読** + TF | `/object_seek/status` (String) + `/cmd_vel` + **NavigateToPose** |
-| `object_memory_gui` | **DB 読** | `/semantic_query` (String) |
-| `teleop_gui` | (GUI 操作) | `/cmd_vel` + `/initialpose` + `/semantic_query` + `/object_seek` + **NavigateToPose** |
+| `object_memory_gui` | **DB 読** | 一覧 GUI 表示 |
+| `teleop_gui` | (GUI 操作) | `/cmd_vel` + `/initialpose` + **NavigateToPose** |
 
 > `patrol_waypoints.py` はモジュール（ノードではない）。`PATROL_WAYPOINTS`（cafe 巡回 8 点）を
-> `teleop_gui`（自動巡回）と `object_seeker`（SEARCH モード）が import して共有する。
+> `teleop_gui`（自動巡回）が import する。
 
 ### 外部・補助
 
@@ -234,4 +212,4 @@ flowchart TD
 |---|---|---|
 | `/scan` (LaserScan) | pointcloud_to_laserscan（`/lidar/points` から生成） | AMCL / Nav2 obstacle_layer |
 | `/perception/predicted_costmap` (OccupancyGrid) | prediction | Nav2 `PredictedCostmapLayer`（C++ 層） |
-| `navigate_to_pose` (Action) | Nav2 | teleop_gui / semantic_query / object_seeker |
+| `navigate_to_pose` (Action) | Nav2 | teleop_gui |

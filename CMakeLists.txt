@@ -105,8 +105,6 @@ install(PROGRAMS
   susumu_object_perception/object_image_crop_node.py
   susumu_object_perception/object_classifier_node.py
   susumu_object_perception/object_memory_node.py
-  susumu_object_perception/semantic_query_node.py
-  susumu_object_perception/object_seeker_node.py
   susumu_object_perception/auto_patrol_node.py
   susumu_object_perception/frontier_explore_node.py
   susumu_object_perception/waypoint_viz_node.py
@@ -125,7 +123,6 @@ install(PROGRAMS
   scripts/run_direct_visual_lidar_calibration_docker.sh
   scripts/direct_calib_to_tf.py
   scripts/validate_colorized_pointcloud_quality.py
-  scripts/test_object_seeker.py
   scripts/generate_waypoints.py
   scripts/generate_outdoor_waypoints.py
   scripts/expand_waypoint_route.py

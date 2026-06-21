@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """巡回ウェイポイントの共有定義。
 
-teleop_gui_node.py の自動巡回と object_seeker_node.py の探索(SEARCH)モードが
-同じルートを使うため、ここに一元化する。cafe world（縦長: y≈-12〜11）を縦に一周する
+teleop_gui_node.py の自動巡回で使う。cafe world（縦長: y≈-12〜11）を縦に一周する
 ルート。各点は cafe.pgm 上でロボット起点から到達可能かつ周囲0.6mが空きであることを
 確認済み（壁・到達不可点は除外）。
 """

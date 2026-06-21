@@ -52,7 +52,7 @@ def generate_launch_description():
     declare_use_semantic_memory = DeclareLaunchArgument(
         'semantic_memory', default_value='False',
         description=('セマンティック物体メモリ（検出物体を map 座標で永続記憶し、'
-                     '無くなったら消し、自然語クエリで物体へ Nav2 移動）を起動する。'
+                     '無くなったら消し、RViz/GUI で一覧表示）を起動する。'
                      '既定 OFF。image_recognition:=True で分類済みトラックを使うのが望ましい'))
     declare_use_rviz = DeclareLaunchArgument('use_rviz', default_value='True',
         description='RViz2 を起動する')
@@ -214,9 +214,9 @@ def generate_launch_description():
 
     # ------------------------------------------------------------------
     # 3.7) セマンティック物体メモリ（semantic_memory:=True で起動、既定 OFF）。
-    #      検出物体を map 座標で永続記憶し（object_memory）、自然語クエリで
-    #      物体の手前へ Nav2 移動する（semantic_query）。image_recognition が ON なら
-    #      YOLO 分類済み tracked_objects_classified を、OFF なら素の tracked_objects を入力に使う。
+    #      検出物体を map 座標で永続記憶し、RViz marker と SQLite DB に出す。
+    #      image_recognition が ON なら YOLO 分類済み tracked_objects_classified を、
+    #      OFF なら素の tracked_objects を入力に使う。
     # ------------------------------------------------------------------
     memory_input = PythonExpression([
         "'/perception/tracked_objects_classified' if '",
@@ -231,24 +231,9 @@ def generate_launch_description():
             'input_topic': memory_input,
         }],
         condition=IfCondition(use_semantic_memory))
-    semantic_query = Node(
-        package='susumu_object_perception', executable='semantic_query_node.py',
-        name='semantic_query', output='screen',
-        parameters=[{'use_sim_time': use_sim_time}],
-        condition=IfCondition(use_semantic_memory))
-    # 行動層: 指定クラスを追従(FOLLOW)/探索接近(SEARCH)する。tracked_objects_classified
-    # とメモリ DB を使い、Nav2 で対象の手前へ向かう。
-    object_seeker = Node(
-        package='susumu_object_perception', executable='object_seeker_node.py',
-        name='object_seeker', output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time,
-            'tracks_topic': memory_input,
-        }],
-        condition=IfCondition(use_semantic_memory))
     semantic_memory_delayed = TimerAction(period=22.0, actions=[
-        LogInfo(msg='Starting semantic object memory (memory + query + seeker)...'),
-        object_memory, semantic_query, object_seeker])
+        LogInfo(msg='Starting semantic object memory (memory only)...'),
+        object_memory])
 
     # ------------------------------------------------------------------
     # 4) RViz2
@@ -275,8 +260,7 @@ def generate_launch_description():
     gui_delayed = TimerAction(period=24.0, actions=[gui_node])
 
     # 5.5) 記憶物体の一覧 GUI（gui:=True かつ semantic_memory:=True のとき）。
-    #      object_memory の DB を読んで「どこに何があるか」を一覧表示し、行クリックで詳細、
-    #      ボタンで選択物体へ Nav2 移動する。
+    #      object_memory の DB を読んで「どこに何があるか」を一覧表示し、行クリックで詳細を出す。
     memory_gui_cond = PythonExpression([
         "'", use_gui, "' == 'True' and '", use_semantic_memory, "' == 'True'"])
     memory_gui_node = Node(

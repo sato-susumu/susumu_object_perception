@@ -501,7 +501,7 @@ ros2 launch susumu_object_perception simulation.launch.py follow:=true
 
 - 人の移動速度が低下（真値で確認）。
 - **約55秒間 ロスト0回**で同一人物を継続追跡（preemption 84回＝活発に追従、
-  `No valid trajectory` エラー 0）。ロボットが人を追って継続移動することを odom で確認。
+  `No valid trajectory` エラー 0）。ロボットの継続移動を odom で確認。
 
 ---
 
@@ -521,7 +521,7 @@ ros2 launch susumu_object_perception simulation.launch.py follow:=true
 | **A.** 人の進行方向の右側に行けない | 歩く人が 3D LiDAR で障害物検知され、**移動軌跡に沿って costmap に障害物の帯が残り**人の横へ回り込めない。加えて inflation が右側ゴール(0.8m)を覆っていた | ① 検知ノードが「動いている人」を除去した点群 `/velodyne_points_filtered` を publish（`person_clear_radius=0.5m`、センサ系 `velodyne_link` のまま）→ voxel_layer はこれを使い**人が帯を残さない**（壁など静止物は温存）。② `inflation_radius` 0.55→**0.35**、`side_offset` 0.8→**1.0m** | 実機で `Reached the goal` 複数回・`No valid trajectory` 0（以前は立ち往生） |
 | **B.** ロボットの方向転換が多い | 追従ゴールの heading がターゲット速度のノイズで揺れ、右側位置が振れていた | `follow_person_node`: 速度を強平滑化（`vel_smoothing=0.8`）、**heading を角度ローパス**（`heading_smoothing=0.85`、wrap-safe）、`goal_eps` 0.25→0.35 でゴール再送抑制 | ゴール更新(preemption)が 84→約22/同程度時間 に減少 |
 | **C.** 人(歩行者)の方向転換が多すぎる | 各エージェントが 3 ゴールの三角形を周回し各頂点で旋回＋social 力で互いに/ロボットを避けて蛇行 | `agents_house.yaml`: **social_force_factor 5.0→1.0 / other_force_factor 20.0→2.0 / obstacle_force_factor 10.0→4.0**（蛇行抑制）、**ゴール 3→2 個**（g2 除外。2点間を直線往復）、`goal_radius` 0.3→0.8 | 真値で進行方向がほぼ一定（往復）になることを確認 |
-| **D.** 人の移動軌跡のコストマップが残り続ける | 3D 点群はフィルタ済みだが、**Nav2 の `obstacle_layer` が生の 2D `/scan` を使っていた**。2D は人を除去せず軌跡に帯をマークし続ける | ① 検知ノードが 2D scan からも人を除去し `/scan_filtered` を publish（各ビームのヒット点を odom 系へ変換、移動中トラックの `person_clear_radius` 内なら range を ∞。壁は温存）。② 両 costmap の `obstacle_layer` を `/scan` → **`/scan_filtered`**（AMCL は生 `/scan` のまま） | global costmap の lethal セルが増え続けず安定、`No valid trajectory` 0・復旧 0、人を追って継続移動（15秒で 3.1m） |
+| **D.** 人の移動軌跡のコストマップが残り続ける | 3D 点群はフィルタ済みだが、**Nav2 の `obstacle_layer` が生の 2D `/scan` を使っていた**。2D は人を除去せず軌跡に帯をマークし続ける | ① 検知ノードが 2D scan からも人を除去し `/scan_filtered` を publish（各ビームのヒット点を odom 系へ変換、移動中トラックの `person_clear_radius` 内なら range を ∞。壁は温存）。② 両 costmap の `obstacle_layer` を `/scan` → **`/scan_filtered`**（AMCL は生 `/scan` のまま） | global costmap の lethal セルが増え続けず安定、`No valid trajectory` 0・復旧 0、継続移動（15秒で 3.1m） |
 
 > まとめ: 「人を costmap に残さない」には **3D点群と2Dスキャンの両方**から人を
 > 除去する必要がある。片方だけだと残ったセンサが軌跡の帯を作る。
