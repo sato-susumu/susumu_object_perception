@@ -39,6 +39,13 @@ def generate_launch_description():
     declare_gz_obs = DeclareLaunchArgument(
         'use_gazebo_obs', default_value='true',
         description='最寄りの Gazebo モデルを障害物としてエージェントに扱わせる')
+    # actor は既定では <collision> を持たないため LiDAR がメッシュを貫通し、人が
+    # 検出されない（perception パイプラインで人クラスタが立たない原因）。
+    # hunav_gazebo_world_generator に use_collision:=true を渡すと actor link に
+    # 円柱 collision を注入してくれるので、LiDAR が人体を反射するようになる。
+    declare_use_collision = DeclareLaunchArgument(
+        'use_collision', default_value='true',
+        description='actor に円柱 collision を注入する（LiDAR が人を検出可能にする）')
     declare_rate = DeclareLaunchArgument(
         'update_rate', default_value='100.0',
         description='HuNav プラグインの更新レート（Hz）')
@@ -72,6 +79,7 @@ def generate_launch_description():
     agents_conf = LaunchConfiguration('configuration_file')
     base_world = LaunchConfiguration('base_world')
     gz_obs = LaunchConfiguration('use_gazebo_obs')
+    use_collision = LaunchConfiguration('use_collision')
     rate = LaunchConfiguration('update_rate')
     robot_name = LaunchConfiguration('robot_name')
     global_frame = LaunchConfiguration('global_frame_to_publish')
@@ -105,6 +113,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{'base_world': world_file},
                     {'use_gazebo_obs': gz_obs},
+                    {'use_collision': use_collision},
                     {'update_rate': rate},
                     {'robot_name': robot_name},
                     {'global_frame_to_publish': global_frame},
@@ -184,7 +193,8 @@ def generate_launch_description():
         condition=UnlessCondition(navigation))
 
     ld = LaunchDescription()
-    for a in (declare_agents_conf, declare_base_world, declare_gz_obs, declare_rate,
+    for a in (declare_agents_conf, declare_base_world, declare_gz_obs,
+              declare_use_collision, declare_rate,
               declare_robot_name, declare_global_frame, declare_use_navgoal,
               declare_navgoal_topic, declare_ignore_models, declare_verbose,
               declare_use_rviz, declare_navigation):

@@ -32,8 +32,8 @@ Autoware の perception パイプラインのうち、apt で入手できない 
     同式で更新し、確率と経過時間でトラックを削除する。
 
   - is_stationary: Autoware はトラッカー型 (StaticTracker) で決める。本実装は型分割を
-    持たないので、速度しきい値かつ累積変位しきい値の二段判定で代替する（静止什器を
-    動的と誤判定しない）。
+    持たないので、速度しきい値かつ窓内変位しきい値の二段判定 + ヒステリシスで代替する
+    （静止什器を動的と誤判定せず、歩行者が机の影で瞬間停止しても PEDESTRIAN を維持）。
 
 独自メッセージは作らず標準型のみ使う（AGENTS.md の方針）。
 ────────────────────────────────────────────────────────────────────────────
@@ -102,6 +102,11 @@ class KalmanTrack:
 
         # Autoware tracker_base.cpp の existence_probability。初期は控えめに。
         self.existence = 0.3
+
+        # moving 判定のヒステリシス用。最後に moving 判定（速度・変位ともに閾値超）
+        # が立った時刻。歩行者は机の影で瞬間停止しても次に動き出すので、moving_hold_sec
+        # 秒だけは moving 扱いを維持して PEDESTRIAN ↔ UNKNOWN のちらつきを抑える。
+        self.last_moving_stamp = -1e9
 
         self._p = params
 
@@ -173,6 +178,12 @@ class KalmanTrack:
         self.existence = (p * tp) / (p * tp + (1.0 - p) * fp)
         self.existence = min(0.999, max(0.001, self.existence))
 
+        # moving ヒステリシス: この瞬間に速度・変位とも閾値を超えていれば
+        # last_moving_stamp を更新する。判定本体は _is_stationary 側で行う。
+        speed = math.hypot(self.x[2], self.x[3])
+        if speed >= self._p['moving_vel'] and self.displacement() >= self._p['moving_disp']:
+            self.last_moving_stamp = self.last_stamp
+
     def displacement(self):
         """直近 disp_window 秒の窓内での実移動量（最古点から現在位置までの距離）。"""
         if len(self.history) < 2:
@@ -196,15 +207,18 @@ class ObjectTrackerNode(Node):
         # existence_probability の下限（これ未満で削除）と削除までの最大未更新時間 [s]。
         self.declare_parameter('min_existence', 0.05)
         self.declare_parameter('max_age_sec', 1.0)
-        # 移動判定: 速度しきい値 [m/s] かつ 累積変位しきい値 [m]。
-        # ライブ確認の結果、cafe の静止什器/壁がクラスタの揺れで重心が ±0.5m ほど
-        # ふらつき「移動」と誤判定されたため、変位閾値を 0.7m に上げて実移動（歩行者）
-        # だけを残す。速度閾値も歩行者下限に合わせ 0.3m/s に。
+        # 移動判定: 速度しきい値 [m/s] かつ 窓内変位しきい値 [m]。
+        # 変位閾値 0.7m は cafe の静止什器/壁クラスタの重心が ±0.5m ふらつき「移動」
+        # と誤判定された対策（履歴）。速度閾値は歩行者下限に合わせ 0.3m/s。
         self.declare_parameter('moving_vel_thresh', 0.3)
         self.declare_parameter('moving_disp_thresh', 0.7)
         # 変位を測る時間窓 [s]（この窓内の実移動量で判定。長寿命静止トラックの
         # ドリフト誤判定を避けるため累積ではなく窓ベースにする）。
         self.declare_parameter('disp_window', 2.0)
+        # moving ヒステリシス: 一度 moving と判定したらこの秒数だけ PEDESTRIAN を
+        # 維持する。歩行者が机の影で瞬間停止しても PEDESTRIAN ↔ UNKNOWN のラベル
+        # ちらつきを抑える（瞬時条件と長寿命判定を分離する設計）。
+        self.declare_parameter('moving_hold_sec', 5.0)
         # CV モーション/観測パラメータ（Autoware cv_motion_model.hpp を屋内向けに調整）。
         self.declare_parameter('max_vel', 2.78)        # 歩行者上限 [m/s]
         self.declare_parameter('q_pos', 0.025)
@@ -239,6 +253,7 @@ class ObjectTrackerNode(Node):
         self.max_age = float(self.get_parameter('max_age_sec').value)
         self.moving_vel = float(self.get_parameter('moving_vel_thresh').value)
         self.moving_disp = float(self.get_parameter('moving_disp_thresh').value)
+        self.moving_hold = float(self.get_parameter('moving_hold_sec').value)
         self.track_params = {
             'max_vel': float(self.get_parameter('max_vel').value),
             'q_pos': float(self.get_parameter('q_pos').value),
@@ -248,6 +263,8 @@ class ObjectTrackerNode(Node):
             'fp': float(self.get_parameter('fp').value),
             'decay_half_life': float(self.get_parameter('decay_half_life').value),
             'disp_window': float(self.get_parameter('disp_window').value),
+            'moving_vel': self.moving_vel,
+            'moving_disp': self.moving_disp,
         }
 
         self.tracks = []
@@ -420,8 +437,12 @@ class ObjectTrackerNode(Node):
         self.tracks = kept
 
     def _is_stationary(self, tr):
-        speed = float(np.linalg.norm(tr.vel))
-        return not (speed >= self.moving_vel and tr.displacement() >= self.moving_disp)
+        # ヒステリシス: 直近 moving_hold 秒以内に moving 判定が立っていれば
+        # 静止ではない（=PEDESTRIAN を維持）。これにより歩行者が机の影で一瞬
+        # 止まったときの UNKNOWN 戻りを防ぐ。瞬間条件は KalmanTrack.update で
+        # 評価して last_moving_stamp に記録している。
+        age = tr.last_stamp - tr.last_moving_stamp
+        return age > self.moving_hold
 
     def _publish(self, stamp):
         out = TrackedObjects()
