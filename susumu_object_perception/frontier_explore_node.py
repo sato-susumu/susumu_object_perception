@@ -41,6 +41,7 @@ from std_msgs.msg import String, ColorRGBA
 from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import OccupancyGrid
 from nav2_msgs.action import NavigateToPose, Spin, ComputePathToPose
+from sensor_msgs.msg import Imu
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -48,6 +49,16 @@ from visualization_msgs.msg import Marker, MarkerArray
 FREE_MAX = 20       # 0..20 を free 扱い（slam_toolbox の occ しきい値に余裕を持たせる）
 OCC_MIN = 65        # 65.. を occupied 扱い
 UNKNOWN = -1
+
+
+def quat_to_yaw(q):
+    siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
+    cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+    return math.atan2(siny_cosp, cosy_cosp)
+
+
+def wrap_angle(angle):
+    return math.atan2(math.sin(angle), math.cos(angle))
 
 
 class FrontierExploreNode(Node):
@@ -102,6 +113,18 @@ class FrontierExploreNode(Node):
         # 向かう。検証は軽量なのでタイムアウトは短く。
         self.declare_parameter('validate_path', True)
         self.declare_parameter('validate_timeout_sec', 5.0)
+        # 【屋外向け staged frontier】ComputePathToPose で長い経路が引けても、その終端を
+        # そのまま NavigateToPose に投げると DWB が長い曲がり角/狭路で進捗判定に落ちやすい。
+        # 0 より大きい場合、planner が返した経路上で max_path_goal_distance[m] だけ先の中間点を
+        # 実際のゴールにする。経路そのものに沿って切るので、単純な直線クリップで壁を跨がない。
+        # 既定 0.0 は無効（屋内挙動を変えない）。
+        self.declare_parameter('max_path_goal_distance', 0.0)
+        # staged frontier の中間ゴールに求める SLAM map 上の占有セルクリアランス[m]。
+        # Nav2 InflationLayer はロボット内接半径内を lethal にするため、経路上で切った点が
+        # 壁・フェンス・細い occupied に近いと、到着直後の次計画で start cell lethal になる。
+        # 0.0 は無効。屋外 launch だけで有効化する。
+        self.declare_parameter('staged_goal_clearance', 0.0)
+        self.declare_parameter('staged_goal_backtrack_step', 0.2)
         # 【done 判定】本来の完了条件は「探索可能な領域が壁/障害物で閉じている＆その領域に
         # 未開拓(unknown)が無い」。これは「到達可能なフロンティアの総セル数が十分小さい」と
         # ほぼ等価。フロンティア総セル数が done_frontier_cells 未満が done_after_empty 回連続
@@ -144,6 +167,15 @@ class FrontierExploreNode(Node):
         # 0 以下なら無制限（既定）。広大な world で「特徴の多い局所領域だけマッピング」したい
         # ときに使う（例: village_center の Cypress + Fence エリア周辺だけ）。
         self.declare_parameter('explore_radius', 0.0)
+        # 【屋外向け yaw watchdog】段差・縁石・接触で 2D SLAM の map yaw が実機姿勢から
+        # 急に外れた場合、現在の NavigateToPose を中断し、周辺を hazard として避ける。
+        # ロボット側 IMU と map->base TF の差だけを見るため、GPS/正解地図は制御に戻さない。
+        # 既定 OFF。屋外 launch だけで有効化する。
+        self.declare_parameter('yaw_watchdog', False)
+        self.declare_parameter('yaw_watchdog_imu_topic', '/imu')
+        self.declare_parameter('yaw_watchdog_max_error_deg', 8.0)
+        self.declare_parameter('yaw_watchdog_blacklist_radius', 1.2)
+        self.declare_parameter('yaw_watchdog_cooldown_sec', 5.0)
 
         self.map_frame = self.get_parameter('map_frame').value
         self.robot_frame = self.get_parameter('robot_frame').value
@@ -162,6 +194,15 @@ class FrontierExploreNode(Node):
         self.sweep_pattern = str(self.get_parameter('sweep_pattern').value)
         self.spin_after_goal = self._bool_param('spin_after_goal')
         self.explore_radius = float(self.get_parameter('explore_radius').value)
+        self.yaw_watchdog = self._bool_param('yaw_watchdog')
+        self.yaw_watchdog_imu_topic = str(
+            self.get_parameter('yaw_watchdog_imu_topic').value)
+        self.yaw_watchdog_max_error_deg = float(
+            self.get_parameter('yaw_watchdog_max_error_deg').value)
+        self.yaw_watchdog_blacklist_radius = float(
+            self.get_parameter('yaw_watchdog_blacklist_radius').value)
+        self.yaw_watchdog_cooldown_sec = float(
+            self.get_parameter('yaw_watchdog_cooldown_sec').value)
         self._sweep_idx = 0           # 次に向かう sweep 方向のインデックス
         self._sweep_origin = None     # sweep 起点（ロボット初期位置）
         self._sweep_goals = []        # sweep 起点基準で生成した遠征ゴール列
@@ -174,6 +215,12 @@ class FrontierExploreNode(Node):
         self.validate_path = self._bool_param('validate_path')
         self.validate_timeout_sec = float(
             self.get_parameter('validate_timeout_sec').value)
+        self.max_path_goal_distance = float(
+            self.get_parameter('max_path_goal_distance').value)
+        self.staged_goal_clearance = float(
+            self.get_parameter('staged_goal_clearance').value)
+        self.staged_goal_backtrack_step = float(
+            self.get_parameter('staged_goal_backtrack_step').value)
         self.done_after_empty = int(
             self.get_parameter('done_after_empty').value)
         self.done_frontier_cells = int(
@@ -210,6 +257,14 @@ class FrontierExploreNode(Node):
         self._active_goal_xy = None
         # 直近の到達失敗回数（連続失敗で setback を一時的に増やす）。
         self._fail_streak = 0
+        self._nav_goal_handle = None
+        self._nav_token = 0
+        self._active_nav_token = 0
+        self._ignore_nav_tokens = set()
+        self._latest_imu_yaw = None
+        self._yaw_offset = None
+        self._last_yaw_watchdog_t = None
+        self._yaw_hazards = []
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -225,6 +280,14 @@ class FrontierExploreNode(Node):
             String, '/frontier_explore/status', 10)
         self._marker_pub = self.create_publisher(
             MarkerArray, '/frontier_explore/markers', 1)
+        if self.yaw_watchdog:
+            imu_qos = QoSProfile(
+                depth=10,
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST)
+            self.create_subscription(
+                Imu, self.yaw_watchdog_imu_topic, self._on_imu, imu_qos)
+            self.create_timer(0.5, self._check_yaw_watchdog)
 
         self._nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self._spin_client = ActionClient(self, Spin, 'spin')
@@ -267,9 +330,63 @@ class FrontierExploreNode(Node):
     def _on_map(self, msg):
         self._map = msg
 
+    def _on_imu(self, msg):
+        self._latest_imu_yaw = quat_to_yaw(msg.orientation)
+
     def _kick_start_once(self):
         self._start_timer.cancel()
         self._step()
+
+    def _check_yaw_watchdog(self):
+        if (not self.yaw_watchdog or self._done
+                or self._latest_imu_yaw is None):
+            return
+        try:
+            tf = self.tf_buffer.lookup_transform(
+                self.map_frame, self.robot_frame, rclpy.time.Time())
+        except TransformException:
+            return
+        map_yaw = quat_to_yaw(tf.transform.rotation)
+        if self._yaw_offset is None:
+            self._yaw_offset = wrap_angle(map_yaw - self._latest_imu_yaw)
+            return
+        imu_map_yaw = wrap_angle(self._latest_imu_yaw + self._yaw_offset)
+        yaw_error_deg = abs(math.degrees(wrap_angle(map_yaw - imu_map_yaw)))
+        if yaw_error_deg <= self.yaw_watchdog_max_error_deg:
+            return
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if (self._last_yaw_watchdog_t is not None
+                and now - self._last_yaw_watchdog_t
+                < self.yaw_watchdog_cooldown_sec):
+            return
+        self._last_yaw_watchdog_t = now
+        x = tf.transform.translation.x
+        y = tf.transform.translation.y
+        radius = max(0.2, self.yaw_watchdog_blacklist_radius)
+        self._yaw_hazards.append((x, y, radius))
+        # 古い hazard で候補が過剰に詰まらないよう上限を持つ。
+        self._yaw_hazards = self._yaw_hazards[-40:]
+        if self._last_goal is not None:
+            self._blacklist.add(self._blkey(*self._last_goal))
+        if self._active_goal_xy is not None:
+            self._blacklist.add(self._blkey(*self._active_goal_xy))
+        self._publish_status(
+            f'yaw watchdog: error={yaw_error_deg:.1f}deg > '
+            f'{self.yaw_watchdog_max_error_deg:.1f}deg; '
+            f'cancel current goal and blacklist around ({x:.2f}, {y:.2f})')
+        self._cancel_active_nav_for_watchdog()
+
+    def _cancel_active_nav_for_watchdog(self):
+        self._cancel_goal_timer()
+        gh = getattr(self, '_nav_goal_handle', None)
+        if gh is not None:
+            self._ignore_nav_tokens.add(self._active_nav_token)
+            gh.cancel_goal_async()
+        self._nav_goal_handle = None
+        self._active_nav_token = 0
+        self._busy = False
+        self._fail_streak += 1
+        self._reschedule(1.0)
 
     # ---- main step -------------------------------------------------------
 
@@ -510,6 +627,8 @@ class FrontierExploreNode(Node):
                 ox, oy = self._explore_origin
                 if math.hypot(wx - ox, wy - oy) > self.explore_radius:
                     continue
+            if self._near_yaw_hazard(wx, wy):
+                continue
             score = self.size_weight * math.log(size + 1) - self.dist_weight * d
             # 代表点の手前に setback したゴールにする（境界そのものは planner が失敗
             # しやすい）。連続失敗中は setback を増やしてさらに手前を狙う。
@@ -532,6 +651,8 @@ class FrontierExploreNode(Node):
                     t = self.explore_radius / d_og
                     gx = ox + (gx - ox) * t
                     gy = oy + (gy - oy) * t
+            if self._near_yaw_hazard(gx, gy):
+                continue
             scored.append((score, (gx, gy), (wx, wy)))
         scored.sort(key=lambda e: e[0], reverse=True)
         cands = [(g, r) for (_, g, r) in scored]
@@ -560,10 +681,18 @@ class FrontierExploreNode(Node):
                 t = self.explore_radius / d_of
                 fx = ox + (fx - ox) * t
                 fy = oy + (fy - oy) * t
+        if self._near_yaw_hazard(fx, fy):
+            return []
         self._publish_status(
             f'no distant frontier; push forward {self.forward_step:.1f}m '
             f'toward largest frontier')
         return [((fx, fy), None)]
+
+    def _near_yaw_hazard(self, x, y):
+        for hx, hy, radius in self._yaw_hazards:
+            if math.hypot(x - hx, y - hy) <= radius:
+                return True
+        return False
 
     def _robot_xy(self):
         try:
@@ -750,6 +879,7 @@ class FrontierExploreNode(Node):
     def _on_validate_result(self, future, cands, idx, total_cells):
         self._cancel_validate_timer()
         ok = False
+        path = None
         try:
             res = future.result()
             # 経路が返り、ポーズが 2 点以上あれば到達可能とみなす。
@@ -759,13 +889,145 @@ class FrontierExploreNode(Node):
             ok = False
         if ok:
             goal_xy, repr_xy = cands[idx]
+            nav_goal_xy = goal_xy
             self._fail_streak = 0
-            self._publish_status(
-                f'path valid; navigating [{idx + 1}/{len(cands)}]')
+            clipped, reject_reason = self._clip_goal_to_path(
+                path, self.max_path_goal_distance)
+            if reject_reason is not None:
+                self._reject_candidate(cands, idx, total_cells, reject_reason)
+                return
+            if clipped is not None:
+                nav_goal_xy, step_dist, total_dist, clearance = clipped
+                clearance_text = ''
+                if clearance is not None:
+                    clearance_text = f' clearance>={clearance:.2f}m '
+                self._publish_status(
+                    f'path valid; staged nav {step_dist:.1f}/{total_dist:.1f}m '
+                    f'{clearance_text}[{idx + 1}/{len(cands)}]')
+            else:
+                self._publish_status(
+                    f'path valid; navigating [{idx + 1}/{len(cands)}]')
             # _busy 維持のまま実際のナビへ。
-            self._navigate_to(goal_xy, already_busy=True, repr_xy=repr_xy)
+            self._navigate_to(nav_goal_xy, already_busy=True, repr_xy=repr_xy)
         else:
             self._reject_candidate(cands, idx, total_cells, 'no path')
+
+    def _clip_goal_to_path(self, path, max_distance):
+        """Planner 経路上の max_distance[m] 先を中間ゴールとして返す。
+
+        戻り値は (clipped, reject_reason)。clipped は
+        ((x, y), step_distance, total_distance, clearance)。
+        経路が短い、無効、または機能無効なら (None, None) を返す。
+        """
+        if max_distance <= 0.0 or path is None:
+            return None, None
+        poses = getattr(path, 'poses', [])
+        if len(poses) < 2:
+            return None, None
+        points = [
+            (p.pose.position.x, p.pose.position.y)
+            for p in poses
+        ]
+        segments = []
+        total = 0.0
+        for (x0, y0), (x1, y1) in zip(points[:-1], points[1:]):
+            seg = math.hypot(x1 - x0, y1 - y0)
+            if seg <= 1e-6:
+                continue
+            segments.append((x0, y0, x1, y1, seg))
+            total += seg
+        if not segments:
+            return None, None
+        step = max(max_distance, self.min_goal_dist)
+        if total <= step + 1e-6:
+            return None, None
+        clearance = None
+        if self.staged_goal_clearance > 0.0:
+            safe = self._find_safe_staged_goal(segments, step)
+            if safe is None:
+                return None, 'no safe staged point'
+            x, y, step = safe
+            clearance = self.staged_goal_clearance
+            return ((x, y), step, total, clearance), None
+        point = self._point_at_path_distance(segments, step)
+        if point is None:
+            return None, None
+        x, y = point
+        return ((x, y), step, total, clearance), None
+
+    def _find_safe_staged_goal(self, segments, target_dist):
+        """経路上を target_dist から後退し、占有セルから十分離れた free 点を探す。"""
+        min_dist = max(self.min_goal_dist, 0.5)
+        step = max(self.staged_goal_backtrack_step, 0.05)
+        d = target_dist
+        while d >= min_dist:
+            point = self._point_at_path_distance(segments, d)
+            if (point is not None
+                    and not self._near_yaw_hazard(point[0], point[1])
+                    and self._has_map_clearance(
+                        point[0], point[1], self.staged_goal_clearance)):
+                return point[0], point[1], d
+            d -= step
+        return None
+
+    @staticmethod
+    def _point_at_path_distance(segments, target_dist):
+        acc = 0.0
+        for x0, y0, x1, y1, seg in segments:
+            if acc + seg >= target_dist:
+                ratio = (target_dist - acc) / seg
+                x = x0 + (x1 - x0) * ratio
+                y = y0 + (y1 - y0) * ratio
+                return x, y
+            acc += seg
+        if segments:
+            return segments[-1][2], segments[-1][3]
+        return None
+
+    def _has_map_clearance(self, wx, wy, clearance):
+        """現在の OccupancyGrid 上で、中心 free かつ半径内に occupied が無いかを見る。"""
+        m = self._map
+        if m is None:
+            return True
+        cell = self._world_to_map_cell(wx, wy)
+        if cell is None:
+            return False
+        mx, my = cell
+        w, h = m.info.width, m.info.height
+        res = m.info.resolution
+        data = m.data
+        center = data[my * w + mx]
+        if not (0 <= center <= FREE_MAX):
+            return False
+        radius_cells = int(math.ceil(clearance / res))
+        radius2 = clearance * clearance
+        for dy in range(-radius_cells, radius_cells + 1):
+            cy = my + dy
+            if cy < 0 or cy >= h:
+                return False
+            ydist = dy * res
+            for dx in range(-radius_cells, radius_cells + 1):
+                cx = mx + dx
+                if cx < 0 or cx >= w:
+                    return False
+                if (dx * res) ** 2 + ydist ** 2 > radius2:
+                    continue
+                if data[cy * w + cx] >= OCC_MIN:
+                    return False
+        return True
+
+    def _world_to_map_cell(self, wx, wy):
+        m = self._map
+        if m is None:
+            return None
+        res = m.info.resolution
+        if res <= 0.0:
+            return None
+        mx = int(math.floor((wx - m.info.origin.position.x) / res))
+        my = int(math.floor((wy - m.info.origin.position.y) / res))
+        if mx < 0 or my < 0 or mx >= m.info.width or my >= m.info.height:
+            return None
+        return mx, my
 
     def _on_validate_timeout(self, cands, idx, total_cells):
         self._cancel_validate_timer()
@@ -825,23 +1087,56 @@ class FrontierExploreNode(Node):
         # ゴールに留まり続けないようタイムアウトで打ち切って再評価。
         self._goal_timer = self.create_timer(
             self.goal_timeout_sec, self._on_goal_timeout)
+        self._nav_token += 1
+        token = self._nav_token
+        self._active_nav_token = token
         fut = self._nav_client.send_goal_async(goal)
-        fut.add_done_callback(self._on_nav_goal_response)
+        fut.add_done_callback(lambda f: self._on_nav_goal_response(f, token))
 
-    def _on_nav_goal_response(self, future):
-        gh = future.result()
+    def _on_nav_goal_response(self, future, token):
+        try:
+            gh = future.result()
+        except Exception:  # noqa: BLE001
+            if token == self._active_nav_token:
+                self._active_nav_token = 0
+                self._nav_goal_handle = None
+                self._busy = False
+                self._cancel_goal_timer()
+                self._publish_status('nav goal failed before acceptance')
+                self._reschedule(1.0)
+            return
+        if token != self._active_nav_token:
+            if gh.accepted:
+                self._ignore_nav_tokens.add(token)
+                gh.cancel_goal_async()
+            return
         if not gh.accepted:
             self._busy = False
+            self._active_nav_token = 0
+            self._nav_goal_handle = None
             self._cancel_goal_timer()
             self._publish_status('nav goal rejected; re-evaluating')
             self._reschedule(1.0)
             return
         self._nav_goal_handle = gh
-        gh.get_result_async().add_done_callback(self._on_nav_result)
+        gh.get_result_async().add_done_callback(
+            lambda f: self._on_nav_result(f, token))
 
-    def _on_nav_result(self, future):
+    def _on_nav_result(self, future, token):
+        if token != self._active_nav_token:
+            if token in self._ignore_nav_tokens:
+                self._ignore_nav_tokens.discard(token)
+                self._publish_status(
+                    'nav result ignored after watchdog/timeout cancel')
+            return
         self._busy = False
+        self._active_nav_token = 0
+        self._nav_goal_handle = None
         self._cancel_goal_timer()
+        if token in self._ignore_nav_tokens:
+            self._ignore_nav_tokens.discard(token)
+            self._publish_status('nav result ignored after yaw watchdog cancel')
+            return
         try:
             result = future.result()
             status = result.status
@@ -873,7 +1168,10 @@ class FrontierExploreNode(Node):
         # 入れて二度と選ばないようにし、別方向へ移る。
         gh = getattr(self, '_nav_goal_handle', None)
         if gh is not None:
+            self._ignore_nav_tokens.add(self._active_nav_token)
             gh.cancel_goal_async()
+        self._nav_goal_handle = None
+        self._active_nav_token = 0
         if self._last_goal is not None:
             self._blacklist.add(self._blkey(*self._last_goal))
         self._fail_streak += 1

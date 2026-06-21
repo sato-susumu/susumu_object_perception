@@ -1,0 +1,19 @@
+<!--
+  Outdoor saved-map patrol BT.
+
+  This tree intentionally omits the default Spin/Wait/BackUp recovery subtree.
+  Cycle21 monitoring showed failures where recovery moved the robot from a
+  local plan mismatch into inflated/static lethal cells, after which subsequent
+  waypoints failed in a chain. For bounded patrol evaluation it is better to
+  fail the current waypoint quickly and let waypoint_nav_node advance.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <PipelineSequence name="OutdoorPatrolReplanning">
+      <RateController hz="1.0">
+        <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+      </RateController>
+      <FollowPath path="{path}" controller_id="FollowPath"/>
+    </PipelineSequence>
+  </BehaviorTree>
+</root>

@@ -127,14 +127,33 @@ install(PROGRAMS
   scripts/validate_colorized_pointcloud_quality.py
   scripts/test_object_seeker.py
   scripts/generate_waypoints.py
+  scripts/generate_outdoor_waypoints.py
+  scripts/expand_waypoint_route.py
+  scripts/glim_cloud_to_2d_map.py
+  scripts/evaluate_glim_map_variants.py
+  scripts/nav2_pose_costmap_monitor_node.py
+  scripts/save_pointcloud2_to_ply.py
+  scripts/save_pose_trajectory_to_tum.py
+  scripts/generate_webots_ground_truth_map.py
   scripts/map_progress_monitor.py
   scripts/eval_map_quality.py
   scripts/check_map_vs_world.py
+  scripts/evaluate_gps_vs_slam.py
+  scripts/live_slam_truth_monitor.py
+  scripts/outdoor_gps_localization_node.py
+  scripts/outdoor_nav2_waypoint_nav_node.py
+  scripts/outdoor_gps_waypoint_nav_node.py
+  scripts/fence_probe_sensor_check_node.py
+  scripts/generate_fence_probe_waypoints.py
+  scripts/import_verifai_outdoor_worlds.py
+  scripts/render_recognition_overlay.py
+  scripts/filter_object_memory_db.py
+  scripts/evaluate_recognition_vs_world.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
-  DIRECTORY launch config urdf maps rviz models webots_worlds resource
+  DIRECTORY launch config urdf maps rviz models webots_worlds resource behavior_trees
   DESTINATION share/${PROJECT_NAME}
 )
 

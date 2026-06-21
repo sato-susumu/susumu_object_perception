@@ -1,0 +1,30 @@
+{
+  "cloud": "/home/taro/ros2_ws/src/susumu_object_perception/maps/glim/village_square_trimmed_cycle17_live_topic.ply",
+  "trajectory": "",
+  "map_yaml": "/home/taro/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_cycle19_promote_eval_none.yaml",
+  "map_pgm": "/home/taro/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_cycle19_promote_eval_none.pgm",
+  "resolution": 0.05,
+  "origin": [
+    -20.470119,
+    -17.094547,
+    0
+  ],
+  "size_cells": [
+    826,
+    755
+  ],
+  "size_m": [
+    41.3,
+    37.75
+  ],
+  "ground_z": -0.593230327963829,
+  "points_total": 7440,
+  "points_free_band": 2745,
+  "points_obstacle_band": 3577,
+  "raycast_carved_cells": 0,
+  "histogram": {
+    "0": 12078,
+    "127": 599289,
+    "254": 12263
+  }
+}

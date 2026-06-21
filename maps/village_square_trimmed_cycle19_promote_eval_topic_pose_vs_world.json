@@ -1,0 +1,2537 @@
+{
+  "summary": {
+    "threshold_m": 0.5,
+    "samples": 118,
+    "inside": 118,
+    "near_occupied": 92,
+    "by_kind": {
+      "fence": {
+        "objects": 4,
+        "objects_inside": 4,
+        "objects_near_any": 4,
+        "object_near_any_ratio_inside": 1.0,
+        "mean_object_coverage_inside": 0.807601880877743,
+        "samples": 102,
+        "inside": 102,
+        "near_occupied": 80,
+        "cell_counts": {
+          "occupied": 64,
+          "free": 8,
+          "unknown": 30,
+          "outside": 0
+        },
+        "near_ratio_inside": 0.7843137254901961,
+        "mean_distance_to_occupied_m": 0.6073029260764441,
+        "max_distance_to_occupied_m": 4.273757129271621
+      },
+      "obstacle": {
+        "objects": 16,
+        "objects_inside": 16,
+        "objects_near_any": 12,
+        "object_near_any_ratio_inside": 0.75,
+        "mean_object_coverage_inside": 0.75,
+        "samples": 16,
+        "inside": 16,
+        "near_occupied": 12,
+        "cell_counts": {
+          "occupied": 5,
+          "free": 5,
+          "unknown": 6,
+          "outside": 0
+        },
+        "near_ratio_inside": 0.75,
+        "mean_distance_to_occupied_m": 0.35068883191674427,
+        "max_distance_to_occupied_m": 1.680773631397161
+      }
+    },
+    "near_ratio_inside": 0.7796610169491526
+  },
+  "objects": [
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "samples": 29,
+      "inside": 29,
+      "near_occupied": 29,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 23,
+        "free": 2,
+        "unknown": 4,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.019176581887711146,
+      "max_distance_to_occupied_m": 0.223606797749979
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "samples": 29,
+      "inside": 29,
+      "near_occupied": 8,
+      "coverage_inside": 0.27586206896551724,
+      "cell_counts": {
+        "occupied": 6,
+        "free": 0,
+        "unknown": 23,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 2.062543188938916,
+      "max_distance_to_occupied_m": 4.273757129271621
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "samples": 22,
+      "inside": 22,
+      "near_occupied": 22,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 18,
+        "free": 2,
+        "unknown": 2,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.01992688394461902,
+      "max_distance_to_occupied_m": 0.18027756377319948
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "samples": 22,
+      "inside": 22,
+      "near_occupied": 21,
+      "coverage_inside": 0.9545454545454546,
+      "cell_counts": {
+        "occupied": 17,
+        "free": 4,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.05166516632015899,
+      "max_distance_to_occupied_m": 0.5315072906367325
+    },
+    {
+      "object_index": 5,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 6,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 7,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 1,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.05,
+      "max_distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 8,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 9,
+      "object_name": "",
+      "type": "Bench",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 1,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.14142135623730953,
+      "max_distance_to_occupied_m": 0.14142135623730953
+    },
+    {
+      "object_index": 10,
+      "object_name": "",
+      "type": "Bench",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 1,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.05,
+      "max_distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 11,
+      "object_name": "",
+      "type": "StoneBench",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 1,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.07071067811865477,
+      "max_distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 12,
+      "object_name": "",
+      "type": "PublicBin",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.1,
+      "max_distance_to_occupied_m": 0.1
+    },
+    {
+      "object_index": 13,
+      "object_name": "",
+      "type": "Cypress",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.07071067811865477,
+      "max_distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 14,
+      "object_name": "",
+      "type": "Cypress",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.07071067811865477,
+      "max_distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 15,
+      "object_name": "",
+      "type": "Cypress",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 16,
+      "object_name": "",
+      "type": "PalmTree",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 17,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 0,
+      "coverage_inside": 0.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 1.4508618128546908,
+      "max_distance_to_occupied_m": 1.4508618128546908
+    },
+    {
+      "object_index": 18,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 0,
+      "coverage_inside": 0.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 1.680773631397161,
+      "max_distance_to_occupied_m": 1.680773631397161
+    },
+    {
+      "object_index": 19,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 0,
+      "coverage_inside": 0.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.5656854249492381,
+      "max_distance_to_occupied_m": 0.5656854249492381
+    },
+    {
+      "object_index": 20,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 0,
+      "coverage_inside": 0.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 1,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 1.3601470508735445,
+      "max_distance_to_occupied_m": 1.3601470508735445
+    }
+  ],
+  "samples": [
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        0.2999999999541254,
+        8.500024977794702
+      ],
+      "pixel_xy": [
+        415.4023799990825,
+        511.891439555894
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        0.057142857098620325,
+        8.500024085730606
+      ],
+      "pixel_xy": [
+        410.54523714197245,
+        511.89142171461214
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -0.18571428575688387,
+        8.50002319366651
+      ],
+      "pixel_xy": [
+        405.6880942848623,
+        511.8914038733301
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -0.42857142861238806,
+        8.500022301602414
+      ],
+      "pixel_xy": [
+        400.8309514277522,
+        511.8913860320482
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -0.6714285714678931,
+        8.500021409538316
+      ],
+      "pixel_xy": [
+        395.9738085706421,
+        511.8913681907663
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -0.9142857143233973,
+        8.500020517474221
+      ],
+      "pixel_xy": [
+        391.11666571353203,
+        511.89135034948436
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -1.1571428571789015,
+        8.500019625410124
+      ],
+      "pixel_xy": [
+        386.259522856422,
+        511.8913325082025
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -1.4000000000344066,
+        8.500018733346026
+      ],
+      "pixel_xy": [
+        381.40237999931185,
+        511.89131466692044
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -1.6428571428899108,
+        8.500017841281931
+      ],
+      "pixel_xy": [
+        376.54523714220176,
+        511.89129682563856
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -1.885714285745415,
+        8.500016949217834
+      ],
+      "pixel_xy": [
+        371.68809428509167,
+        511.89127898435663
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -2.128571428600919,
+        8.500016057153738
+      ],
+      "pixel_xy": [
+        366.83095142798163,
+        511.8912611430747
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -2.3714285714564243,
+        8.500015165089641
+      ],
+      "pixel_xy": [
+        361.97380857087154,
+        511.8912433017928
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -2.6142857143119285,
+        8.500014273025544
+      ],
+      "pixel_xy": [
+        357.1166657137614,
+        511.8912254605108
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -2.857142857167433,
+        8.500013380961448
+      ],
+      "pixel_xy": [
+        352.25952285665136,
+        511.8912076192289
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -3.1000000000229373,
+        8.500012488897351
+      ],
+      "pixel_xy": [
+        347.4023799995412,
+        511.891189777947
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -3.342857142878442,
+        8.500011596833255
+      ],
+      "pixel_xy": [
+        342.5452371424312,
+        511.89117193666505
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -3.5857142857339466,
+        8.500010704769158
+      ],
+      "pixel_xy": [
+        337.6880942853211,
+        511.8911540953832
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -3.8285714285894503,
+        8.500009812705061
+      ],
+      "pixel_xy": [
+        332.83095142821094,
+        511.8911362541011
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -4.0714285714449545,
+        8.500008920640965
+      ],
+      "pixel_xy": [
+        327.9738085711009,
+        511.89111841281925
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -4.31428571430046,
+        8.500008028576868
+      ],
+      "pixel_xy": [
+        323.11666571399076,
+        511.8911005715373
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -4.557142857155964,
+        8.500007136512773
+      ],
+      "pixel_xy": [
+        318.2595228568807,
+        511.8910827302554
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -4.800000000011469,
+        8.500006244448675
+      ],
+      "pixel_xy": [
+        313.40237999977063,
+        511.8910648889735
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -5.042857142866973,
+        8.50000535238458
+      ],
+      "pixel_xy": [
+        308.54523714266054,
+        511.89104704769153
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -5.285714285722477,
+        8.500004460320483
+      ],
+      "pixel_xy": [
+        303.68809428555045,
+        511.8910292064096
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.223606797749979
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -5.528571428577982,
+        8.500003568256385
+      ],
+      "pixel_xy": [
+        298.8309514284403,
+        511.89101136512767
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.1118033988749895
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -5.7714285714334865,
+        8.50000267619229
+      ],
+      "pixel_xy": [
+        293.97380857133027,
+        511.89099352384574
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -6.014285714288991,
+        8.500001784128193
+      ],
+      "pixel_xy": [
+        289.1166657142202,
+        511.89097568256386
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -6.257142857144496,
+        8.500000892064097
+      ],
+      "pixel_xy": [
+        284.2595228571101,
+        511.8909578412819
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 1,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -6.5,
+        8.5
+      ],
+      "pixel_xy": [
+        279.40238,
+        511.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        13.299999999954125,
+        8.500024977794702
+      ],
+      "pixel_xy": [
+        675.4023799990824,
+        511.891439555894
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 3.9115214431215892
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        13.05714285709862,
+        8.500024085730606
+      ],
+      "pixel_xy": [
+        670.5452371419724,
+        511.89142171461214
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 4.022437072223753
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        12.814285714243116,
+        8.50002319366651
+      ],
+      "pixel_xy": [
+        665.6880942848622,
+        511.8914038733301
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 4.170431632337354
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        12.571428571387612,
+        8.500022301602414
+      ],
+      "pixel_xy": [
+        660.8309514277522,
+        511.8913860320482
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 4.254703279900961
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        12.328571428532108,
+        8.500021409538316
+      ],
+      "pixel_xy": [
+        655.9738085706422,
+        511.8913681907663
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 4.273757129271621
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        12.085714285676602,
+        8.500020517474221
+      ],
+      "pixel_xy": [
+        651.1166657135319,
+        511.89135034948436
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 4.197618372363071
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        11.8428571428211,
+        8.500019625410124
+      ],
+      "pixel_xy": [
+        646.259522856422,
+        511.8913325082025
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 3.953795644693843
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        11.599999999965593,
+        8.500018733346026
+      ],
+      "pixel_xy": [
+        641.4023799993118,
+        511.89131466692044
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 3.707424982383326
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        11.35714285711009,
+        8.500017841281931
+      ],
+      "pixel_xy": [
+        636.5452371422017,
+        511.89129682563856
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 3.5106979363083917
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        11.114285714254585,
+        8.500016949217834
+      ],
+      "pixel_xy": [
+        631.6880942850917,
+        511.89127898435663
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 3.2653483734511393
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        10.87142857139908,
+        8.500016057153738
+      ],
+      "pixel_xy": [
+        626.8309514279816,
+        511.8912611430747
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 3.020761493398643
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        10.628571428543577,
+        8.500015165089641
+      ],
+      "pixel_xy": [
+        621.9738085708715,
+        511.8912433017928
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 2.777138815399763
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        10.38571428568807,
+        8.500014273025544
+      ],
+      "pixel_xy": [
+        617.1166657137613,
+        511.8912254605108
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 2.5347583711273156
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        10.142857142832566,
+        8.500013380961448
+      ],
+      "pixel_xy": [
+        612.2595228566513,
+        511.8912076192289
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 2.294013949390892
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        9.899999999977062,
+        8.500012488897351
+      ],
+      "pixel_xy": [
+        607.4023799995413,
+        511.891189777947
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 2.0506096654409878
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        9.657142857121558,
+        8.500011596833255
+      ],
+      "pixel_xy": [
+        602.5452371424311,
+        511.89117193666505
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 1.8506755523321747
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        9.414285714266054,
+        8.500010704769158
+      ],
+      "pixel_xy": [
+        597.6880942853211,
+        511.8911540953832
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 1.6007810593582121
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        9.17142857141055,
+        8.500009812705061
+      ],
+      "pixel_xy": [
+        592.8309514282109,
+        511.8911362541011
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 1.3509256086106296
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        8.928571428555045,
+        8.500008920640965
+      ],
+      "pixel_xy": [
+        587.9738085711009,
+        511.89111841281925
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 1.101135777277262
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        8.68571428569954,
+        8.500008028576868
+      ],
+      "pixel_xy": [
+        583.1166657139908,
+        511.8911005715373
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.8514693182963202
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        8.442857142844035,
+        8.500007136512773
+      ],
+      "pixel_xy": [
+        578.2595228568807,
+        511.8910827302554
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.6020797289396148
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        8.199999999988531,
+        8.500006244448675
+      ],
+      "pixel_xy": [
+        573.4023799997706,
+        511.8910648889735
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.3535533905932738
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.957142857133027,
+        8.50000535238458
+      ],
+      "pixel_xy": [
+        568.5452371426604,
+        511.89104704769153
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.158113883008419
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.714285714277523,
+        8.500004460320483
+      ],
+      "pixel_xy": [
+        563.6880942855504,
+        511.8910292064096
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.471428571422018,
+        8.500003568256385
+      ],
+      "pixel_xy": [
+        558.8309514284404,
+        511.89101136512767
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.2285714285665135,
+        8.50000267619229
+      ],
+      "pixel_xy": [
+        553.9738085713302,
+        511.89099352384574
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        6.985714285711009,
+        8.500001784128193
+      ],
+      "pixel_xy": [
+        549.1166657142202,
+        511.89097568256386
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        6.742857142855504,
+        8.500000892064097
+      ],
+      "pixel_xy": [
+        544.25952285711,
+        511.8909578412819
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 2,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        6.5,
+        8.5
+      ],
+      "pixel_xy": [
+        539.40238,
+        511.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -7.6
+      ],
+      "pixel_xy": [
+        269.40238,
+        189.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -7.357142857142857
+      ],
+      "pixel_xy": [
+        269.40238,
+        194.7480828571428
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -7.114285714285714
+      ],
+      "pixel_xy": [
+        269.40238,
+        199.6052257142857
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.158113883008419
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -6.871428571428571
+      ],
+      "pixel_xy": [
+        269.40238,
+        204.46236857142856
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.18027756377319948
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -6.628571428571428
+      ],
+      "pixel_xy": [
+        269.40238,
+        209.3195114285714
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -6.385714285714285
+      ],
+      "pixel_xy": [
+        269.40238,
+        214.17665428571425
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -6.142857142857142
+      ],
+      "pixel_xy": [
+        269.40238,
+        219.0337971428571
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -5.9
+      ],
+      "pixel_xy": [
+        269.40238,
+        223.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -5.657142857142857
+      ],
+      "pixel_xy": [
+        269.40238,
+        228.74808285714283
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -5.414285714285715
+      ],
+      "pixel_xy": [
+        269.40238,
+        233.60522571428567
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -5.171428571428571
+      ],
+      "pixel_xy": [
+        269.40238,
+        238.46236857142856
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -4.928571428571429
+      ],
+      "pixel_xy": [
+        269.40238,
+        243.3195114285714
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -4.685714285714286
+      ],
+      "pixel_xy": [
+        269.40238,
+        248.17665428571422
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -4.442857142857143
+      ],
+      "pixel_xy": [
+        269.40238,
+        253.0337971428571
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -4.2
+      ],
+      "pixel_xy": [
+        269.40238,
+        257.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -3.9571428571428573
+      ],
+      "pixel_xy": [
+        269.40238,
+        262.74808285714283
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -3.7142857142857144
+      ],
+      "pixel_xy": [
+        269.40238,
+        267.60522571428567
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -3.4714285714285715
+      ],
+      "pixel_xy": [
+        269.40238,
+        272.4623685714285
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -3.2285714285714286
+      ],
+      "pixel_xy": [
+        269.40238,
+        277.3195114285714
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -2.9857142857142858
+      ],
+      "pixel_xy": [
+        269.40238,
+        282.1766542857142
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -2.742857142857143
+      ],
+      "pixel_xy": [
+        269.40238,
+        287.03379714285705
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 3,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        -7.0,
+        -2.5
+      ],
+      "pixel_xy": [
+        269.40238,
+        291.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -7.6
+      ],
+      "pixel_xy": [
+        549.40238,
+        189.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.5315072906367325
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -7.357142857142857
+      ],
+      "pixel_xy": [
+        549.40238,
+        194.7480828571428
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.304138126514911
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -7.114285714285714
+      ],
+      "pixel_xy": [
+        549.40238,
+        199.6052257142857
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -6.871428571428571
+      ],
+      "pixel_xy": [
+        549.40238,
+        204.46236857142856
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -6.628571428571428
+      ],
+      "pixel_xy": [
+        549.40238,
+        209.3195114285714
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -6.385714285714285
+      ],
+      "pixel_xy": [
+        549.40238,
+        214.17665428571425
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.18027756377319948
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -6.142857142857142
+      ],
+      "pixel_xy": [
+        549.40238,
+        219.0337971428571
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -5.9
+      ],
+      "pixel_xy": [
+        549.40238,
+        223.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -5.657142857142857
+      ],
+      "pixel_xy": [
+        549.40238,
+        228.74808285714283
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -5.414285714285715
+      ],
+      "pixel_xy": [
+        549.40238,
+        233.60522571428567
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -5.171428571428571
+      ],
+      "pixel_xy": [
+        549.40238,
+        238.46236857142856
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -4.928571428571429
+      ],
+      "pixel_xy": [
+        549.40238,
+        243.3195114285714
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -4.685714285714286
+      ],
+      "pixel_xy": [
+        549.40238,
+        248.17665428571422
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -4.442857142857143
+      ],
+      "pixel_xy": [
+        549.40238,
+        253.0337971428571
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -4.2
+      ],
+      "pixel_xy": [
+        549.40238,
+        257.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -3.9571428571428573
+      ],
+      "pixel_xy": [
+        549.40238,
+        262.74808285714283
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -3.7142857142857144
+      ],
+      "pixel_xy": [
+        549.40238,
+        267.60522571428567
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -3.4714285714285715
+      ],
+      "pixel_xy": [
+        549.40238,
+        272.4623685714285
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -3.2285714285714286
+      ],
+      "pixel_xy": [
+        549.40238,
+        277.3195114285714
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -2.9857142857142858
+      ],
+      "pixel_xy": [
+        549.40238,
+        282.1766542857142
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -2.742857142857143
+      ],
+      "pixel_xy": [
+        549.40238,
+        287.03379714285705
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "",
+      "type": "PicketFence",
+      "kind": "fence",
+      "world_xy": [
+        7.0,
+        -2.5
+      ],
+      "pixel_xy": [
+        549.40238,
+        291.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 5,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "world_xy": [
+        -5.2,
+        -5.2
+      ],
+      "pixel_xy": [
+        305.40238,
+        237.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 6,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "world_xy": [
+        4.8,
+        -5.0
+      ],
+      "pixel_xy": [
+        505.40238,
+        241.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 7,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "world_xy": [
+        -5.4,
+        5.3
+      ],
+      "pixel_xy": [
+        301.40238,
+        447.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 8,
+      "object_name": "",
+      "type": "StreetLight",
+      "kind": "obstacle",
+      "world_xy": [
+        5.2,
+        5.4
+      ],
+      "pixel_xy": [
+        513.40238,
+        449.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 9,
+      "object_name": "",
+      "type": "Bench",
+      "kind": "obstacle",
+      "world_xy": [
+        -2.8,
+        5.5
+      ],
+      "pixel_xy": [
+        353.40238,
+        451.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.14142135623730953
+    },
+    {
+      "object_index": 10,
+      "object_name": "",
+      "type": "Bench",
+      "kind": "obstacle",
+      "world_xy": [
+        2.8,
+        5.5
+      ],
+      "pixel_xy": [
+        465.40238,
+        451.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 11,
+      "object_name": "",
+      "type": "StoneBench",
+      "kind": "obstacle",
+      "world_xy": [
+        -5.2,
+        -1.0
+      ],
+      "pixel_xy": [
+        305.40238,
+        321.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 12,
+      "object_name": "",
+      "type": "PublicBin",
+      "kind": "obstacle",
+      "world_xy": [
+        5.1,
+        -1.4
+      ],
+      "pixel_xy": [
+        511.40237999999994,
+        313.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.1
+    },
+    {
+      "object_index": 13,
+      "object_name": "",
+      "type": "Cypress",
+      "kind": "obstacle",
+      "world_xy": [
+        -2.6,
+        9.0
+      ],
+      "pixel_xy": [
+        357.40237999999994,
+        521.8909399999999
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 14,
+      "object_name": "",
+      "type": "Cypress",
+      "kind": "obstacle",
+      "world_xy": [
+        -0.8,
+        9.3
+      ],
+      "pixel_xy": [
+        393.40238,
+        527.89094
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.07071067811865477
+    },
+    {
+      "object_index": 15,
+      "object_name": "",
+      "type": "Cypress",
+      "kind": "obstacle",
+      "world_xy": [
+        1.0,
+        9.1
+      ],
+      "pixel_xy": [
+        429.40238,
+        523.89094
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 16,
+      "object_name": "",
+      "type": "PalmTree",
+      "kind": "obstacle",
+      "world_xy": [
+        4.8,
+        1.8
+      ],
+      "pixel_xy": [
+        505.40238,
+        377.89093999999994
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 17,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "world_xy": [
+        -13.2,
+        -7.0
+      ],
+      "pixel_xy": [
+        145.40238000000002,
+        201.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 1.4508618128546908
+    },
+    {
+      "object_index": 18,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "world_xy": [
+        -12.3,
+        -7.0
+      ],
+      "pixel_xy": [
+        163.40238,
+        201.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 1.680773631397161
+    },
+    {
+      "object_index": 19,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "world_xy": [
+        12.3,
+        -7.0
+      ],
+      "pixel_xy": [
+        655.40238,
+        201.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 127,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.5656854249492381
+    },
+    {
+      "object_index": 20,
+      "object_name": "",
+      "type": "TrafficCone",
+      "kind": "obstacle",
+      "world_xy": [
+        13.2,
+        -7.0
+      ],
+      "pixel_xy": [
+        673.40238,
+        201.89093999999997
+      ],
+      "inside_map": true,
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 1.3601470508735445
+    }
+  ]
+}

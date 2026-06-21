@@ -1,0 +1,1012 @@
+{
+  "summary": {
+    "reason": "mission_timeout",
+    "waypoints_file": "/home/taro/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_cycle19_promoted_glim2d_waypoints.yaml",
+    "frame_id": "map",
+    "total": 53,
+    "reached_count": 16,
+    "missed_count": 37,
+    "missed": [
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52
+    ],
+    "pending": [],
+    "goal_timeout_sec": 60.0,
+    "mission_timeout_sec": 150.0,
+    "wall_elapsed_sec": 150.001,
+    "loop": false
+  },
+  "waypoints": [
+    {
+      "index": 0,
+      "x": 1.705,
+      "y": -1.12,
+      "yaw": null
+    },
+    {
+      "index": 1,
+      "x": -0.495,
+      "y": 0.13,
+      "yaw": null
+    },
+    {
+      "index": 2,
+      "x": -0.495,
+      "y": 0.68,
+      "yaw": null
+    },
+    {
+      "index": 3,
+      "x": 0.105,
+      "y": 0.68,
+      "yaw": null
+    },
+    {
+      "index": 4,
+      "x": -0.695,
+      "y": 4.38,
+      "yaw": null
+    },
+    {
+      "index": 5,
+      "x": -0.995,
+      "y": 4.68,
+      "yaw": null
+    },
+    {
+      "index": 6,
+      "x": 1.105,
+      "y": 6.88,
+      "yaw": null
+    },
+    {
+      "index": 7,
+      "x": 2.255,
+      "y": 10.43,
+      "yaw": null
+    },
+    {
+      "index": 8,
+      "x": 3.055,
+      "y": 11.23,
+      "yaw": null
+    },
+    {
+      "index": 9,
+      "x": 3.305,
+      "y": 13.53,
+      "yaw": null
+    },
+    {
+      "index": 10,
+      "x": 3.555,
+      "y": 13.53,
+      "yaw": null
+    },
+    {
+      "index": 11,
+      "x": 3.555,
+      "y": 11.38,
+      "yaw": null
+    },
+    {
+      "index": 12,
+      "x": 3.305,
+      "y": 9.63,
+      "yaw": null
+    },
+    {
+      "index": 13,
+      "x": 3.805,
+      "y": 3.93,
+      "yaw": null
+    },
+    {
+      "index": 14,
+      "x": 6.905,
+      "y": 5.43,
+      "yaw": null
+    },
+    {
+      "index": 15,
+      "x": 2.705,
+      "y": 3.53,
+      "yaw": null
+    },
+    {
+      "index": 16,
+      "x": 5.605,
+      "y": 0.88,
+      "yaw": null
+    },
+    {
+      "index": 17,
+      "x": 7.505,
+      "y": 0.68,
+      "yaw": null
+    },
+    {
+      "index": 18,
+      "x": 11.505,
+      "y": 0.68,
+      "yaw": null
+    },
+    {
+      "index": 19,
+      "x": 12.605,
+      "y": 0.68,
+      "yaw": null
+    },
+    {
+      "index": 20,
+      "x": 12.555,
+      "y": 0.53,
+      "yaw": null
+    },
+    {
+      "index": 21,
+      "x": 11.505,
+      "y": 0.43,
+      "yaw": null
+    },
+    {
+      "index": 22,
+      "x": 7.505,
+      "y": 0.43,
+      "yaw": null
+    },
+    {
+      "index": 23,
+      "x": 5.305,
+      "y": -0.22,
+      "yaw": null
+    },
+    {
+      "index": 24,
+      "x": 3.655,
+      "y": -3.52,
+      "yaw": null
+    },
+    {
+      "index": 25,
+      "x": 3.555,
+      "y": -3.97,
+      "yaw": null
+    },
+    {
+      "index": 26,
+      "x": 1.205,
+      "y": -6.97,
+      "yaw": null
+    },
+    {
+      "index": 27,
+      "x": 0.855,
+      "y": -7.32,
+      "yaw": null
+    },
+    {
+      "index": 28,
+      "x": 2.755,
+      "y": -10.52,
+      "yaw": null
+    },
+    {
+      "index": 29,
+      "x": 3.555,
+      "y": -11.32,
+      "yaw": null
+    },
+    {
+      "index": 30,
+      "x": 3.555,
+      "y": -12.62,
+      "yaw": null
+    },
+    {
+      "index": 31,
+      "x": 1.155,
+      "y": -11.22,
+      "yaw": null
+    },
+    {
+      "index": 32,
+      "x": 0.955,
+      "y": -11.37,
+      "yaw": null
+    },
+    {
+      "index": 33,
+      "x": -0.495,
+      "y": -12.47,
+      "yaw": null
+    },
+    {
+      "index": 34,
+      "x": -0.495,
+      "y": -11.32,
+      "yaw": null
+    },
+    {
+      "index": 35,
+      "x": -0.495,
+      "y": -7.32,
+      "yaw": null
+    },
+    {
+      "index": 36,
+      "x": -0.495,
+      "y": -3.82,
+      "yaw": null
+    },
+    {
+      "index": 37,
+      "x": -2.845,
+      "y": -1.92,
+      "yaw": null
+    },
+    {
+      "index": 38,
+      "x": -4.495,
+      "y": -3.47,
+      "yaw": null
+    },
+    {
+      "index": 39,
+      "x": -7.145,
+      "y": -8.57,
+      "yaw": null
+    },
+    {
+      "index": 40,
+      "x": -7.445,
+      "y": -8.87,
+      "yaw": null
+    },
+    {
+      "index": 41,
+      "x": -5.195,
+      "y": -4.07,
+      "yaw": null
+    },
+    {
+      "index": 42,
+      "x": -4.095,
+      "y": 0.03,
+      "yaw": null
+    },
+    {
+      "index": 43,
+      "x": -6.295,
+      "y": 3.13,
+      "yaw": null
+    },
+    {
+      "index": 44,
+      "x": -7.195,
+      "y": 4.03,
+      "yaw": null
+    },
+    {
+      "index": 45,
+      "x": -7.445,
+      "y": 4.68,
+      "yaw": null
+    },
+    {
+      "index": 46,
+      "x": -8.495,
+      "y": 7.03,
+      "yaw": null
+    },
+    {
+      "index": 47,
+      "x": -8.495,
+      "y": 3.03,
+      "yaw": null
+    },
+    {
+      "index": 48,
+      "x": -7.495,
+      "y": 0.63,
+      "yaw": null
+    },
+    {
+      "index": 49,
+      "x": -8.495,
+      "y": 0.68,
+      "yaw": null
+    },
+    {
+      "index": 50,
+      "x": -12.145,
+      "y": -0.22,
+      "yaw": null
+    },
+    {
+      "index": 51,
+      "x": -12.445,
+      "y": -0.52,
+      "yaw": null
+    },
+    {
+      "index": 52,
+      "x": -13.945,
+      "y": -0.47,
+      "yaw": null
+    }
+  ],
+  "results": [
+    {
+      "lap": 0,
+      "index": 0,
+      "x": 1.705,
+      "y": -1.12,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 2.752,
+      "wall_elapsed_sec": 4.505
+    },
+    {
+      "lap": 0,
+      "index": 1,
+      "x": -0.495,
+      "y": 0.13,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 3.852,
+      "wall_elapsed_sec": 8.357
+    },
+    {
+      "lap": 0,
+      "index": 2,
+      "x": -0.495,
+      "y": 0.68,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 1.001,
+      "wall_elapsed_sec": 9.359
+    },
+    {
+      "lap": 0,
+      "index": 3,
+      "x": 0.105,
+      "y": 0.68,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 1.301,
+      "wall_elapsed_sec": 10.66
+    },
+    {
+      "lap": 0,
+      "index": 4,
+      "x": -0.695,
+      "y": 4.38,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 5.302,
+      "wall_elapsed_sec": 15.963
+    },
+    {
+      "lap": 0,
+      "index": 5,
+      "x": -0.995,
+      "y": 4.68,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 0.901,
+      "wall_elapsed_sec": 16.865
+    },
+    {
+      "lap": 0,
+      "index": 6,
+      "x": 1.105,
+      "y": 6.88,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 4.601,
+      "wall_elapsed_sec": 21.467
+    },
+    {
+      "lap": 0,
+      "index": 7,
+      "x": 2.255,
+      "y": 10.43,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 6.152,
+      "wall_elapsed_sec": 27.62
+    },
+    {
+      "lap": 0,
+      "index": 8,
+      "x": 3.055,
+      "y": 11.23,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 2.301,
+      "wall_elapsed_sec": 29.921
+    },
+    {
+      "lap": 0,
+      "index": 9,
+      "x": 3.305,
+      "y": 13.53,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 3.201,
+      "wall_elapsed_sec": 33.123
+    },
+    {
+      "lap": 0,
+      "index": 10,
+      "x": 3.555,
+      "y": 13.53,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 0.301,
+      "wall_elapsed_sec": 33.424
+    },
+    {
+      "lap": 0,
+      "index": 11,
+      "x": 3.555,
+      "y": 11.38,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 3.951,
+      "wall_elapsed_sec": 37.376
+    },
+    {
+      "lap": 0,
+      "index": 12,
+      "x": 3.305,
+      "y": 9.63,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 2.751,
+      "wall_elapsed_sec": 40.128
+    },
+    {
+      "lap": 0,
+      "index": 13,
+      "x": 3.805,
+      "y": 3.93,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 11.852,
+      "wall_elapsed_sec": 51.98
+    },
+    {
+      "lap": 0,
+      "index": 14,
+      "x": 6.905,
+      "y": 5.43,
+      "yaw": null,
+      "result": "missed",
+      "reason": "goal_timeout",
+      "action_status": null,
+      "duration_sec": 15.037,
+      "wall_elapsed_sec": 67.018
+    },
+    {
+      "lap": 0,
+      "index": 15,
+      "x": 2.705,
+      "y": 3.53,
+      "yaw": null,
+      "result": "missed",
+      "reason": "action_status_6",
+      "action_status": 6,
+      "duration_sec": 6.914,
+      "wall_elapsed_sec": 73.932
+    },
+    {
+      "lap": 0,
+      "index": 16,
+      "x": 5.605,
+      "y": 0.88,
+      "yaw": null,
+      "result": "missed",
+      "reason": "goal_timeout",
+      "action_status": null,
+      "duration_sec": 13.51,
+      "wall_elapsed_sec": 87.443
+    },
+    {
+      "lap": 0,
+      "index": 17,
+      "x": 7.505,
+      "y": 0.68,
+      "yaw": null,
+      "result": "missed",
+      "reason": "action_status_6",
+      "action_status": 6,
+      "duration_sec": 6.49,
+      "wall_elapsed_sec": 93.935
+    },
+    {
+      "lap": 0,
+      "index": 18,
+      "x": 11.505,
+      "y": 0.68,
+      "yaw": null,
+      "result": "missed",
+      "reason": "goal_timeout",
+      "action_status": null,
+      "duration_sec": 13.597,
+      "wall_elapsed_sec": 107.532
+    },
+    {
+      "lap": 0,
+      "index": 19,
+      "x": 12.605,
+      "y": 0.68,
+      "yaw": null,
+      "result": "missed",
+      "reason": "action_status_6",
+      "action_status": 6,
+      "duration_sec": 1.404,
+      "wall_elapsed_sec": 108.937
+    },
+    {
+      "lap": 0,
+      "index": 20,
+      "x": 12.555,
+      "y": 0.53,
+      "yaw": null,
+      "result": "missed",
+      "reason": "goal_timeout",
+      "action_status": null,
+      "duration_sec": 14.092,
+      "wall_elapsed_sec": 123.03
+    },
+    {
+      "lap": 0,
+      "index": 21,
+      "x": 11.505,
+      "y": 0.43,
+      "yaw": null,
+      "result": "missed",
+      "reason": "goal_timeout",
+      "action_status": null,
+      "duration_sec": 14.219,
+      "wall_elapsed_sec": 137.25
+    },
+    {
+      "lap": 0,
+      "index": 22,
+      "x": 7.505,
+      "y": 0.43,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 7.089,
+      "wall_elapsed_sec": 144.339
+    },
+    {
+      "lap": 0,
+      "index": 23,
+      "x": 5.305,
+      "y": -0.22,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 1.801,
+      "wall_elapsed_sec": 146.141
+    },
+    {
+      "lap": 0,
+      "index": 24,
+      "x": 3.655,
+      "y": -3.52,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": 3.859,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 25,
+      "x": 3.555,
+      "y": -3.97,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 26,
+      "x": 1.205,
+      "y": -6.97,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 27,
+      "x": 0.855,
+      "y": -7.32,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 28,
+      "x": 2.755,
+      "y": -10.52,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 29,
+      "x": 3.555,
+      "y": -11.32,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 30,
+      "x": 3.555,
+      "y": -12.62,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 31,
+      "x": 1.155,
+      "y": -11.22,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 32,
+      "x": 0.955,
+      "y": -11.37,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 33,
+      "x": -0.495,
+      "y": -12.47,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 34,
+      "x": -0.495,
+      "y": -11.32,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 35,
+      "x": -0.495,
+      "y": -7.32,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 36,
+      "x": -0.495,
+      "y": -3.82,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 37,
+      "x": -2.845,
+      "y": -1.92,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 38,
+      "x": -4.495,
+      "y": -3.47,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 39,
+      "x": -7.145,
+      "y": -8.57,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 40,
+      "x": -7.445,
+      "y": -8.87,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 41,
+      "x": -5.195,
+      "y": -4.07,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 42,
+      "x": -4.095,
+      "y": 0.03,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 43,
+      "x": -6.295,
+      "y": 3.13,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 44,
+      "x": -7.195,
+      "y": 4.03,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 45,
+      "x": -7.445,
+      "y": 4.68,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 46,
+      "x": -8.495,
+      "y": 7.03,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 47,
+      "x": -8.495,
+      "y": 3.03,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 48,
+      "x": -7.495,
+      "y": 0.63,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 49,
+      "x": -8.495,
+      "y": 0.68,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 50,
+      "x": -12.145,
+      "y": -0.22,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 51,
+      "x": -12.445,
+      "y": -0.52,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    },
+    {
+      "lap": 0,
+      "index": 52,
+      "x": -13.945,
+      "y": -0.47,
+      "yaw": null,
+      "result": "missed",
+      "reason": "mission_timeout",
+      "action_status": null,
+      "duration_sec": null,
+      "wall_elapsed_sec": 150.001
+    }
+  ]
+}

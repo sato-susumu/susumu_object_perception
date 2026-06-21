@@ -15,6 +15,9 @@ from sensor_msgs.msg import Image, PointCloud2, PointField
 from sensor_msgs_py import point_cloud2 as pc2
 from tf2_ros import Buffer, TransformException, TransformListener
 
+from susumu_object_perception.omni_projection import (
+    equirect_uv, euler_xyz_to_matrix, quat_to_matrix)
+
 
 FIELDS_XYZRGB = [
     PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
@@ -22,40 +25,6 @@ FIELDS_XYZRGB = [
     PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
     PointField(name='rgb', offset=12, datatype=PointField.FLOAT32, count=1),
 ]
-
-
-def quat_to_matrix(q):
-    x, y, z, w = q.x, q.y, q.z, q.w
-    n = x * x + y * y + z * z + w * w
-    if n < 1e-12:
-        return np.eye(3, dtype=np.float32)
-    s = 2.0 / n
-    xx, yy, zz = x * x * s, y * y * s, z * z * s
-    xy, xz, yz = x * y * s, x * z * s, y * z * s
-    wx, wy, wz = w * x * s, w * y * s, w * z * s
-    return np.array([
-        [1.0 - yy - zz, xy - wz, xz + wy],
-        [xy + wz, 1.0 - xx - zz, yz - wx],
-        [xz - wy, yz + wx, 1.0 - xx - yy],
-    ], dtype=np.float32)
-
-
-def euler_xyz_to_matrix(roll, pitch, yaw):
-    cr, sr = math.cos(roll), math.sin(roll)
-    cp, sp = math.cos(pitch), math.sin(pitch)
-    cy, sy = math.cos(yaw), math.sin(yaw)
-    rx = np.array([[1, 0, 0], [0, cr, -sr], [0, sr, cr]], dtype=np.float32)
-    ry = np.array([[cp, 0, sp], [0, 1, 0], [-sp, 0, cp]], dtype=np.float32)
-    rz = np.array([[cy, -sy, 0], [sy, cy, 0], [0, 0, 1]], dtype=np.float32)
-    return rz @ ry @ rx
-
-
-WEBOTS_CYLINDRICAL_ROT = np.array([
-    [0.0, 0.0, -1.0],
-    [0.0, 1.0, 0.0],
-    [1.0, 0.0, 0.0],
-], dtype=np.float32)
-
 
 class ColorizedPointCloudNode(Node):
     def __init__(self):
@@ -106,40 +75,9 @@ class ColorizedPointCloudNode(Node):
             self.get_logger().warning(f'failed to decode omni image: {exc}')
 
     def _project(self, pts_cam, width, height):
-        if self.projection_model == 'webots_cylindrical':
-            pts_proj = pts_cam @ WEBOTS_CYLINDRICAL_ROT.T
-            x = pts_proj[:, 0]
-            y = pts_proj[:, 1]
-            z = pts_proj[:, 2]
-            r = np.sqrt(x * x + y * y + z * z)
-            valid = r > 1e-6
-            yaw = np.arctan2(y, x) + self.yaw_offset
-            z_unit = np.clip(z / np.maximum(r, 1e-6), -1.0, 1.0)
-            # Inverse of Webots resources/wren/shaders/merge_spherical.frag
-            # for cylindrical projection with fovX=2*pi and fovY=pi.
-            v_angle = np.arccos(z_unit) - math.pi / 2.0
-            pitch_offset = self.pitch_offset
-            u = (0.5 - yaw / (2.0 * math.pi)) * width
-            v = (0.5 + (v_angle + pitch_offset) / math.pi) * height
-            valid &= (v >= 0.0) & (v < height)
-            return (u % width).astype(np.int32), v.astype(np.int32), valid
-
-        x = pts_cam[:, 0]
-        y = pts_cam[:, 1]
-        z = pts_cam[:, 2]
-        r = np.sqrt(x * x + y * y + z * z)
-        valid = r > 1e-6
-        # Webots cylindrical camera image increases horizontally toward -Y in
-        # the robot/LiDAR frame. Use atan2(-y, x) so +X is image center,
-        # +Y is left of center, and -Y is right of center.
-        yaw = np.arctan2(-y, x) + self.yaw_offset
-        pitch = np.arcsin(np.clip(z / np.maximum(r, 1e-6), -1.0, 1.0))
-        pitch = np.clip(pitch + self.pitch_offset, -math.pi / 2, math.pi / 2)
-        u = ((yaw + math.pi) / (2.0 * math.pi) * width) % width
-        # Webots cylindrical projection puts points below the camera in the
-        # upper half of the image for this mounted orientation.
-        v = (math.pi / 2.0 + pitch) / math.pi * height
-        valid &= (v >= 0.0) & (v < height)
+        u, v, valid = equirect_uv(
+            pts_cam, width, height, self.projection_model,
+            self.yaw_offset, self.pitch_offset)
         return u.astype(np.int32), v.astype(np.int32), valid
 
     def on_cloud(self, msg):

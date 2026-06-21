@@ -1,0 +1,385 @@
+{
+  "inputs": {
+    "wbt": "webots_worlds/indoor.wbt",
+    "map": "maps/indoor.yaml",
+    "db": "/tmp/indoor_object_memory_pruned.sqlite3",
+    "robot_world_xy": [
+      6.36,
+      0.0
+    ],
+    "min_existence": 0.5,
+    "min_hits": 2,
+    "ignored_types": []
+  },
+  "summary": {
+    "expected_count": 9,
+    "detection_count": 7,
+    "correct_count": 5,
+    "wrong_label_count": 0,
+    "missed_without_near_detection_count": 4,
+    "extra_detection_count": 2,
+    "class_aware_false_positive_count": 2,
+    "class_aware_false_negative_count": 4,
+    "precision": 0.7142857142857143,
+    "recall": 0.5555555555555556,
+    "f1": 0.6250000000000001,
+    "match_distance_m": 1.0
+  },
+  "correct": [
+    {
+      "expected": {
+        "eid": "PottedTree[3]",
+        "wbt_type": "PottedTree",
+        "name": "PottedTree",
+        "world_x": 9.17,
+        "world_y": -1.7,
+        "map_x": 2.8099999999999996,
+        "map_y": -1.7,
+        "accepted_labels": [
+          "potted plant",
+          "vase"
+        ]
+      },
+      "detection": {
+        "did": 23,
+        "class_name": "potted plant",
+        "x": 2.659656770025685,
+        "y": -1.482774278098149,
+        "z": 1.0,
+        "size_x": 0.5886399934591414,
+        "size_y": 0.35806668121963603,
+        "size_z": 1.6999999999999997,
+        "existence": 0.999,
+        "hits": 19,
+        "last_seen": 201.12
+      },
+      "distance_m": 0.26417816157829915
+    },
+    {
+      "expected": {
+        "eid": "PottedTree[1]",
+        "wbt_type": "PottedTree",
+        "name": "potted tree(5)",
+        "world_x": 7.0,
+        "world_y": -4.0,
+        "map_x": 0.6399999999999997,
+        "map_y": -4.0,
+        "accepted_labels": [
+          "potted plant",
+          "vase"
+        ]
+      },
+      "detection": {
+        "did": 2,
+        "class_name": "potted plant",
+        "x": 1.105200207057763,
+        "y": -3.7091905071877522,
+        "z": 1.0,
+        "size_x": 0.6,
+        "size_y": 0.6,
+        "size_z": 1.7,
+        "existence": 0.999,
+        "hits": 10,
+        "last_seen": 152.34
+      },
+      "distance_m": 0.5486177118507044
+    },
+    {
+      "expected": {
+        "eid": "Armchair[1]",
+        "wbt_type": "Armchair",
+        "name": "Armchair",
+        "world_x": 7.62,
+        "world_y": 1.03,
+        "map_x": 1.2599999999999998,
+        "map_y": 1.03,
+        "accepted_labels": [
+          "chair"
+        ]
+      },
+      "detection": {
+        "did": 18,
+        "class_name": "chair",
+        "x": 1.2451320230225509,
+        "y": 1.672004171978639,
+        "z": 1.0,
+        "size_x": 0.7554284947290447,
+        "size_y": 0.7231130713477825,
+        "size_z": 1.7,
+        "existence": 0.5104900000000001,
+        "hits": 2,
+        "last_seen": 132.12
+      },
+      "distance_m": 0.6421763103520557
+    },
+    {
+      "expected": {
+        "eid": "PottedTree[2]",
+        "wbt_type": "PottedTree",
+        "name": "potted tree(8)",
+        "world_x": 5.8,
+        "world_y": 3.3,
+        "map_x": -0.5600000000000005,
+        "map_y": 3.3,
+        "accepted_labels": [
+          "potted plant",
+          "vase"
+        ]
+      },
+      "detection": {
+        "did": 1,
+        "class_name": "potted plant",
+        "x": 0.09014457686744523,
+        "y": 3.0466033572733613,
+        "z": 1.0,
+        "size_x": 0.25538879678823356,
+        "size_y": 0.27377114736765806,
+        "size_z": 1.7,
+        "existence": 0.999,
+        "hits": 16,
+        "last_seen": 108.44
+      },
+      "distance_m": 0.6977806456009523
+    },
+    {
+      "expected": {
+        "eid": "Sofa[1]",
+        "wbt_type": "Sofa",
+        "name": "Sofa",
+        "world_x": 9.0,
+        "world_y": -0.518,
+        "map_x": 2.6399999999999997,
+        "map_y": -0.518,
+        "accepted_labels": [
+          "couch",
+          "sofa"
+        ]
+      },
+      "detection": {
+        "did": 11,
+        "class_name": "couch",
+        "x": 3.306446110601843,
+        "y": -1.1303892633654569,
+        "z": 1.0,
+        "size_x": 0.9836735044890768,
+        "size_y": 0.8928183311539017,
+        "size_z": 1.7,
+        "existence": 0.999,
+        "hits": 8,
+        "last_seen": 140.56
+      },
+      "distance_m": 0.9050806749796458
+    }
+  ],
+  "wrong_label": [],
+  "missed": [
+    {
+      "eid": "Fridge[1]",
+      "wbt_type": "Fridge",
+      "name": "Fridge",
+      "world_x": 5.7,
+      "world_y": 4.64,
+      "map_x": -0.6600000000000001,
+      "map_y": 4.64,
+      "accepted_labels": [
+        "refrigerator",
+        "fridge"
+      ]
+    },
+    {
+      "eid": "PottedTree[4]",
+      "wbt_type": "PottedTree",
+      "name": "potted tree(3)",
+      "world_x": 5.6,
+      "world_y": -4.5,
+      "map_x": -0.7600000000000007,
+      "map_y": -4.5,
+      "accepted_labels": [
+        "potted plant",
+        "vase"
+      ]
+    },
+    {
+      "eid": "Table[1]",
+      "wbt_type": "Table",
+      "name": "Table",
+      "world_x": 7.7,
+      "world_y": -0.52,
+      "map_x": 1.3399999999999999,
+      "map_y": -0.52,
+      "accepted_labels": [
+        "dining table",
+        "table"
+      ]
+    },
+    {
+      "eid": "BunchOfSunFlowers[1]",
+      "wbt_type": "BunchOfSunFlowers",
+      "name": "BunchOfSunFlowers",
+      "world_x": 7.68,
+      "world_y": -0.52,
+      "map_x": 1.3199999999999994,
+      "map_y": -0.52,
+      "accepted_labels": [
+        "potted plant",
+        "vase"
+      ]
+    }
+  ],
+  "extra": [
+    {
+      "did": 3,
+      "class_name": "dining table",
+      "x": 3.2471606865211324,
+      "y": -1.1322542665607216,
+      "z": 1.0,
+      "size_x": 0.9122646092733224,
+      "size_y": 0.9948080254306335,
+      "size_z": 1.7,
+      "existence": 0.999,
+      "hits": 24,
+      "last_seen": 140.24
+    },
+    {
+      "did": 15,
+      "class_name": "dining table",
+      "x": 3.1240152621911905,
+      "y": 4.1006711581492015,
+      "z": 1.0,
+      "size_x": 0.6,
+      "size_y": 0.6,
+      "size_z": 1.7,
+      "existence": 0.896678966789668,
+      "hits": 3,
+      "last_seen": 109.52
+    }
+  ],
+  "skipped_world_objects": [
+    {
+      "wbt_type": "Floor",
+      "name": "floor(1)",
+      "world_x": 7.5,
+      "world_y": 0.0,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Window",
+      "name": "window(1)",
+      "world_x": 6.5,
+      "world_y": -5.1,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Wall",
+      "name": "wall(5)",
+      "world_x": 7.5,
+      "world_y": 5.1,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Wall",
+      "name": "wall(7)",
+      "world_x": 5.5,
+      "world_y": -5.1,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Wall",
+      "name": "wall(10)",
+      "world_x": 8.5,
+      "world_y": -5.1,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Wall",
+      "name": "wall(6)",
+      "world_x": 10.1,
+      "world_y": 0.0,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Wall",
+      "name": "wall(2)",
+      "world_x": 5.0,
+      "world_y": 2.0,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Wall",
+      "name": "wall(1)",
+      "world_x": 5.0,
+      "world_y": -3.5,
+      "reason": "structural element"
+    },
+    {
+      "wbt_type": "Radiator",
+      "name": "Radiator",
+      "world_x": 7.33,
+      "world_y": 4.87,
+      "reason": "default COCO YOLO weights have no radiator class"
+    },
+    {
+      "wbt_type": "Door",
+      "name": "Door",
+      "world_x": 5.0,
+      "world_y": -1.5,
+      "reason": "structural element, not an object recognition target"
+    },
+    {
+      "wbt_type": "Cabinet",
+      "name": "Cabinet",
+      "world_x": 9.5,
+      "world_y": -2.5,
+      "reason": "default COCO YOLO weights have no cabinet class"
+    },
+    {
+      "wbt_type": "CardboardBox",
+      "name": "CardboardBox",
+      "world_x": 9.7,
+      "world_y": 4.7,
+      "reason": "default COCO YOLO weights have no cardboard box class"
+    },
+    {
+      "wbt_type": "CardboardBox",
+      "name": "cardboard box(1)",
+      "world_x": 9.0,
+      "world_y": 4.6,
+      "reason": "default COCO YOLO weights have no cardboard box class"
+    },
+    {
+      "wbt_type": "CardboardBox",
+      "name": "cardboard box(2)",
+      "world_x": 9.6,
+      "world_y": 4.0,
+      "reason": "default COCO YOLO weights have no cardboard box class"
+    },
+    {
+      "wbt_type": "CardboardBox",
+      "name": "cardboard box(3)",
+      "world_x": 9.4,
+      "world_y": 4.5,
+      "reason": "default COCO YOLO weights have no cardboard box class"
+    },
+    {
+      "wbt_type": "FloorLight",
+      "name": "floor light(1)",
+      "world_x": 8.84,
+      "world_y": 1.0,
+      "reason": "default COCO YOLO weights have no floor light/lamp class"
+    },
+    {
+      "wbt_type": "LandscapePainting",
+      "name": "LandscapePainting",
+      "world_x": 8.5,
+      "world_y": -4.98,
+      "reason": "default COCO YOLO weights have no painting class"
+    },
+    {
+      "wbt_type": "DirectionPanel",
+      "name": "DirectionPanel",
+      "world_x": 8.0,
+      "world_y": 5.0,
+      "reason": "not evaluated by object_memory static object DB"
+    }
+  ]
+}

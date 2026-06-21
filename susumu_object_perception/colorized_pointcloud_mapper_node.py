@@ -14,7 +14,7 @@ from sensor_msgs_py import point_cloud2 as pc2
 from std_srvs.srv import Trigger
 from tf2_ros import Buffer, TransformException, TransformListener
 
-from susumu_object_perception.colorized_pointcloud_node import quat_to_matrix
+from susumu_object_perception.omni_projection import quat_to_matrix
 
 
 FIELDS_XYZRGB = [

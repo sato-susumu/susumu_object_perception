@@ -15,8 +15,8 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from tf2_ros import Buffer, TransformException, TransformListener
 
-from susumu_object_perception.colorized_pointcloud_node import (
-    WEBOTS_CYLINDRICAL_ROT, euler_xyz_to_matrix, quat_to_matrix)
+from susumu_object_perception.omni_projection import (
+    equirect_uv, euler_xyz_to_matrix, perspective_directions, quat_to_matrix)
 
 
 class ObjectImageCropNode(Node):
@@ -105,42 +105,15 @@ class ObjectImageCropNode(Node):
         return self.calibration_rot @ (rot @ p + trans)
 
     def _perspective_crop(self, pano, direction):
-        norm = np.linalg.norm(direction)
-        if norm < 1e-6:
+        dirs = perspective_directions(
+            direction, self.crop_w, self.crop_h, self.crop_fov)
+        if dirs is None:
             return None
-        forward = direction / norm
-        world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
-        if abs(float(np.dot(forward, world_up))) > 0.95:
-            world_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-        right = np.cross(forward, world_up)
-        right /= max(np.linalg.norm(right), 1e-6)
-        up = np.cross(right, forward)
-        up /= max(np.linalg.norm(up), 1e-6)
-
-        xs = np.linspace(-1.0, 1.0, self.crop_w, dtype=np.float32)
-        ys = np.linspace(-1.0, 1.0, self.crop_h, dtype=np.float32)
-        xx, yy = np.meshgrid(xs, ys)
-        tan_half = math.tan(self.crop_fov / 2.0)
-        aspect = self.crop_w / float(self.crop_h)
-        dirs = (forward.reshape(1, 1, 3) +
-                right.reshape(1, 1, 3) * (xx[..., None] * tan_half * aspect) +
-                up.reshape(1, 1, 3) * (-yy[..., None] * tan_half))
-        dirs /= np.maximum(np.linalg.norm(dirs, axis=2, keepdims=True), 1e-6)
 
         h, w = pano.shape[:2]
-        if self.projection_model == 'webots_cylindrical':
-            dirs_proj = dirs @ WEBOTS_CYLINDRICAL_ROT.T
-            yaw = np.arctan2(dirs_proj[:, :, 1], dirs_proj[:, :, 0]) + self.yaw_offset
-            z_unit = np.clip(dirs_proj[:, :, 2], -1.0, 1.0)
-            v_angle = np.arccos(z_unit) - math.pi / 2.0
-            map_x = ((0.5 - yaw / (2.0 * math.pi)) * w % w).astype(np.float32)
-            map_y = ((0.5 + (v_angle + self.pitch_offset) / math.pi) * h).astype(np.float32)
-        else:
-            yaw = np.arctan2(-dirs[:, :, 1], dirs[:, :, 0]) + self.yaw_offset
-            pitch = np.arcsin(np.clip(dirs[:, :, 2], -1.0, 1.0)) + self.pitch_offset
-            pitch = np.clip(pitch, -math.pi / 2.0, math.pi / 2.0)
-            map_x = (((yaw + math.pi) / (2.0 * math.pi) * w) % w).astype(np.float32)
-            map_y = ((math.pi / 2.0 + pitch) / math.pi * h).astype(np.float32)
+        map_x, map_y, _ = equirect_uv(
+            dirs, w, h, self.projection_model,
+            self.yaw_offset, self.pitch_offset)
         return cv2.remap(
             pano, map_x, map_y,
             interpolation=cv2.INTER_LINEAR,

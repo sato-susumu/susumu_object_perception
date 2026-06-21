@@ -59,9 +59,18 @@ coverage.xml
 *.code-workspace
 .DS_Store
 Thumbs.db
+*.pt
+
+# Webots per-user project metadata.
+webots_worlds/*.wbproj
 
 # ===== Personal notes (not part of the package) =====
 指示内容.md
+
+# ===== Codex continuous improvement runtime state =====
+.codex/auto_improve_state.json
+.codex/auto_improve.stop
+.codex/auto_improve_runs/
 
 # ===== 保存地図の PGM / 確認用オーバーレイ PNG (バイナリ画像、含めない) =====
 # PGM は frontier 探索/SLAM で生成する占有格子地図（generate_waypoints.py の入力）。

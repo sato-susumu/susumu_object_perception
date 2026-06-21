@@ -1,0 +1,223 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/develop/projects/robots/robotis/turtlebot/protos/TurtleBot3Burger.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/PicketFence.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/traffic/protos/StreetLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/Bench.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/StoneBench.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/PublicBin.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/trees/protos/Cypress.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/trees/protos/PalmTree.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/traffic/protos/TrafficCone.proto"
+
+WorldInfo {
+  title "Trimmed Village Square"
+  basicTimeStep 20
+  gpsReference 46.5156 6.56525 0
+}
+Viewpoint {
+  orientation -0.34 -0.18 0.92 4.2
+  position 19 13 12
+  follow "TurtleBot3Burger:lidar3d"
+}
+TexturedBackground {
+  texture "noon_cloudy_countryside"
+}
+TexturedBackgroundLight {
+}
+
+Floor {
+  translation 0 0 0
+  name "trimmed_square_ground"
+  size 34 34
+  tileSize 4 4
+}
+
+# Closed outer edges. These are intentionally lidar-visible so SLAM sees a
+# bounded trimmed section instead of an open, featureless outdoor plane.
+Solid {
+  translation 0 16 0.5
+  name "road_closed_north"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.8 0.08 0.04 roughness 0.65 metalness 0 } geometry Box { size 32 0.3 1.0 } }
+  ]
+  boundingObject Box { size 32 0.3 1.0 }
+  locked TRUE
+}
+Solid {
+  translation 0 -16 0.5
+  name "road_closed_south"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.8 0.08 0.04 roughness 0.65 metalness 0 } geometry Box { size 32 0.3 1.0 } }
+  ]
+  boundingObject Box { size 32 0.3 1.0 }
+  locked TRUE
+}
+Solid {
+  translation 16 0 0.5
+  name "road_closed_east"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.8 0.08 0.04 roughness 0.65 metalness 0 } geometry Box { size 0.3 32 1.0 } }
+  ]
+  boundingObject Box { size 0.3 32 1.0 }
+  locked TRUE
+}
+Solid {
+  translation -16 0 0.5
+  name "road_closed_west"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.8 0.08 0.04 roughness 0.65 metalness 0 } geometry Box { size 0.3 32 1.0 } }
+  ]
+  boundingObject Box { size 0.3 32 1.0 }
+  locked TRUE
+}
+
+# Village-center-like sidewalks and buildings.
+Solid {
+  translation 0 0 0.01
+  name "plaza_pavement"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.47 0.47 0.43 roughness 0.85 metalness 0 } geometry Box { size 12 12 0.02 } }
+  ]
+  boundingObject Box { size 12 12 0.02 }
+  locked TRUE
+}
+Solid {
+  translation 0 -8 0.015
+  name "street_south"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.12 0.13 0.14 roughness 0.9 metalness 0 } geometry Box { size 28 5 0.03 } }
+  ]
+  boundingObject Box { size 28 5 0.03 }
+  locked TRUE
+}
+Solid {
+  translation -11 5 1.6
+  name "trimmed_shop_west"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.54 0.18 0.12 roughness 0.8 metalness 0 } geometry Box { size 3.2 8.0 3.2 } }
+  ]
+  boundingObject Box { size 3.2 8.0 3.2 }
+  locked TRUE
+}
+Solid {
+  translation 10 7 1.8
+  rotation 0 0 1 0.15
+  name "trimmed_shop_east"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.52 roughness 0.9 metalness 0 } geometry Box { size 4.0 7.0 3.6 } }
+  ]
+  boundingObject Box { size 4.0 7.0 3.6 }
+  locked TRUE
+}
+Solid {
+  translation 8 -10 1.4
+  name "kiosk_south_east"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.54 0.18 0.12 roughness 0.8 metalness 0 } geometry Box { size 3.0 3.0 2.8 } }
+  ]
+  boundingObject Box { size 3.0 3.0 2.8 }
+  locked TRUE
+}
+Solid {
+  translation -8 -11 1.2
+  rotation 0 0 1 -0.2
+  name "low_service_building"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.52 roughness 0.9 metalness 0 } geometry Box { size 4.0 2.5 2.4 } }
+  ]
+  boundingObject Box { size 4.0 2.5 2.4 }
+  locked TRUE
+}
+
+# Planters and low landmarks, copied in spirit from the village_center local
+# patch: many small, asymmetric features in MID360 range.
+Solid {
+  translation -4.5 2.7 0.35
+  name "stone_planter_west"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.52 roughness 0.9 metalness 0 } geometry Box { size 3.0 0.55 0.7 } }
+  ]
+  boundingObject Box { size 3.0 0.55 0.7 }
+  locked TRUE
+}
+Solid {
+  translation 3.8 2.6 0.35
+  rotation 0 0 1 0.25
+  name "stone_planter_east"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.52 roughness 0.9 metalness 0 } geometry Box { size 3.2 0.55 0.7 } }
+  ]
+  boundingObject Box { size 3.2 0.55 0.7 }
+  locked TRUE
+}
+Solid {
+  translation -1.5 -2.8 0.45
+  rotation 0 0 1 0.55
+  name "plaza_monument"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.52 roughness 0.9 metalness 0 } geometry Box { size 0.8 0.8 0.9 } }
+  ]
+  boundingObject Box { size 0.8 0.8 0.9 }
+  locked TRUE
+}
+
+PicketFence { translation -6.5 8.5 0 rotation 0 0 1 1.5708 numberOfSegments 4 }
+PicketFence { translation 6.5 8.5 0 rotation 0 0 1 1.5708 numberOfSegments 4 }
+PicketFence { translation -7.0 -2.5 0 rotation 0 0 1 0 numberOfSegments 3 }
+PicketFence { translation 7.0 -2.5 0 rotation 0 0 1 0 numberOfSegments 3 }
+StreetLight { translation -5.2 -5.2 0 }
+StreetLight { translation 4.8 -5.0 0 }
+StreetLight { translation -5.4 5.3 0 }
+StreetLight { translation 5.2 5.4 0 }
+Bench { translation -2.8 5.5 0 rotation 0 0 1 0 }
+Bench { translation 2.8 5.5 0 rotation 0 0 1 3.14159 }
+StoneBench { translation -5.2 -1.0 0 rotation 0 0 1 1.5708 }
+PublicBin { translation 5.1 -1.4 0 }
+Cypress { translation -2.6 9.0 0 }
+Cypress { translation -0.8 9.3 0 rotation 0 0 1 0.7 }
+Cypress { translation 1.0 9.1 0 rotation 0 0 1 1.4 }
+PalmTree { translation 4.8 1.8 0 }
+TrafficCone { translation -13.2 -7.0 0 }
+TrafficCone { translation -12.3 -7.0 0 }
+TrafficCone { translation 12.3 -7.0 0 }
+TrafficCone { translation 13.2 -7.0 0 }
+
+TurtleBot3Burger {
+  translation 0 0 0
+  controller "<extern>"
+  controllerArgs [ "" ]
+  extensionSlot [
+    Solid { name "imu_link" }
+    GPS { }
+    InertialUnit { name "inertial_unit" }
+    Camera {
+      translation 0 0 0.75
+      rotation 0 1 0 1.5708
+      name "omni_camera"
+      fieldOfView 6.283185
+      width 2048
+      height 1024
+      projection "cylindrical"
+      antiAliasing TRUE
+    }
+    Camera { translation 0.05 0 0.10 rotation 0 1 0 -0.15 name "camera" width 1920 height 1080 fieldOfView 1.02974 }
+    Lidar {
+      translation 0 0 0.20
+      name "lidar3d"
+      horizontalResolution 720
+      fieldOfView 6.283185
+      verticalFieldOfView 1.029744
+      tiltAngle 0
+      numberOfLayers 28
+      near 0.1
+      minRange 0.1
+      maxRange 40.0
+      type "rotating"
+      pointCloud TRUE
+    }
+  ]
+}

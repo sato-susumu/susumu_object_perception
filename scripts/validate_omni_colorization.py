@@ -7,6 +7,8 @@ cloud, and scores known colored targets.
 """
 
 import argparse
+import csv
+import json
 import math
 import os
 import re
@@ -25,6 +27,12 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image, PointCloud2
 from sensor_msgs_py import point_cloud2 as pc2
+
+_SOURCE_ROOT = Path(__file__).resolve().parents[1]
+if (_SOURCE_ROOT / 'susumu_object_perception' / 'omni_projection.py').exists():
+    sys.path.insert(0, str(_SOURCE_ROOT))
+
+from susumu_object_perception.omni_projection import equirect_uv
 
 
 TARGETS = {
@@ -79,13 +87,6 @@ TARGETS = {
 }
 
 
-WEBOTS_CYLINDRICAL_ROT = np.array([
-    [0.0, 0.0, -1.0],
-    [0.0, 1.0, 0.0],
-    [1.0, 0.0, 0.0],
-], dtype=np.float32)
-
-
 class Grabber(Node):
     def __init__(self):
         super().__init__('validate_omni_colorization_grabber')
@@ -129,11 +130,11 @@ def make_world(base_world: Path, yaw_deg: float) -> str:
     return out_name
 
 
-def launch_world(world_name: str):
+def launch_world(world_name: str, mode: str):
     cmd = [
         'ros2', 'launch', 'susumu_object_perception', 'webots_simulation.launch.py',
         f'world:={world_name}', 'nav:=False', 'rviz:=False',
-        'perception:=False', 'omni_perception:=True', 'mode:=fast',
+        'perception:=False', 'omni_perception:=True', f'mode:={mode}',
     ]
     env = os.environ.copy()
     return subprocess.Popen(
@@ -188,18 +189,17 @@ def world_to_lidar(point_world, yaw_deg):
     return p_base
 
 
-def project_webots(point_lidar):
+def project_webots(point_lidar, width, height, lidar_z, camera_z,
+                   yaw_offset, pitch_offset):
     p_cam = point_lidar.copy()
-    p_cam[2] += 0.20 - 0.75
-    c = WEBOTS_CYLINDRICAL_ROT @ p_cam
-    r = np.linalg.norm(c)
-    if r < 1e-6:
+    p_cam[2] += lidar_z - camera_z
+    u, v, valid = equirect_uv(
+        p_cam.reshape(1, 3), width, height,
+        projection_model='webots_cylindrical',
+        yaw_offset=yaw_offset, pitch_offset=pitch_offset)
+    if not bool(valid[0]):
         return None
-    yaw = math.atan2(c[1], c[0])
-    z_unit = float(np.clip(c[2] / r, -1.0, 1.0))
-    u = (0.5 - yaw / (2.0 * math.pi)) * 2048.0
-    v = (0.5 + (math.acos(z_unit) - math.pi / 2.0) / math.pi) * 1024.0
-    return np.array([u % 2048.0, v], dtype=np.float32)
+    return np.array([float(u[0]), float(v[0])], dtype=np.float32)
 
 
 def color_score(rgb, expect):
@@ -226,6 +226,8 @@ def color_score(rgb, expect):
 
 
 def image_centroid(image, hsv_bounds, expected_uv):
+    height, width = image.shape[:2]
+    half_width = width / 2.0
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     lo, hi = hsv_bounds
     mask = cv2.inRange(hsv, np.array(lo, dtype=np.uint8), np.array(hi, dtype=np.uint8))
@@ -234,7 +236,7 @@ def image_centroid(image, hsv_bounds, expected_uv):
         return None, 0
     # Use only the connected-looking color pixels near the projected location to
     # avoid counting unrelated red/yellow floor texture.
-    du = ((xs.astype(float) - expected_uv[0] + 1024.0) % 2048.0) - 1024.0
+    du = ((xs.astype(float) - expected_uv[0] + half_width) % width) - half_width
     dv = ys.astype(float) - expected_uv[1]
     near = (du * du + dv * dv) < 160.0 * 160.0
     if int(np.sum(near)) < 10:
@@ -243,13 +245,16 @@ def image_centroid(image, hsv_bounds, expected_uv):
         return None, 0
     xs2 = xs[near].astype(float)
     ys2 = ys[near].astype(float)
-    du2 = ((xs2 - expected_uv[0] + 1024.0) % 2048.0) - 1024.0
-    cx = (expected_uv[0] + float(np.mean(du2))) % 2048.0
+    du2 = ((xs2 - expected_uv[0] + half_width) % width) - half_width
+    cx = (expected_uv[0] + float(np.mean(du2))) % width
     cy = float(np.mean(ys2))
     return np.array([cx, cy], dtype=np.float32), int(np.sum(near))
 
 
-def score_capture(image, cloud, yaw_deg):
+def score_capture(image, cloud, yaw_deg, lidar_z, camera_z,
+                  yaw_offset, pitch_offset):
+    height, width = image.shape[:2]
+    half_width = width / 2.0
     xyz, rgb = pointcloud_arrays(cloud)
     rows = []
     for name, target in TARGETS.items():
@@ -259,15 +264,17 @@ def score_capture(image, cloud, yaw_deg):
         target_rgb = rgb[mask]
         score = color_score(target_rgb, target['expect'])
         mean_rgb = target_rgb.mean(axis=0) if len(target_rgb) else np.array([0, 0, 0])
-        expected_uv = project_webots(center)
+        expected_uv = project_webots(
+            center, width, height, lidar_z, camera_z,
+            yaw_offset, pitch_offset)
         centroid, pixels = (None, 0)
         err_deg = None
         if expected_uv is not None:
             centroid, pixels = image_centroid(image, target['hsv'], expected_uv)
         if centroid is not None:
-            du = ((centroid[0] - expected_uv[0] + 1024.0) % 2048.0) - 1024.0
+            du = ((centroid[0] - expected_uv[0] + half_width) % width) - half_width
             dv = centroid[1] - expected_uv[1]
-            err_deg = math.hypot(du * 360.0 / 2048.0, dv * 180.0 / 1024.0)
+            err_deg = math.hypot(du * 360.0 / width, dv * 180.0 / height)
         rows.append({
             'name': name,
             'points': int(np.sum(mask)),
@@ -279,25 +286,238 @@ def score_capture(image, cloud, yaw_deg):
     return rows
 
 
+def _float_or_none(value):
+    if value is None:
+        return None
+    return float(value)
+
+
+def make_summary(all_rows, large_targets):
+    scores = []
+    errors = []
+    large_errors = []
+    for _, ok, rows in all_rows:
+        if not ok:
+            continue
+        for row in rows:
+            scores.append(float(row['score']))
+            if row['project_error_deg'] is not None:
+                err = float(row['project_error_deg'])
+                errors.append(err)
+                if row['name'] in large_targets:
+                    large_errors.append(err)
+    summary = {
+        'captures': len(all_rows),
+        'captures_ok': sum(1 for _, ok, _ in all_rows if ok),
+    }
+    if scores:
+        summary.update({
+            'color_score_mean': float(np.mean(scores)),
+            'color_score_min': float(np.min(scores)),
+        })
+    if errors:
+        summary.update({
+            'image_projection_error_deg_mean': float(np.mean(errors)),
+            'image_projection_error_deg_max': float(np.max(errors)),
+        })
+    if large_errors:
+        summary.update({
+            'large_image_projection_error_deg_mean': float(np.mean(large_errors)),
+            'large_image_projection_error_deg_max': float(np.max(large_errors)),
+        })
+    return summary
+
+
+def make_failures(all_rows, large_targets, min_large_target_score,
+                  max_image_error_deg, max_large_image_error_deg):
+    failures = []
+    for yaw, ok, rows in all_rows:
+        if not ok:
+            failures.append(f'yaw {yaw:.1f}: capture failed')
+            continue
+        for row in rows:
+            if row['name'] in large_targets:
+                if row['points'] <= 0:
+                    failures.append(f"yaw {yaw:.1f}: {row['name']} has no points")
+                elif row['score'] < min_large_target_score:
+                    failures.append(
+                        f"yaw {yaw:.1f}: {row['name']} score "
+                        f"{row['score']:.2f} < {min_large_target_score:.2f}")
+            err = row['project_error_deg']
+            if row['name'] in large_targets and err is not None and \
+                    err > max_large_image_error_deg:
+                failures.append(
+                    f"yaw {yaw:.1f}: {row['name']} large image projection error "
+                    f"{err:.2f}deg > {max_large_image_error_deg:.2f}deg")
+            if err is not None and err > max_image_error_deg:
+                failures.append(
+                    f"yaw {yaw:.1f}: {row['name']} image projection error "
+                    f"{err:.2f}deg > {max_image_error_deg:.2f}deg")
+    return failures
+
+
+def write_reports(out_prefix, all_rows, summary, failures, args):
+    if not out_prefix:
+        return
+    prefix = Path(out_prefix)
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+
+    serial_rows = []
+    for yaw, ok, rows in all_rows:
+        if not ok:
+            serial_rows.append({
+                'yaw_deg': float(yaw),
+                'capture_ok': False,
+                'name': '',
+                'points': 0,
+                'score': None,
+                'mean_rgb': None,
+                'project_error_deg': None,
+                'image_pixels': 0,
+            })
+            continue
+        for row in rows:
+            mean_rgb = [float(v) for v in row['mean_rgb']]
+            serial_rows.append({
+                'yaw_deg': float(yaw),
+                'capture_ok': True,
+                'name': row['name'],
+                'points': int(row['points']),
+                'score': float(row['score']),
+                'mean_rgb': mean_rgb,
+                'project_error_deg': _float_or_none(row['project_error_deg']),
+                'image_pixels': int(row['image_pixels']),
+            })
+
+    report = {
+        'args': {
+            'yaws': args.yaws,
+            'mode': args.mode,
+            'startup_sec': args.startup_sec,
+            'grab_timeout_sec': args.grab_timeout_sec,
+            'lidar_z': args.lidar_z,
+            'camera_z': args.camera_z,
+            'yaw_offset_deg': args.yaw_offset_deg,
+            'pitch_offset_deg': args.pitch_offset_deg,
+            'min_large_target_score': args.min_large_target_score,
+            'max_image_error_deg': args.max_image_error_deg,
+            'max_large_image_error_deg': args.max_large_image_error_deg,
+        },
+        'summary': summary,
+        'validation_passed': not failures,
+        'failures': failures,
+        'rows': serial_rows,
+    }
+
+    json_path = prefix.with_suffix('.json')
+    csv_path = prefix.with_suffix('.csv')
+    md_path = prefix.with_suffix('.md')
+    json_path.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False) + '\n')
+
+    with csv_path.open('w', newline='') as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                'yaw_deg', 'capture_ok', 'name', 'points', 'score',
+                'mean_r', 'mean_g', 'mean_b',
+                'project_error_deg', 'image_pixels',
+            ])
+        writer.writeheader()
+        for row in serial_rows:
+            rgb = row['mean_rgb'] or [None, None, None]
+            writer.writerow({
+                'yaw_deg': row['yaw_deg'],
+                'capture_ok': row['capture_ok'],
+                'name': row['name'],
+                'points': row['points'],
+                'score': row['score'],
+                'mean_r': rgb[0],
+                'mean_g': rgb[1],
+                'mean_b': rgb[2],
+                'project_error_deg': row['project_error_deg'],
+                'image_pixels': row['image_pixels'],
+            })
+
+    lines = [
+        '# Omni Colorization Validation',
+        '',
+        f"- mode: `{args.mode}`",
+        f"- yaws: `{args.yaws}`",
+        f"- validation_passed: `{str(not failures).lower()}`",
+        '',
+        '## Summary',
+        '',
+    ]
+    for key in sorted(summary):
+        value = summary[key]
+        if isinstance(value, float):
+            lines.append(f'- `{key}`: `{value:.3f}`')
+        else:
+            lines.append(f'- `{key}`: `{value}`')
+    if failures:
+        lines.extend(['', '## Failures', ''])
+        lines.extend(f'- {failure}' for failure in failures)
+    lines.extend([
+        '',
+        '## Rows',
+        '',
+        '| yaw | target | points | score | mean RGB | image error deg | image px |',
+        '|---:|---|---:|---:|---|---:|---:|',
+    ])
+    for row in serial_rows:
+        if not row['capture_ok']:
+            lines.append(f"| {row['yaw_deg']:.1f} | capture failed | 0 |  |  |  | 0 |")
+            continue
+        rgb = row['mean_rgb'] or [0.0, 0.0, 0.0]
+        err = row['project_error_deg']
+        err_txt = '' if err is None else f'{err:.2f}'
+        score = row['score']
+        score_txt = '' if score is None else f'{score:.3f}'
+        lines.append(
+            f"| {row['yaw_deg']:.1f} | {row['name']} | {row['points']} | "
+            f"{score_txt} | [{rgb[0]:.1f},{rgb[1]:.1f},{rgb[2]:.1f}] | "
+            f"{err_txt} | {row['image_pixels']} |")
+    md_path.write_text('\n'.join(lines) + '\n')
+    print(f'wrote {json_path}')
+    print(f'wrote {csv_path}')
+    print(f'wrote {md_path}')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--yaws', default='0,45,90,135,180,225,270,315')
     parser.add_argument('--startup-sec', type=float, default=45.0)
     parser.add_argument('--grab-timeout-sec', type=float, default=20.0)
+    parser.add_argument('--mode', choices=('fast', 'realtime'), default='fast')
+    parser.add_argument('--lidar-z', type=float, default=0.20)
+    parser.add_argument('--camera-z', type=float, default=0.75)
+    parser.add_argument('--yaw-offset-deg', type=float, default=0.0)
+    parser.add_argument('--pitch-offset-deg', type=float, default=0.0)
     parser.add_argument('--require-pass', action='store_true')
     parser.add_argument('--min-large-target-score', type=float, default=0.45)
     parser.add_argument('--max-image-error-deg', type=float, default=20.0)
+    parser.add_argument(
+        '--max-large-image-error-deg', type=float, default=10.0,
+        help='Projection error gate for large calibration targets only.')
+    parser.add_argument(
+        '--out-prefix', default='',
+        help='Write JSON/CSV/Markdown reports with this path prefix.')
     args = parser.parse_args()
 
     share = package_root()
     base_world = share / 'webots_worlds' / 'calibration.wbt'
     yaws = [float(v) for v in args.yaws.split(',') if v.strip()]
+    yaw_offset = math.radians(args.yaw_offset_deg)
+    pitch_offset = math.radians(args.pitch_offset_deg)
 
     all_rows = []
     for yaw in yaws:
         world_name = make_world(base_world, yaw)
-        print(f'=== yaw {yaw:.1f} deg world {world_name} ===', flush=True)
-        proc = launch_world(world_name)
+        print(
+            f'=== yaw {yaw:.1f} deg world {world_name} mode={args.mode} ===',
+            flush=True)
+        proc = launch_world(world_name, args.mode)
         try:
             time.sleep(args.startup_sec)
             image, cloud = grab(args.grab_timeout_sec)
@@ -305,7 +525,9 @@ def main():
                 print('capture failed: image/cloud missing')
                 all_rows.append((yaw, False, []))
                 continue
-            rows = score_capture(image, cloud, yaw)
+            rows = score_capture(
+                image, cloud, yaw, args.lidar_z, args.camera_z,
+                yaw_offset, pitch_offset)
             all_rows.append((yaw, True, rows))
             for row in rows:
                 err = row['project_error_deg']
@@ -321,40 +543,28 @@ def main():
                 shell=True, check=False)
             time.sleep(2.0)
 
-    scores = []
-    errors = []
-    for _, ok, rows in all_rows:
-        if not ok:
-            continue
-        for row in rows:
-            scores.append(row['score'])
-            if row['project_error_deg'] is not None:
-                errors.append(row['project_error_deg'])
-    print('=== summary ===')
-    if scores:
-        print(f'color_score mean={np.mean(scores):.3f} min={np.min(scores):.3f}')
-    if errors:
-        print(f'image_projection_error_deg mean={np.mean(errors):.3f} max={np.max(errors):.3f}')
-
     large_targets = {'red_panel', 'yellow_panel', 'green_box', 'magenta_cylinder'}
-    failures = []
-    for yaw, ok, rows in all_rows:
-        if not ok:
-            failures.append(f'yaw {yaw:.1f}: capture failed')
-            continue
-        for row in rows:
-            if row['name'] in large_targets:
-                if row['points'] <= 0:
-                    failures.append(f"yaw {yaw:.1f}: {row['name']} has no points")
-                elif row['score'] < args.min_large_target_score:
-                    failures.append(
-                        f"yaw {yaw:.1f}: {row['name']} score "
-                        f"{row['score']:.2f} < {args.min_large_target_score:.2f}")
-            err = row['project_error_deg']
-            if err is not None and err > args.max_image_error_deg:
-                failures.append(
-                    f"yaw {yaw:.1f}: {row['name']} image projection error "
-                    f"{err:.2f}deg > {args.max_image_error_deg:.2f}deg")
+    summary = make_summary(all_rows, large_targets)
+    print('=== summary ===')
+    if 'color_score_mean' in summary:
+        print(
+            f"color_score mean={summary['color_score_mean']:.3f} "
+            f"min={summary['color_score_min']:.3f}")
+    if 'image_projection_error_deg_mean' in summary:
+        print(
+            'image_projection_error_deg '
+            f"mean={summary['image_projection_error_deg_mean']:.3f} "
+            f"max={summary['image_projection_error_deg_max']:.3f}")
+    if 'large_image_projection_error_deg_mean' in summary:
+        print(
+            'large_image_projection_error_deg '
+            f"mean={summary['large_image_projection_error_deg_mean']:.3f} "
+            f"max={summary['large_image_projection_error_deg_max']:.3f}")
+
+    failures = make_failures(
+        all_rows, large_targets, args.min_large_target_score,
+        args.max_image_error_deg, args.max_large_image_error_deg)
+    write_reports(args.out_prefix, all_rows, summary, failures, args)
 
     if failures:
         print('=== validation failures ===')

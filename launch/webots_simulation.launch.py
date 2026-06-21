@@ -28,6 +28,7 @@ from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from webots_ros2_driver.webots_launcher import WebotsLauncher
 from webots_ros2_driver.webots_controller import WebotsController
 from webots_ros2_driver.wait_for_controller_connection import \
@@ -45,14 +46,27 @@ def generate_launch_description():
     # Nav2 params 差し替え用（空なら従来の webots_ros2_turtlebot 標準を使う）。
     # 探索マッピングでは inflation を下げた config/nav2_params_webots_explore.yaml を渡す。
     nav_params_file = LaunchConfiguration('nav_params_file', default='')
+    # slam:=False の AMCL/保存地図ナビで Nav2 map_server に読ませる地図。
+    # 空なら従来の webots_ros2_turtlebot 標準地図を使う。
+    map_file = LaunchConfiguration('map_file', default='')
     use_rviz = LaunchConfiguration('rviz', default=True)
     use_perception = LaunchConfiguration('perception', default=True)
     use_omni_perception = LaunchConfiguration('omni_perception', default=True)
     # 画像認識（LiDAR 検出物体の YOLO 分類 + 全天球信号認識）。YOLO は CPU 負荷が高いが
     # 間引き（トラック ID キャッシュ + レート上限）があるので既定 ON。重いとき image_recognition:=False。
     use_image_recognition = LaunchConfiguration('image_recognition', default=True)
+    object_yolo_weights = LaunchConfiguration('object_yolo_weights')
+    object_yolo_imgsz = LaunchConfiguration('object_yolo_imgsz')
+    object_crop_fovs_deg = LaunchConfiguration('object_crop_fovs_deg')
+    object_classifier_debug = LaunchConfiguration('object_classifier_debug')
     use_colored_slam = LaunchConfiguration('colored_slam', default=True)
     lidar_model = LaunchConfiguration('lidar_model')
+    scan_min_height = LaunchConfiguration('scan_min_height')
+    scan_max_height = LaunchConfiguration('scan_max_height')
+    scan_angle_increment = LaunchConfiguration('scan_angle_increment')
+    scan_range_min = LaunchConfiguration('scan_range_min')
+    scan_range_max = LaunchConfiguration('scan_range_max')
+    scan_use_inf = LaunchConfiguration('scan_use_inf')
     colored_slam_target_frame = LaunchConfiguration('colored_slam_target_frame')
     colored_slam_fallback_frame = LaunchConfiguration('colored_slam_fallback_frame')
     colored_slam_source_frame_override = LaunchConfiguration(
@@ -153,16 +167,17 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'target_frame': lidar_frame,
             'transform_tolerance': 0.01,
-            # lidar_link 基準。z>=0.1（地上約0.3m）で地面(z≈-0.2)を確実に除外し、壁・家具・人を採る。
-            'min_height': 0.1,
-            'max_height': 2.0,
+            # lidar_link 基準。既定値は屋内向け。屋外 launch だけ別値を渡す。
+            'min_height': ParameterValue(scan_min_height, value_type=float),
+            'max_height': ParameterValue(scan_max_height, value_type=float),
             'angle_min': -3.14159,
             'angle_max': 3.14159,
-            'angle_increment': 0.0087,
+            'angle_increment': ParameterValue(
+                scan_angle_increment, value_type=float),
             'scan_time': 0.1,
-            'range_min': 0.3,
-            'range_max': 40.0,
-            'use_inf': True,
+            'range_min': ParameterValue(scan_range_min, value_type=float),
+            'range_max': ParameterValue(scan_range_max, value_type=float),
+            'use_inf': ParameterValue(scan_use_inf, value_type=bool),
         }])
 
     # ROS 2 control spawners（webots_ros2_turtlebot 踏襲）
@@ -219,12 +234,27 @@ def generate_launch_description():
     navigation_nodes = []
     os.environ['TURTLEBOT3_MODEL'] = 'burger'
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
-    nav2_map = os.path.join(tb3_pkg, 'resource', 'turtlebot3_burger_example_map.yaml')
+    default_nav2_map = os.path.join(
+        tb3_pkg, 'resource', 'turtlebot3_burger_example_map.yaml')
+    # Nav2 bringup に渡す map/params は絶対パスで安定させる。
+    # launch 実行ディレクトリに依存すると、`map_file:=maps/indoor.yaml` が
+    # cd 位置によって読めたり読めなかったりする。相対指定は package share
+    # 基準（ファイル名だけなら maps/ または config/ 配下）へ解決する。
+    nav2_map = PythonExpression([
+        "'", default_nav2_map, "' if '", map_file, "' == '' else (",
+        "'", map_file, "' if '", map_file, "'.startswith('/') else (",
+        "'", os.path.join(pkg, 'maps', ''), "' + '", map_file,
+        "' if '/' not in '", map_file, "' else ",
+        "'", os.path.join(pkg, ''), "' + '", map_file, "'))"])
     default_nav2_params = os.path.join(tb3_pkg, 'resource', 'nav2_params.yaml')
     # nav_params_file が空なら従来の標準 params、指定があればそれを使う。
     # マッピング（webots_indoor_mapping）は nav2_params_webots_explore.yaml を渡す。
-    nav2_params = PythonExpression(
-        ["'", nav_params_file, "' or '", default_nav2_params, "'"])
+    nav2_params = PythonExpression([
+        "'", default_nav2_params, "' if '", nav_params_file, "' == '' else (",
+        "'", nav_params_file, "' if '", nav_params_file, "'.startswith('/') else (",
+        "'", os.path.join(pkg, 'config', ''), "' + '", nav_params_file,
+        "' if '/' not in '", nav_params_file, "' else ",
+        "'", os.path.join(pkg, ''), "' + '", nav_params_file, "'))"])
     turtlebot_navigation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
             nav2_bringup_dir, 'launch', 'bringup_launch.py')),
@@ -346,13 +376,33 @@ def generate_launch_description():
             'input_objects': '/perception/tracked_objects',
             'input_image': '/omni_camera/image_raw/image_color',
             'camera_frame': 'omni_camera_link',
-            # 識別率チューニング（巡回識別の実測: 既定 nano/conf0.3 で 47% →
-            # この設定で 89.5%）。yolov8s（nano より高精度）+ 採用しきい値を
-            # 緩めて UNKNOWN を減らす + クロップ FOV を広げて対象を大きく捉える。
-            'yolo.weights': 'yolov8s.pt',
+            # 識別率チューニング。seg weight を使い、LiDAR 対象方向の中心に
+            # YOLO mask が乗る候補だけを採ることで、クロップ背景の植物誤認を抑える。
+            'yolo.weights': object_yolo_weights,
+            'yolo.imgsz': ParameterValue(object_yolo_imgsz, value_type=int),
             'yolo.conf': 0.15,
             'min_accept_conf': 0.15,
             'crop_fov_deg': 75.0,
+            'crop_fovs_deg': object_crop_fovs_deg,
+            # LiDAR 対象方向の中心ROIと YOLO bbox の重なりで fine class を絞る実験用ゲート。
+            # 屋内フル巡回では正解候補の hits が伸びにくくなったため、既定は無効。
+            'center_window_frac': 0.25,
+            'min_center_window_overlap': 0.0,
+            'require_mask_center': True,
+            'mask_center_window_frac': 0.25,
+            'min_mask_center_overlap': 0.04,
+            # 植物系ラベルだけ、YOLO bbox 内に緑/花色が一定以上あるかを確認する。
+            # 家具・箱・壁片の potted plant 誤登録を減らすための認識本体側ゲート。
+            'plant_color_min_frac': 0.02,
+            # 定期再分類は実験用。屋内フル巡回評価では一時的な YOLO miss で
+            # 正解記憶の hits が伸びにくくなったため、既定は従来どおり無効。
+            'reclassify_interval_sec': 0.0,
+            'min_consistent_hits': 1,
+            'max_class_misses': 1,
+            'max_rate_hz': 2.0,
+            'max_inferences_per_cycle': 4,
+            'publish_unknown_fine_class_clears': False,
+            'publish_debug_diagnostics': object_classifier_debug,
         }],
         condition=launch.conditions.IfCondition(use_image_recognition))
 
@@ -448,6 +498,9 @@ def generate_launch_description():
             'slam', default_value='False',
             description='SLAM(slam_toolbox)で地図生成しつつ自律走行（AMCL は無効。大文字 True/False）'),
         DeclareLaunchArgument(
+            'map_file', default_value='',
+            description='slam:=False の AMCL/保存地図ナビで Nav2 に読ませる地図 yaml。空なら TurtleBot3 既定地図'),
+        DeclareLaunchArgument(
             'rviz', default_value='True',
             description='RViz2 を起動する（既定 True）'),
         DeclareLaunchArgument(
@@ -462,6 +515,18 @@ def generate_launch_description():
             description=('画像認識（LiDAR検出物体のYOLO分類 + 全天球信号認識）を起動する。'
                          'YOLOはCPU負荷が高いが間引きありで既定ON。重いときは False')),
         DeclareLaunchArgument(
+            'object_yolo_weights', default_value='yolov8s-seg.pt',
+            description='object_classifier_node.py の YOLO weight。認識比較では yolov8m-seg.pt 等へ差し替え可能'),
+        DeclareLaunchArgument(
+            'object_yolo_imgsz', default_value='640',
+            description='object_classifier_node.py の YOLO 推論画像サイズ。大きいほど小物に有利だが重い'),
+        DeclareLaunchArgument(
+            'object_crop_fovs_deg', default_value='',
+            description='object_classifier_node.py の複数FOVクロップ（例: 75,55,40）。空なら crop_fov_deg のみ'),
+        DeclareLaunchArgument(
+            'object_classifier_debug', default_value='False',
+            description='True で /perception/object_classifier/debug に YOLO 候補の採否理由を出す'),
+        DeclareLaunchArgument(
             'indoor_objects', default_value='False',
             description=('室内物体検出: map_roi_filter が高所（天井/壁上部）を除外しつつ'
                          '床付近の家具を占有セル上でも検出/識別する。室内 world で True')),
@@ -472,6 +537,24 @@ def generate_launch_description():
             'lidar_model', default_value='mid360',
             description='3D LiDAR model metadata: mid360 (default) or vlp16. '
                         'world ファイル自体のセンサ形状は world 引数で選ぶ'),
+        DeclareLaunchArgument(
+            'scan_min_height', default_value='0.1',
+            description='pointcloud_to_laserscan の min_height[m]。既定は屋内向け値'),
+        DeclareLaunchArgument(
+            'scan_max_height', default_value='2.0',
+            description='pointcloud_to_laserscan の max_height[m]。既定は屋内向け値'),
+        DeclareLaunchArgument(
+            'scan_angle_increment', default_value='0.0087',
+            description='pointcloud_to_laserscan の角度分解能[rad]。既定は約0.5deg'),
+        DeclareLaunchArgument(
+            'scan_range_min', default_value='0.3',
+            description='pointcloud_to_laserscan の range_min[m]'),
+        DeclareLaunchArgument(
+            'scan_range_max', default_value='40.0',
+            description='pointcloud_to_laserscan の range_max[m]'),
+        DeclareLaunchArgument(
+            'scan_use_inf', default_value='True',
+            description='pointcloud_to_laserscan の use_inf'),
         DeclareLaunchArgument(
             'colored_slam_target_frame', default_value='map',
             description='色付き点群マップの目標TFフレーム。GLIMでは glim_map を指定する'),

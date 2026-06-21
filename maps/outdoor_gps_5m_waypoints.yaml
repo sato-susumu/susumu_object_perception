@@ -1,0 +1,10 @@
+frame_id: gps_local
+source_world: outdoor.wbt
+waypoint_format: '[x_m, y_m] relative to initial GPS position'
+purpose: 5m-leg sparse outdoor Nav2 GPS navigation evaluation
+notes: avoid outdoor.wbt tree/building/car placements; each leg is about 5m
+waypoints:
+- [0.0, -5.0]
+- [-5.0, -5.0]
+- [-5.0, 0.0]
+- [0.0, 0.0]

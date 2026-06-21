@@ -23,7 +23,7 @@
 | Nav2 バージョン | 1.1.20（Humble 同梱） | プラグイン名は `/` 形式（`::` 形式の新形式は不可） |
 | ベース params | `nav2_bringup/params/nav2_params.yaml` | TurtleBot3 waffle 向けに調整 |
 | ローカライズ | AMCL（`slam:=False`） | 生 `/scan` を使用 |
-| プランナ | `nav2_navfn_planner/NavfnPlanner` | グリッドベース最短経路 |
+| プランナ | `nav2_smac_planner/SmacPlanner2D` | 2D costmap 上のA*系グリッドプランナ。Navfn の再計画失敗を避けるため採用 |
 | コントローラ | `dwb_core::DWBLocalPlanner` | DWB ローカルプランナ |
 | ロボット | TurtleBot3 waffle | 最大 0.26 m/s / 1.82 rad/s |
 
@@ -41,11 +41,11 @@ flowchart LR
     STVL["STVL層<br/>(廃止)"]:::skip
 
     SL["static_layer"]:::ext
-    OL["obstacle_layer"]:::ext
+    OL["obstacle_layer<br/>(local only)"]:::ext
     PL["predicted_layer<br/>(自作C++<br/>max合成)"]:::own
     IL["inflation_layer"]:::ext
 
-    CM["costmap"]:::ext
+    CM["local/global<br/>costmap"]:::ext
     DWB["DWB<br/>controller"]:::ext
     CMD["/cmd_vel"]:::ext
 
@@ -84,6 +84,7 @@ flowchart LR
 | `sim_time` | 1.7 | 軌道予測の先読み時間 [s]。短いと近視眼的、長いと滑らか |
 | `xy_goal_tolerance` | 0.25 | ゴール到達判定の位置許容 [m] |
 | `yaw_goal_tolerance` | 0.25 | ゴール到達判定の角度許容 [rad] |
+| `BaseObstacle.scale` | 0.08 | DWB が障害物近傍の軌道を嫌う重み。壁際へ寄りすぎる場合は上げる |
 
 ### コストマップ共通（`local_costmap` / `global_costmap`）
 
@@ -91,15 +92,29 @@ flowchart LR
 |---|---|---|
 | `robot_radius` | 0.22 | ロボット半径 [m]。膨張の基準 |
 | `resolution` | 0.05 | コストマップ解像度 [m/cell] |
-| `inflation_layer.inflation_radius` | 0.35 | 障害物膨張半径 [m]。大きいほど壁から離れる／狭所を通れなくなる |
-| `inflation_layer.cost_scaling_factor` | 3.0 | 膨張コストの減衰。大きいほど壁際コストが急減 |
-| `obstacle_layer` 入力 | `/scan` | 2D 障害物。高さ帯 `min_height 0.0`（地面+0.21m以上）で地面を除外 |
-| `obstacle_layer.observation_persistence` | 0.0 | 2D scan は**最新フレームの観測だけ**で costmap を作る（古い観測を貯めない） |
-| `obstacle_layer.raytrace/obstacle_max_range` | 6.0 / 5.0 | raytrace（clear）距離 ≥ mark 距離。人が動いて空いた空間を確実に clear するため clear を mark より広く取る |
-| `global_costmap.update/publish_frequency` | 3.0 / 2.0 | 動的障害物（人）の跡を早く消すため global を高頻度更新（既定 1.0/1.0 から引き上げ） |
+| `inflation_layer.inflation_radius` | 0.45 | 障害物膨張半径 [m]。大きいほど壁から離れる／狭所を通れなくなる |
+| `inflation_layer.cost_scaling_factor` | 2.0 | 膨張コストの減衰。大きいほど壁際コストが急減。低めにすると通路全体に緩いポテンシャルが残る |
+| `local_costmap.plugins` | `obstacle_layer`, `predicted_layer`, `inflation_layer` | 近傍の即時障害物は local で回避する |
+| `global_costmap.plugins` | `static_layer`, `predicted_layer`, `inflation_layer` | 保存地図ベースの大域計画を安定させるため、global には `/scan` の `obstacle_layer` を入れない |
+| `local_costmap.obstacle_layer` 入力 | `/scan` | 2D 障害物。高さ帯 `min_height 0.0`（地面+0.21m以上）で地面を除外 |
+| `local_costmap.obstacle_layer.footprint_clearing_enabled` | true | ロボット足元は現在存在している自由空間としてセンサ由来障害物を clear する |
+| `local_costmap.obstacle_layer.observation_persistence` | 0.0 | 2D scan は**最新フレームの観測だけ**で costmap を作る（古い観測を貯めない） |
+| `local_costmap.obstacle_layer.raytrace/obstacle_max_range` | 6.0 / 5.0 | raytrace（clear）距離 ≥ mark 距離。人が動いて空いた空間を確実に clear するため clear を mark より広く取る |
+| `global_costmap.update/publish_frequency` | 3.0 / 2.0 | 動的予測層を早く反映するため global を高頻度更新（既定 1.0/1.0 から引き上げ） |
 | **予測コストマップ層** | **`predicted_layer`（自作 `susumu_object_perception::PredictedCostmapLayer`）** | perception 連携。`prediction_node` の予測 OccupancyGrid `/perception/predicted_costmap`(map) を `max` 合成で costmap に乗せる。人の**現在位置**（全トラック）と**進路先**（移動トラック）の両方をこの層が担う（STVL 廃止後の唯一の動的障害物層） |
 | `predicted_layer` 入力 | `/perception/predicted_costmap` | prediction が毎フレーム作り直す予測格子。現在位置（全トラック）+ 最有力予測パス（移動トラック、近傍2s、confidence しきい無し＝移動なら必ず焼く）。点列は**線分補間**で繋ぎ（飛び石防止）、人幅+方向ズレ吸収ぶん **8 セル円盤膨張** |
 | `predicted_layer.occupied_threshold` | 50 | 予測格子のこの値以上のセルを LETHAL で焼く |
+
+### プランナ（`planner_server` / `GridBased`）
+
+| パラメータ | 現在値 | 意味 / 調整の効果 |
+|---|---|---|
+| `plugin` | `nav2_smac_planner/SmacPlanner2D` | 保存地図AMCL巡回で Navfn が free な目標への再計画に失敗したため、屋内探索で実績のある Smac 2D に統一 |
+| `tolerance` | 0.5 | 目標近傍探索の許容 [m] |
+| `allow_unknown` | true | unknown を通行候補に含める。保存地図の端・未確定セルで詰まりにくくする |
+| `max_planning_time` | 3.5 | 1回の計画に使う最大時間 [s] |
+| `cost_travel_multiplier` | 5.0 | コストの高いセルを避ける重み。大きいほど壁際や障害物近傍を避ける |
+| `use_final_approach_orientation` | false | 最終接近姿勢を強制しない。巡回点では向きより到達を優先 |
 
 > 障害物層は**人を除去しない**（人も普通の障害物として避ける）が、**地面は除去する**。
 > 生 `/lidar/points` は地面点を 46% 含み、costmap の ~90% が LETHAL になって経路が
@@ -168,6 +183,8 @@ flowchart LR
 
 | 日付 | 変更 | 理由 / 結果 |
 |---|---|---|
+| 2026-06-21 | 屋外専用 `config/nav2_params_webots_explore_outdoor.yaml` で `local_costmap.plugins` に `static_layer` を入れる実験を2条件（`footprint_clearing_enabled:false/true`）で実施したが、既定未採用。最終設定は `local_costmap.plugins=["obstacle_layer","inflation_layer"]` に戻した | サイクル22で #6 の robot pose が保存地図/static と global costmap 上は occupied なのに local costmap は free だったため、DWB に保存地図を見せる仮説を検証した。`false` 版は `reached=14/53`, monitor samples `346`, `pose_static_lethal=220`。`true` 版も `reached=14/53`, monitor samples `410`, `pose_global_lethal_static_free=134`, `pose_global_lethal=115`。どちらも cycle20 既定 `reached=16/53` より悪く、#14 で `(4.4〜4.6,1.5〜1.7)` 付近の static/global/local lethal に入る主因を解けない。Nav2 StaticLayer 公式 docs と上流 `static_layer.cpp` を確認し、local static は切り分けには有効だが既定 tuning としては採用しない |
+| 2026-06-20 | `planner_server.GridBased.plugin` を `nav2_navfn_planner/NavfnPlanner` から `nav2_smac_planner/SmacPlanner2D` に変更。Smac 2D の `max_planning_time:3.5`, `cost_travel_multiplier:5.0`, `use_final_approach_orientation:false` を設定。`local_costmap.obstacle_layer.footprint_clearing_enabled:true` を明示。`global_costmap.plugins` から `obstacle_layer` を外し、global は `static_layer + predicted_layer + inflation_layer` に限定。`inflation_radius:0.45`, `cost_scaling_factor:2.0`, `DWB BaseObstacle.scale:0.08` へ変更 | 保存地図AMCL巡回（`slam:=False map_file:=maps/indoor.yaml nav_params_file:=config/nav2_params.yaml`）で、相対パス解決後も Navfn が waypoint #6 `(-0.28,-3.38)` へ `failed to create plan` を繰り返した。Smac 2D では原因が `Starting point in lethal space` と分かった。footprint clearing 後および global obstacle 除去後の評価は `reached=21/22 missed=[6]`。#6 直前の推定位置・#6・#7 は保存地図上 free だったが、走行中にロボットが壁際へ寄り、再計画時の footprint 内に static/inflation の lethal が入った。Nav2 公式の tuning guide は通路全体に滑らかな inflation potential を作り、Smac 2D は `cost_travel_multiplier` で高コスト領域から離すと説明しているため、waypoint 数を減らさず中央寄せを強めた。最終評価（`mode:=realtime`）は `reached=22/22 missed=[]`、#6 も成功。参照: Nav2 Tuning Guide / Smac 2D Planner docs / DWB Controller docs |
 | 2026-06-15 | **STVL 層（`stvl_layer`）を local/global から削除**。人の現在位置の障害物化を `predicted_layer`（予測層）に統合し、`prediction_node` が全トラックの現在位置 + 移動トラックの進路先を予測 OccupancyGrid に焼く。予測パスは confidence しきい撤廃（移動なら必ず焼く）、点列を**線分補間**で連続描画、膨張 6→8 セル | **STVL は人の通過跡を `voxel_decay`(3s) 残すので「移動軌跡のコスト」が出る**問題。予測層は毎フレーム全消去するので軌跡が残らない。これで現在位置・進路先を一括で担う。検証: 進路が出るフレーム 95%→**100%**、進路上の連続性 60%→**77%**、costmap 全体 LETHAL 25%（健全）、壁 100% 維持、ナビ可能 |
 | 2026-06-15 | **予測コストマップ層を自作 C++ プラグイン `susumu_object_perception::PredictedCostmapLayer` に確定**（local/global）。`prediction_node` の予測 OccupancyGrid `/perception/predicted_costmap`(map) を `max` 合成で乗せる。`occupied_threshold:50` | **perception を Nav2 に連携する初の層**。当初 ObstacleLayer 点群方式 → **古い予測が蓄積し costmap が LETHAL 55% でぐちゃぐちゃ**になりナビ不能。次に StaticLayer(OccupancyGrid)方式 → **他層を上書きして壁が消失(LETHAL 0%)**。最終的に **max 合成の自作 C++ 層**で「他層を壊さず(壁100%維持)・蓄積せず(全体22%健全)」を両立。真値検証で移動中の人の進路 0.5m 先占有 58%、NavigateToPose ゴール受理 OK。**標準層では毎フレーム入れ替えデータを costmap に入れられない（ObstacleLayer=蓄積/StaticLayer=上書き）のが教訓** |
 | 2026-06-15 | **3D 障害物層を Nav2 標準 `voxel_layer` → STVL（`spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer`）に置換**（local/global 両方）。`voxel_decay:3.0`(線形)。mark=`/perception/no_ground/pointcloud`、clear=生 `/velodyne_points`(VLP16 frustum, `model_type:1`)。`ros-humble-spatio-temporal-voxel-layer` を apt 導入。2D `obstacle_layer`（/scan）と static_layer は未変更 | **persistence:0 + raytrace だけでは歩く人の跡が消えきらない**（人がレイを遮った背後はクリアされず残る）問題への対策。STVL は voxel に観測時刻を持たせ `voxel_decay` 秒で**時間減衰により自動消去**するため、レイが当たらない領域も寿命切れで消える。動的環境向けの定番手法を既存パッケージ（新規開発なし）で採用 |

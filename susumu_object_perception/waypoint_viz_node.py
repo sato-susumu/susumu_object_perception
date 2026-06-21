@@ -12,6 +12,7 @@ nav2 の map_server が /map に出すので、RViz で Map Display と MarkerAr
 """
 
 import os
+import math
 
 import yaml
 
@@ -42,7 +43,7 @@ class WaypointVizNode(Node):
             with open(path) as f:
                 data = yaml.safe_load(f)
             self.frame_id = data.get('frame_id', self.frame_id)
-            self.waypoints = [(float(p[0]), float(p[1]))
+            self.waypoints = [self._parse_waypoint(p)
                               for p in data.get('waypoints', [])]
             self.get_logger().info(
                 f'loaded {len(self.waypoints)} waypoints from {path}')
@@ -59,6 +60,11 @@ class WaypointVizNode(Node):
         self.create_timer(period, self._publish)
         self._publish()
 
+    @staticmethod
+    def _parse_waypoint(p):
+        yaw = float(p[2]) if len(p) >= 3 and p[2] is not None else None
+        return float(p[0]), float(p[1]), yaw
+
     def _publish(self):
         arr = MarkerArray()
         now = self.get_clock().now().to_msg()
@@ -74,15 +80,15 @@ class WaypointVizNode(Node):
         line.scale.x = 0.06
         line.color = ColorRGBA(r=0.1, g=0.8, b=1.0, a=0.8)
         line.pose.orientation.w = 1.0
-        for (x, y) in self.waypoints:
+        for (x, y, _yaw) in self.waypoints:
             line.points.append(Point(x=x, y=y, z=0.05))
         # ループを閉じる（最後→最初）。
         if len(self.waypoints) > 1:
-            x0, y0 = self.waypoints[0]
+            x0, y0, _yaw0 = self.waypoints[0]
             line.points.append(Point(x=x0, y=y0, z=0.05))
         arr.markers.append(line)
 
-        for i, (x, y) in enumerate(self.waypoints):
+        for i, (x, y, yaw) in enumerate(self.waypoints):
             sph = Marker()
             sph.header.frame_id = self.frame_id
             sph.header.stamp = now
@@ -101,6 +107,25 @@ class WaypointVizNode(Node):
             else:
                 sph.color = ColorRGBA(r=1.0, g=0.85, b=0.1, a=0.95)
             arr.markers.append(sph)
+
+            if yaw is not None:
+                arr_mark = Marker()
+                arr_mark.header.frame_id = self.frame_id
+                arr_mark.header.stamp = now
+                arr_mark.ns = 'waypoint_yaw'
+                arr_mark.id = 2000 + i
+                arr_mark.type = Marker.ARROW
+                arr_mark.action = Marker.ADD
+                arr_mark.scale.x = 0.45
+                arr_mark.scale.y = 0.08
+                arr_mark.scale.z = 0.08
+                arr_mark.pose.position.x = x
+                arr_mark.pose.position.y = y
+                arr_mark.pose.position.z = 0.12
+                arr_mark.pose.orientation.z = math.sin(yaw * 0.5)
+                arr_mark.pose.orientation.w = math.cos(yaw * 0.5)
+                arr_mark.color = ColorRGBA(r=1.0, g=0.35, b=0.05, a=0.9)
+                arr.markers.append(arr_mark)
 
             txt = Marker()
             txt.header.frame_id = self.frame_id

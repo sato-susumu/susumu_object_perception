@@ -15,7 +15,11 @@
 | `webots_indoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=indoor 固定ショートカット |
 | `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
 | `webots_indoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **屋内 world の frontier 探索自律マッピング**。`world:=<屋内wbt> map_name:=<name>`。完了時 `maps/` に自動保存。屋外 world は未対応 |
-| `webots_outdoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **屋外マッピング実験用（実用品質ではない）**。屋内 launch / 屋内 params とは完全分離。`world:=village_center.wbt explore_radius:=12.0` で半径 12m に範囲制限して走らせる。詳細は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md) |
+| `webots_outdoor_glim_mapping.launch.py` | Webots | ✅ | — | GLIM | ✅ | ✅ | ○ | **屋外本線: GLIM で3D点群を作る**。終了後 PLY を `glim_cloud_to_2d_map.py` で2D map化 |
+| `webots_outdoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | 旧 `slam_toolbox` 屋外実験。GLIM-first 方針では本線から外す |
+| `webots_outdoor_waypoint_nav.launch.py` | Webots | ✅ | ✅ | — | ○ | — | ○ | **屋外保存地図 + waypoint 巡回**。`map_file:=village_square_trimmed.yaml waypoints:=village_square_trimmed_waypoints.yaml`。屋外専用 params を使う |
+| `webots_outdoor_gps_nav.launch.py` | Webots | ✅ | — | — | — | — | — | sparse outdoor 用 GPS/IMU global localization 過去実験。本線ではない |
+| `webots_outdoor_gps_nav2.launch.py` | Webots | ✅ | ✅ | — | — | — | — | sparse outdoor 用 GPS/IMU + Nav2 navigation 過去実験。本線ではない |
 | `webots_waypoint_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ○ | **保存ウェイポイントを Nav2 で巡回**。`world:=<wbt> waypoints:=<world>_waypoints.yaml`。`perception:=True` で巡回中の物体認識も |
 | `webots_colored_slam.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **全天球画像で LiDAR 点群に色を付け、2D SLAM/odom 座標へ蓄積**。`/slam/colorized_points_map` |
 | `webots_glim_colored_slam.launch.py` | Webots | ✅ | — | GLIM | ○ | — | ○ | **GLIM の補正済み 3D 座標へ色付き点群を蓄積**。`/slam/glim_colorized_points_map` |
@@ -36,19 +40,79 @@
 [`tasks/waypoint_navigation.md`](tasks/waypoint_navigation.md) を参照。
 
 ```bash
-# 1) 事前地図なしの環境を frontier 探索で自律マッピング（完了時 maps/<name> に自動保存）
+# 屋内: 事前地図なしの環境を frontier 探索で自律マッピング（完了時 maps/<name> に自動保存）
 #    ★ mode は realtime 必須。fast は odom が ~21% 過大積算しドリフト→地図が崩れる
 #      （docs/mid360_lidar_research.md / メモリ参照）。break_room なら world:=break_room.wbt map_name:=break_room
 ros2 launch susumu_object_perception webots_indoor_mapping.launch.py world:=indoor.wbt map_name:=indoor mode:=realtime
 
-# 2) 保存地図から巡回ウェイポイントを生成（壁から離れた自由空間を巡回順に）
+# 屋外: village_center をトリミングした特徴豊富な world を GLIM で3D点群化し、
+#       点群から Nav2 用2D地図を作る
+#    ★ *_gt.yaml は world 由来の正解データで、作成済み地図の評価専用。
+#      map_file や waypoint 生成の入力には使わない。
+ros2 launch susumu_object_perception webots_outdoor_glim_mapping.launch.py \
+  world:=village_square_trimmed.wbt mode:=realtime rviz:=True
+
+# 別端末で、走行中の GLIM pose を TUM trajectory として保存する。
+ros2 run susumu_object_perception save_pose_trajectory_to_tum.py \
+  --topic /glim_ros/pose_corrected \
+  --out maps/glim/village_square_trimmed_pose.tum \
+  --duration-sec 600 \
+  --timeout-sec 660 \
+  --min-poses 100 \
+  --qos reliable
+
+# GLIM 点群が十分に育ったら、現在の colorized GLIM map topic を PLY として保存する。
+ros2 run susumu_object_perception save_pointcloud2_to_ply.py \
+  --topic /slam/glim_colorized_points_map \
+  --out maps/glim/village_square_trimmed_points.ply \
+  --timeout-sec 30 \
+  --min-points 5000 \
+  --qos sensor_data
+
+# loop closure 後の高品質出力を使う場合は、offline_viewer で /tmp/dump を開き、
+# Export Points した PLY を同じパスへ保存する。軌跡も loop closure 後にするなら
+# --trajectory を /tmp/dump/traj_lidar.txt に差し替える。
+ros2 run glim_ros offline_viewer
+
+# 同じPLYを trajectory なし / topic pose / GLIM dump trajectory で横並び評価する。
+# GLIM dump がある場合は `--trajectory dump=/tmp/dump/traj_lidar.txt` も追加する。
+ros2 run susumu_object_perception evaluate_glim_map_variants.py \
+  --cloud maps/glim/village_square_trimmed_points.ply \
+  --wbt webots_worlds/village_square_trimmed.wbt \
+  --out-prefix maps/village_square_trimmed_glim2d_eval \
+  --trajectory topic_pose=maps/glim/village_square_trimmed_pose.tum \
+  --adopt-prefix maps/village_square_trimmed_glim2d \
+  --waypoints-out maps/village_square_trimmed_glim2d_waypoints.yaml \
+  --waypoint-max-segment-length 4.0
+
+# `--waypoint-route-clearance 0.75` は edge 安全余裕の実験用。
+# cycle21 live で悪化したため、屋外既定にはしていない。
+
+ros2 run susumu_object_perception generate_webots_ground_truth_map.py \
+  --wbt webots_worlds/village_square_trimmed.wbt \
+  --out maps/village_square_trimmed_gt.yaml \
+  --preview maps/village_square_trimmed_gt.png
+
+ros2 run susumu_object_perception check_map_vs_world.py \
+  --wbt webots_worlds/village_square_trimmed.wbt \
+  --map maps/village_square_trimmed_glim2d.yaml \
+  --out maps/village_square_trimmed_glim2d_vs_world.png \
+  --report maps/village_square_trimmed_glim2d_vs_world.json \
+  --object-report maps/village_square_trimmed_glim2d_vs_world.csv
+
+# 保存地図から巡回ウェイポイントを生成（屋外は上の --waypoints-out で同時生成）
 ros2 run susumu_object_perception generate_waypoints.py \
   --map maps/city.yaml --out maps/city_waypoints.yaml --spacing 1.5 --clearance 0.4
 
-# 3) ウェイポイントに沿って Nav2 で巡回（perception:=True で巡回中の物体認識も）
+# ウェイポイントに沿って Nav2 で巡回
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
   world:=city_robot.wbt waypoints:=city_waypoints.yaml mode:=realtime \
   perception:=True omni_perception:=True image_recognition:=True
+ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
+  world:=village_square_trimmed.wbt \
+  map_file:=$HOME/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_glim2d.yaml \
+  waypoints:=$HOME/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_glim2d_waypoints.yaml \
+  mode:=realtime loop:=False
 ```
 
 > **注**: 連続したクリーン再起動で FastRTPS の共有メモリトランスポートが壊れ `/scan` が出なく
@@ -71,6 +135,64 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
 | `mode` | `realtime` | webots 全般 | Webots 起動モード（realtime / fast / pause） |
 | `nav_params_file` | （空） | webots_simulation/nav | Nav2 params 差し替え（探索は `config/nav2_params_webots_explore.yaml`） |
 
+## 屋外マッピング / 巡回 launch の主な引数
+
+| launch | 引数 | 既定 | 意味 |
+|---|---|---|---|
+| `webots_outdoor_mapping.launch.py` | `world` | `village_square_trimmed.wbt` | 特徴豊富な trimmed 屋外 world。正解データを見ずに SLAM 地図を作る |
+| `webots_outdoor_mapping.launch.py` | `map_name` | `village_square_trimmed` | 保存する `maps/<name>.yaml/.pgm` |
+| `webots_outdoor_mapping.launch.py` | `explore_radius` | `14.0` | frontier 探索を初期位置から半径 R[m] に制限 |
+| `webots_outdoor_mapping.launch.py` | `goal_timeout_sec` | `120.0` | 屋外 frontier の 1 goal 到達猶予。10m 級 goal を早く諦めすぎない |
+| `webots_outdoor_mapping.launch.py` | `mode` | `realtime` | 採用評価は realtime |
+| `webots_outdoor_waypoint_nav.launch.py` | `world` | `village_square_trimmed.wbt` | 巡回する屋外 world |
+| `webots_outdoor_waypoint_nav.launch.py` | `map_file` | `village_square_trimmed.yaml` | AMCL/map_server に読む保存地図。maps/ 配下の filename または絶対パス |
+| `webots_outdoor_waypoint_nav.launch.py` | `waypoints` | `village_square_trimmed_waypoints.yaml` | maps/ 配下の waypoint YAML、または生成直後の source 側 YAML 絶対パス |
+| `webots_outdoor_waypoint_nav.launch.py` | `nav_params_file` | `nav2_params_webots_explore_outdoor.yaml` | 屋外専用 Nav2 params |
+| `webots_outdoor_waypoint_nav.launch.py` | `goal_timeout_sec` | `120.0` | 各 outdoor waypoint の NavigateToPose 到達猶予 |
+| `webots_outdoor_waypoint_nav.launch.py` | `report_prefix` | 空 | 指定すると `<prefix>.json/.csv/.md` に reached/missed を保存 |
+| `webots_outdoor_waypoint_nav.launch.py` | `mission_timeout_sec` | `0.0` | 0 以下なら無効。wall-clock で巡回評価全体を打ち切る |
+| `webots_outdoor_waypoint_nav.launch.py` | `costmap_monitor` | `False` | 評価時だけ `nav2_pose_costmap_monitor_node.py` を起動し、pose/static/global/local costmap/plan/scan と waypoint edge / path error / robot trace を記録 |
+| `webots_outdoor_waypoint_nav.launch.py` | `costmap_monitor_prefix` | 空 | `costmap_monitor:=True` のとき `<prefix>.json/.csv/.md/.png` に診断と軌跡重畳画像を保存 |
+| `webots_outdoor_waypoint_nav.launch.py` | `behavior_tree` | 空 | `NavigateToPose` goal に渡す BT XML。空なら Nav2 既定 recovery BT。`behavior_trees/outdoor_patrol_replanning_no_recovery.xml` は cycle22 で悪化したため診断用 |
+| `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_guard` | `False` | 診断用。True で現在姿勢が global costmap 高コストセルに入ったら最後の安全AMCL姿勢へ戻る goal を挟む。cycle27 では既定未採用 |
+| `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_cost_threshold` | `80` | `safe_pose_guard` の危険判定 costmap 値 |
+| `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_safe_threshold` | `40` | `safe_pose_guard` が最後の安全姿勢として記録する最大 costmap 値 |
+| `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_hold_sec` | `1.0` | 危険 cost が継続したとみなす保持時間[s] |
+| `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_recovery_timeout_sec` | `25.0` | 最後の安全姿勢へ戻る `NavigateToPose` recovery goal の timeout[s] |
+
+`generate_webots_ground_truth_map.py` が出す `maps/*_gt.yaml` は評価専用の正解データ。
+`webots_outdoor_waypoint_nav.launch.py map_file:=...` には渡さない。
+
+## 屋外 GPS launch の主な引数（過去実験）
+
+| 引数 | 既定 | 意味 |
+|---|---|---|
+| `world` | `outdoor.wbt` | sparse outdoor GPS 実験で使う Webots world |
+| `mode` | `realtime` | Webots 起動モード。採用評価は `realtime` |
+| `run_follower` | `True` | `True` なら GPS localization に加えて地図なし smoke follower も起動 |
+| `waypoints` | `maps/outdoor_gps_smoke_waypoints.yaml` | 初期 GPS 位置からの相対 waypoint |
+| `output_prefix` | `/tmp/outdoor_gps_nav` | follower の JSON/CSV/Markdown 出力先 prefix |
+
+詳細と評価値は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md#gps-waypoint--localization-prototype2026-06-21) を参照。
+
+## 屋外 GPS + Nav2 launch の主な引数
+
+| 引数 | 既定 | 意味 |
+|---|---|---|
+| `world` | `outdoor.wbt` | sparse outdoor Nav2 実験で使う Webots world |
+| `mode` | `realtime` | Webots 起動モード。採用評価は `realtime` |
+| `run_waypoints` | `True` | `True` なら Nav2 起動後に smoke waypoint を `NavigateToPose` で順に送る |
+| `waypoints` | `maps/outdoor_gps_smoke_waypoints.yaml` | 初期 GPS 位置からの相対 waypoint |
+| `output_prefix` | `/tmp/outdoor_nav2_gps_nav` | Nav2 waypoint runner の JSON/CSV/Markdown 出力先 prefix |
+| `nav2_params` | `config/nav2_params_outdoor_gps.yaml` | static map なし rolling costmap の Nav2 params |
+| `goal_timeout_sec` | `90.0` | 各 `NavigateToPose` goal の wall-clock timeout。sim time 初期ジャンプの影響を避けるため runner 内では wall clock で判定 |
+| `mission_timeout_sec` | `300.0` | waypoint runner 全体の wall-clock timeout |
+
+比較用に `config/nav2_params_outdoor_gps_smac_rpp.yaml` もあるが、`outdoor_gps_5m_waypoints.yaml`
+では reached `1/4` に悪化したため未採用。通常は `config/nav2_params_outdoor_gps.yaml` を使う。
+
+詳細と評価値は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md#gps-localization--nav2-navigation-prototype2026-06-21) を参照。
+
 ## 色付き点群系 launch の主な引数
 
 | launch | 引数 | 既定 | 意味 |
@@ -80,6 +202,9 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
 | `webots_colored_slam.launch.py` | `perception` | `False` | Autoware perception を併走するか |
 | `webots_colored_slam.launch.py` | `image_recognition` | `False` | YOLO 物体分類 + 全天球信号認識を併走するか |
 | `webots_colored_slam.launch.py` | `omni_calibration_json` | 空 | LiDAR-camera 外部キャリブレーション結果 |
+| `webots_outdoor_glim_mapping.launch.py` | `world` | `village_square_trimmed.wbt` | GLIM で3D点群地図を作る屋外 world |
+| `webots_outdoor_glim_mapping.launch.py` | `teleop_gui` | `True` | 手動走行用 GUI を起動する |
+| `webots_outdoor_glim_mapping.launch.py` | `glim_config_path` | `config/glim_webots` | GLIM 設定ディレクトリ |
 | `webots_glim_colored_slam.launch.py` | `glim_config_path` | `config/glim_webots` | GLIM 設定ディレクトリ |
 | `webots_glim_colored_slam.launch.py` | `image_recognition` | `False` | YOLO 物体分類 + 全天球信号認識を併走するか |
 | `webots_glim_colored_slam.launch.py` | `lidar_model` | `mid360` | LiDAR model metadata |

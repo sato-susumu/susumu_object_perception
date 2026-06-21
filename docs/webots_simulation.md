@@ -281,7 +281,7 @@ ros2 launch susumu_object_perception webots_simulation.launch.py world:=indoor.w
 | `/scan` が「全周の一部しか出ていない」ように見える | **`ros2 topic echo /scan` のテキスト出力が長い `ranges` 配列を省略表示**するのを手作業パースで誤読しただけ（実際は 723 点・全周 -180〜180 正常） | **点数/分布は echo テキストでなく `sensor_msgs_py.point_cloud2` / LaserScan を Python でデコードして数える**。echo の見た目で判断しない |
 | 起動直後ロボットが動かない・controller が `Passing new path` を繰り返すだけ | **TF(map/odom)が未安定**な起動直後。`Invalid frame ID "odom"` 等が出る | 数十秒待つと TF が揃い `Reached the goal!` で正常探索に入る。遅延起動値（frontier は +22s 等）をむやみに詰めない |
 | `nav2_params_webots_explore.yaml` の `use_sim_time` が `False` だらけで不安になる | **nav2_bringup の RewrittenYaml が起動時に `True` で上書き**するので実害なし | 実行値は `ros2 param get /controller_server use_sim_time` で確認（全ノード True になる）。yaml の値に惑わされない |
-| 地図がぶれる（二重壁/斜め/星形） | 最有力は **`mode:=fast` の odom 21% 過大積算**（[mid360_lidar_research](mid360_lidar_research.md)）。`mode:=realtime` 前提なら衝突や TF 不整合を疑う | `mode:=realtime` で再現するか確認。バンパー(`/bumper/collision`)＋衝突診断ノードで「衝突しているか／scan・costmap に障害物が乗っているか」を切り分ける。屋内の合格基準は [マッピング（屋内）タスク](tasks/mapping_indoor.md)。広い outdoor/city は[未対応](tasks/mapping_outdoor.md) |
+| 地図がぶれる（二重壁/斜め/星形） | 最有力は **`mode:=fast` の odom 21% 過大積算**（[mid360_lidar_research](mid360_lidar_research.md)）。`mode:=realtime` 前提なら衝突や TF 不整合を疑う | `mode:=realtime` で再現するか確認。屋外/屋内 Webots では `evaluate_gps_vs_slam.py` で GPS 真値と `map`/`odom` TF の差分を記録できる。バンパー(`/bumper/collision`)＋衝突診断ノードで「衝突しているか／scan・costmap に障害物が乗っているか」も切り分ける。屋内の合格基準は [マッピング（屋内）タスク](tasks/mapping_indoor.md)。広い outdoor/city は[未対応](tasks/mapping_outdoor.md) |
 
 > ヘッドレス環境では Webots も X を要求するため `DISPLAY=:0` が要る（X サーバが居る前提）。
 > GUI を見たいときは `--no-rendering`/`--minimize` を外して起動する。

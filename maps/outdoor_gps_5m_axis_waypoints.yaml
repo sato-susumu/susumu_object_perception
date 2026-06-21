@@ -1,0 +1,10 @@
+frame_id: gps_local
+source_world: outdoor.wbt
+waypoint_format: '[x_m, y_m] relative to initial GPS position'
+purpose: 5m-leg sparse outdoor Nav2 GPS navigation baseline away from obstacles
+notes: axis route through x=0 separates long-distance GPS/Nav2 behavior from obstacle-avoidance stress
+waypoints:
+- [0.0, -5.0]
+- [0.0, 0.0]
+- [0.0, 5.0]
+- [0.0, 0.0]

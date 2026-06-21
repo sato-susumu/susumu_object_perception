@@ -1,0 +1,9 @@
+frame_id: gps_local
+source_world: outdoor.wbt
+waypoint_format: '[x_m, y_m] relative to initial GPS position'
+purpose: smoke test for sparse outdoor mapless GPS waypoint navigation
+waypoints:
+- [0.8, 0.0]
+- [0.8, 0.8]
+- [0.0, 0.8]
+- [0.0, 0.0]

@@ -44,9 +44,8 @@ from vision_msgs.msg import Detection2DArray, Detection2D, \
 import cv2
 from cv_bridge import CvBridge
 
-# 全天球（Webots cylindrical）→ 透視投影に使う取り付け姿勢回転。色付き点群ノードと共有。
-from susumu_object_perception.colorized_pointcloud_node import (
-    WEBOTS_CYLINDRICAL_ROT)
+from susumu_object_perception.omni_projection import (
+    equirect_uv, perspective_directions)
 
 
 def equirect_to_perspective(pano, yaw, pitch, fov, out_w, out_h,
@@ -60,37 +59,10 @@ def equirect_to_perspective(pano, yaw, pitch, fov, out_w, out_h,
     cy, sy = math.cos(yaw), math.sin(yaw)
     cp, sp = math.cos(pitch), math.sin(pitch)
     forward = np.array([cp * cy, cp * sy, sp], dtype=np.float32)
-    world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
-    if abs(float(np.dot(forward, world_up))) > 0.95:
-        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    right = np.cross(forward, world_up)
-    right /= max(np.linalg.norm(right), 1e-6)
-    up = np.cross(right, forward)
-    up /= max(np.linalg.norm(up), 1e-6)
-
-    xs = np.linspace(-1.0, 1.0, out_w, dtype=np.float32)
-    ys = np.linspace(-1.0, 1.0, out_h, dtype=np.float32)
-    xx, yy = np.meshgrid(xs, ys)
-    tan_half = math.tan(fov / 2.0)
-    aspect = out_w / float(out_h)
-    dirs = (forward.reshape(1, 1, 3) +
-            right.reshape(1, 1, 3) * (xx[..., None] * tan_half * aspect) +
-            up.reshape(1, 1, 3) * (-yy[..., None] * tan_half))
-    dirs /= np.maximum(np.linalg.norm(dirs, axis=2, keepdims=True), 1e-6)
+    dirs = perspective_directions(forward, out_w, out_h, fov)
 
     h, w = pano.shape[:2]
-    if projection_model == 'webots_cylindrical':
-        dirs_proj = dirs @ WEBOTS_CYLINDRICAL_ROT.T
-        yaw_p = np.arctan2(dirs_proj[:, :, 1], dirs_proj[:, :, 0])
-        z_unit = np.clip(dirs_proj[:, :, 2], -1.0, 1.0)
-        v_angle = np.arccos(z_unit) - math.pi / 2.0
-        map_x = ((0.5 - yaw_p / (2.0 * math.pi)) * w % w).astype(np.float32)
-        map_y = ((0.5 + v_angle / math.pi) * h).astype(np.float32)
-    else:
-        yaw_p = np.arctan2(-dirs[:, :, 1], dirs[:, :, 0])
-        pitch_p = np.arcsin(np.clip(dirs[:, :, 2], -1.0, 1.0))
-        map_x = (((yaw_p + math.pi) / (2.0 * math.pi) * w) % w).astype(np.float32)
-        map_y = ((math.pi / 2.0 + pitch_p) / math.pi * h).astype(np.float32)
+    map_x, map_y, _ = equirect_uv(dirs, w, h, projection_model)
     return cv2.remap(pano, map_x, map_y, interpolation=cv2.INTER_LINEAR,
                      borderMode=cv2.BORDER_WRAP)
 

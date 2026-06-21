@@ -33,17 +33,27 @@ def generate_launch_description():
     use_perception = LaunchConfiguration('perception')
     use_omni_perception = LaunchConfiguration('omni_perception')
     use_image_recognition = LaunchConfiguration('image_recognition')
+    object_yolo_weights = LaunchConfiguration('object_yolo_weights')
+    object_yolo_imgsz = LaunchConfiguration('object_yolo_imgsz')
+    object_crop_fovs_deg = LaunchConfiguration('object_crop_fovs_deg')
+    object_classifier_debug = LaunchConfiguration('object_classifier_debug')
     indoor_objects = LaunchConfiguration('indoor_objects')
+    use_slam = LaunchConfiguration('slam')
+    map_file = LaunchConfiguration('map_file')
     use_colored_slam = LaunchConfiguration('colored_slam')
     lidar_model = LaunchConfiguration('lidar_model')
+    scan_min_height = LaunchConfiguration('scan_min_height')
+    scan_max_height = LaunchConfiguration('scan_max_height')
+    scan_angle_increment = LaunchConfiguration('scan_angle_increment')
+    scan_range_min = LaunchConfiguration('scan_range_min')
+    scan_range_max = LaunchConfiguration('scan_range_max')
+    scan_use_inf = LaunchConfiguration('scan_use_inf')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
     nav_params_file = LaunchConfiguration('nav_params_file')
 
-    # robot + Webots + Nav2 + SLAM。webots_simulation を nav:=True slam:=True で呼ぶだけ。
-    # Nav2 の bringup が slam:=True のとき slam_toolbox を 1 個起動し map->odom を供給する
-    # （AMCL は起動しない）。以前は別途 webots_slam を足していたが、bringup に委譲して
-    # slam_toolbox を一本化したので不要になった（二重起動・TF 競合の根絶）。
+    # robot + Webots + Nav2。slam:=True なら Nav2 bringup の slam_toolbox、
+    # slam:=False なら map_file の保存地図 + AMCL を使う。
     robot_nav = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg, 'launch', 'webots_simulation.launch.py')),
@@ -51,14 +61,25 @@ def generate_launch_description():
             ('world', world),
             ('mode', mode),
             ('nav', 'True'),
-            ('slam', 'True'),
+            ('slam', use_slam),
+            ('map_file', map_file),
             ('rviz', use_rviz),
             ('perception', use_perception),
             ('omni_perception', use_omni_perception),
             ('image_recognition', use_image_recognition),
+            ('object_yolo_weights', object_yolo_weights),
+            ('object_yolo_imgsz', object_yolo_imgsz),
+            ('object_crop_fovs_deg', object_crop_fovs_deg),
+            ('object_classifier_debug', object_classifier_debug),
             ('indoor_objects', indoor_objects),
             ('colored_slam', use_colored_slam),
             ('lidar_model', lidar_model),
+            ('scan_min_height', scan_min_height),
+            ('scan_max_height', scan_max_height),
+            ('scan_angle_increment', scan_angle_increment),
+            ('scan_range_min', scan_range_min),
+            ('scan_range_max', scan_range_max),
+            ('scan_use_inf', scan_use_inf),
             ('omni_calibration_json', omni_calibration_json),
             ('use_sim_time', use_sim_time),
             ('nav_params_file', nav_params_file),
@@ -82,17 +103,53 @@ def generate_launch_description():
             'indoor_objects', default_value='False',
             description='室内物体検出（高所除外+床付近の家具を検出/識別）。室内 world で True'),
         DeclareLaunchArgument(
+            'slam', default_value='True',
+            description='True: slam_toolbox で地図生成しながら巡回 / False: map_file の保存地図 + AMCL'),
+        DeclareLaunchArgument(
+            'map_file', default_value='',
+            description='slam:=False で Nav2/AMCL に読ませる地図 yaml。空なら TurtleBot3 既定地図'),
+        DeclareLaunchArgument(
             'omni_perception', default_value='True',
             description='全天球カメラ連携（色付き点群/クロップ補助）を起動する'),
         DeclareLaunchArgument(
             'image_recognition', default_value='True',
             description='YOLO 物体分類 + 全天球信号認識を起動する。重いときは False'),
         DeclareLaunchArgument(
+            'object_yolo_weights', default_value='yolov8s-seg.pt',
+            description='object_classifier_node.py の YOLO weight'),
+        DeclareLaunchArgument(
+            'object_yolo_imgsz', default_value='640',
+            description='object_classifier_node.py の YOLO 推論画像サイズ'),
+        DeclareLaunchArgument(
+            'object_crop_fovs_deg', default_value='',
+            description='object_classifier_node.py の複数FOVクロップ（例: 75,55,40）'),
+        DeclareLaunchArgument(
+            'object_classifier_debug', default_value='False',
+            description='True で /perception/object_classifier/debug に YOLO 候補の採否理由を出す'),
+        DeclareLaunchArgument(
             'colored_slam', default_value='True',
             description='色付き点群SLAMマップを /slam/colorized_points_map に出す'),
         DeclareLaunchArgument(
             'lidar_model', default_value='mid360',
             description='3D LiDAR model metadata: mid360 / vlp16'),
+        DeclareLaunchArgument(
+            'scan_min_height', default_value='0.1',
+            description='pointcloud_to_laserscan の min_height[m]。既定は屋内向け値'),
+        DeclareLaunchArgument(
+            'scan_max_height', default_value='2.0',
+            description='pointcloud_to_laserscan の max_height[m]。既定は屋内向け値'),
+        DeclareLaunchArgument(
+            'scan_angle_increment', default_value='0.0087',
+            description='pointcloud_to_laserscan の角度分解能[rad]。既定は約0.5deg'),
+        DeclareLaunchArgument(
+            'scan_range_min', default_value='0.3',
+            description='pointcloud_to_laserscan の range_min[m]'),
+        DeclareLaunchArgument(
+            'scan_range_max', default_value='40.0',
+            description='pointcloud_to_laserscan の range_max[m]'),
+        DeclareLaunchArgument(
+            'scan_use_inf', default_value='True',
+            description='pointcloud_to_laserscan の use_inf'),
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='direct_visual_lidar_calibration の calib.json。空なら初期TF'),

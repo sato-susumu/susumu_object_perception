@@ -55,7 +55,10 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 
 2. **主要な対象色が入れ替わらない**
    `calibration.wbt` の赤/黄パネル、緑箱、マゼンタ円柱など、方位を変えても明らかな色入れ替わりがない。
-   定量確認には `validate_omni_colorization.py` を使う。
+   定量確認には `validate_omni_colorization.py` を使う。summary の
+   `large_image_projection_error_deg` は大ターゲットだけの投影誤差で、小球マーカー由来の不安定さを
+   分けて見るための補助値。合格確認では大ターゲットの色一致率 `min_large_target_score` 以上、
+   大ターゲット投影誤差 `max_large_image_error_deg` 以下を満たすこと。
 
 3. **蓄積地図が増える**
    `colored_slam:=True` では `/slam/colorized_points_map` が `map` または `odom` frame で増える。
@@ -76,7 +79,7 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
   代替ではない。
 - GLIM は独立した `glim_*` TF ツリーで動かす。Nav2 の `map/odom/base_link` と混ぜない。
 - `mode:=fast` は軽い確認には使えるが、LiDAR/IMU のサンプル不足や時刻外挿が出やすい。厳密検証は
-  `mode:=realtime`。
+  `validate_omni_colorization.py --mode realtime`。
 - 全点に色が入っていても、外部パラメータが正しいとは限らない。位置合わせ品質は
   `validate_omni_colorization.py` やキャリブレーション用 world で確認する。
 
@@ -88,10 +91,64 @@ ros2 topic hz /perception/colorized_points
 ros2 topic echo --once /perception/colorized_points --field fields \
   --qos-reliability best_effort
 
+# 軽い健全性確認（1方位だけ）
+ros2 run susumu_object_perception validate_omni_colorization.py \
+  --yaws 0 --startup-sec 35 --grab-timeout-sec 15 --require-pass \
+  --min-large-target-score 0.40 --max-large-image-error-deg 10.0 \
+  --mode fast \
+  --out-prefix /tmp/omni_colorization_fast_yaw0
+
+# 厳密確認（時間はかかるが realtime で4方向）
 ros2 run susumu_object_perception validate_omni_colorization.py \
   --yaws 0,90,180,270 --startup-sec 35 --grab-timeout-sec 15 --require-pass \
-  --min-large-target-score 0.40
+  --min-large-target-score 0.40 --max-large-image-error-deg 10.0 \
+  --mode realtime \
+  --out-prefix /tmp/omni_colorization_realtime_4yaw
 ```
+
+`--out-prefix` を指定すると JSON / CSV / Markdown の評価レポートを保存する。標準出力だけだと
+過去 run と比較しづらいため、採用/未採用判断ではレポートも成果物として残す。
+
+### 直近結果（2026-06-21）
+
+`validate_omni_colorization.py` に次を追加した。
+
+- `--out-prefix`: JSON / CSV / Markdown の評価レポート保存。
+- `--max-large-image-error-deg`: 小球マーカーを除いた大ターゲット専用の投影誤差ゲート。既定 10deg。
+
+軽量 1 方位確認:
+
+```bash
+ros2 run susumu_object_perception validate_omni_colorization.py \
+  --yaws 0 --startup-sec 35 --grab-timeout-sec 15 --require-pass \
+  --min-large-target-score 0.40 --mode fast \
+  --out-prefix /tmp/omni_colorization_fast_yaw0_v2
+```
+
+結果は `validation_passed=true`。レポートは
+`/tmp/omni_colorization_fast_yaw0_v2.{json,csv,md}` に保存された。
+
+| 指標 | 値 |
+|---|---:|
+| `color_score_mean` | 0.769 |
+| `color_score_min` | 0.042 |
+| `image_projection_error_deg_mean` | 8.124 |
+| `image_projection_error_deg_max` | 19.835 |
+| `large_image_projection_error_deg_mean` | 4.708 |
+| `large_image_projection_error_deg_max` | 8.175 |
+
+小球の orange / white marker は点数が少なく、score や centroid が不安定なまま。大ターゲット
+（赤/黄パネル、緑箱、マゼンタ円柱）は色一致率が合格し、投影誤差も 10deg ゲート内に収まった。
+このため現状の合格判定は「主要ターゲットの色入れ替わりが無いこと」を確認する実用ゲートであり、
+1deg 未満の精密外部較正を証明するものではない。
+
+方針参考:
+
+- Webots Camera reference: cylindrical projection は equirectangular 画像を生成する。
+  <https://www.cyberbotics.com/doc/reference/camera>
+- direct_visual_lidar_calibration program details: `--camera_model equirectangular` と
+  `calib.json` の `T_lidar_camera` を扱える。
+  <https://koide3.github.io/direct_visual_lidar_calibration/programs/>
 
 ## 関連
 

@@ -138,7 +138,10 @@ controller_server:
       debug_trajectory_details: False
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 0.22
+      # 屋外保存地図巡回では 0.22m/s だと waypoint 間の停止/再加速を含めた実効速度が低く、
+      # 60s bounded 評価で 4/80 点に留まった。屋内標準 params と同じ TurtleBot3 waffle
+      # 上限 0.26m/s に揃え、屋外だけ巡回スループットを上げる。
+      max_vel_x: 0.26
       max_vel_y: 0.0
       # 旋回上限。0.17 だと slam の minimum_travel_heading に達せず地図が更新されず、0.3 だと
       # ゴール方向への向き直りが遅く DWB が "Failed to make progress" を多発しロボットが原点付近
@@ -146,7 +149,7 @@ controller_server:
       # 0.6 に上げて経路追従を回復する（地図崩れは mode:=fast が主因で realtime なら 0.6 でも可）。
       max_vel_theta: 0.6
       min_speed_xy: 0.0
-      max_speed_xy: 0.22
+      max_speed_xy: 0.26
       min_speed_theta: 0.0
       # Add high threshold velocity for turtlebot 3 issue.
       # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
@@ -198,7 +201,7 @@ local_costmap:
       # 実機 waffle 相当(半径~0.22m)に。0.1 は小さすぎて planner が壁ぎりぎりまで寄る
       # 経路を引き、マッピング中に壁へ衝突→自己位置がズレて地図が崩れる原因だった。
       robot_radius: 0.22
-      plugins: ["obstacle_layer", "voxel_layer", "inflation_layer"]
+      plugins: ["obstacle_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # マッピング中に壁から十分離れるよう 0.35→0.5。大きすぎる(既定1.0)と狭い自由空間が
@@ -209,35 +212,16 @@ local_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
+        footprint_clearing_enabled: True
+        observation_persistence: 0.0
         observation_sources: scan
         scan:
           topic: /scan
           max_obstacle_height: 2.0
+          inf_is_valid: True
           clearing: True
           marking: True
           data_type: "LaserScan"
-      voxel_layer:
-        plugin: "nav2_costmap_2d::VoxelLayer"
-        enabled: True
-        publish_voxel_map: True
-        origin_z: 0.0
-        z_resolution: 0.05
-        z_voxels: 16
-        max_obstacle_height: 2.0
-        mark_threshold: 0
-        observation_sources: scan
-        scan:
-          topic: /scan
-          max_obstacle_height: 2.0
-          clearing: True
-          marking: True
-          data_type: "LaserScan"
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
-      static_layer:
-        map_subscribe_transient_local: True
       always_send_full_costmap: True
   local_costmap_client:
     ros__parameters:
@@ -264,41 +248,11 @@ global_costmap:
       robot_radius: 0.22
       resolution: 0.05
       track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "voxel_layer", "inflation_layer"]
-      obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: True
-        observation_sources: scan
-        scan:
-          topic: /scan
-          max_obstacle_height: 2.0
-          clearing: True
-          marking: True
-          data_type: "LaserScan"
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
-      voxel_layer:
-        plugin: "nav2_costmap_2d::VoxelLayer"
-        enabled: True
-        publish_voxel_map: True
-        origin_z: 0.0
-        z_resolution: 0.05
-        z_voxels: 16
-        max_obstacle_height: 2.0
-        mark_threshold: 0
-        observation_sources: scan
-        scan:
-          topic: /scan
-          max_obstacle_height: 2.0
-          clearing: True
-          marking: True
-          data_type: "LaserScan"
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
+      # Global planning during SLAM should be based on the SLAM OccupancyGrid.
+      # Raw /scan obstacle layers are kept out of the global costmap so a
+      # transient mark under the robot cannot make the planner start cell
+      # lethal. Local costmap still handles immediate obstacle avoidance.
+      plugins: ["static_layer", "inflation_layer"]
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
@@ -397,11 +351,12 @@ waypoint_follower:
 # 上向き偏重 FOV で水平の壁に当たる点が疎なため、slam_toolbox がスキャンマッチングで
 # 無理に補正すると逆に壁をズラして地図が崩れる。そこで「odom を信頼し、スキャンマッチ
 # 補正は控えめ」に振る:
-#  - distance/angle_variance_penalty を小さく（0.3/0.6）: odom 予測解から離れにくくする
+#  - distance/angle_variance_penalty を小さく（0.2/0.3）: odom 予測解から離れにくくする
 #    （slam_toolbox では penalty が小さいほど odom 予測を信頼）。
-#  - correlation_search_space_dimension 0.5→0.3: マッチ探索窓を狭め、大きくズレない。
-#  - /scan は生点群を高さ帯(z>=0.05, lidar_link基準, max_height=2.5m)で 2D 化（launch 側
-#    pointcloud_to_laserscan）。未ヒット ray は `+inf` のまま（use_inf:True）。
+#  - correlation_search_space_dimension 0.5→0.2: マッチ探索窓を狭め、大きくズレない。
+#  - coarse_search_angle_offset を 20deg→10deg に狭め、旋回時に別方向の特徴へ飛びにくくする。
+#  - /scan は屋外 launch だけ高さ帯(z>=0.0, lidar_link基準, max_height=2.5m)で 2D 化
+#    （launch 側 pointcloud_to_laserscan）。未ヒット ray は `+inf` のまま（use_inf:True）。
 #    Karto は inf/range_max超えの ray を完全無視するので free 上書きは起きない。
 #  - max_laser_range 15: 屋内(5〜10m)の遠い誤マッチを抑えつつ屋外の建物近傍も拾える妥協値。
 #    18 に上げて遠方を活用しようとしたが scan match が不安定化し自己位置喪失したので 15 維持。
@@ -432,11 +387,13 @@ slam_toolbox:
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000
     enable_interactive_mode: false
-    minimum_travel_distance: 0.3
-    minimum_travel_heading: 0.3
+    # cycle13 の GPS truth 監視で、約80s以降に map 推定の heading が 50deg 級でずれた。
+    # 移動/旋回を細かくノード化し、1回の scan matching が大きく姿勢を動かしにくい設定にする。
+    minimum_travel_distance: 0.2
+    minimum_travel_heading: 0.15
     scan_buffer_size: 10
     scan_buffer_maximum_scan_distance: 15.0
-    link_match_minimum_response_fine: 0.12
+    link_match_minimum_response_fine: 0.15
     link_scan_maximum_distance: 1.5
     do_loop_closing: true
     loop_match_minimum_chain_size: 8
@@ -448,15 +405,15 @@ slam_toolbox:
     loop_search_space_resolution: 0.05
     loop_search_space_smear_deviation: 0.03
     # スキャンマッチ探索窓を狭め odom 近傍のみ探索（大ズレ防止）。
-    correlation_search_space_dimension: 0.3
+    correlation_search_space_dimension: 0.2
     correlation_search_space_resolution: 0.01
     correlation_search_space_smear_deviation: 0.1
     # odom 信頼寄り: penalty を小さくし odom 予測解から離れにくくする。
-    distance_variance_penalty: 0.3
-    angle_variance_penalty: 0.6
+    distance_variance_penalty: 0.2
+    angle_variance_penalty: 0.3
     fine_search_angle_offset: 0.00349
-    coarse_search_angle_offset: 0.349
-    coarse_angle_resolution: 0.0349
+    coarse_search_angle_offset: 0.1745
+    coarse_angle_resolution: 0.01745
     minimum_angle_penalty: 0.9
     minimum_distance_penalty: 0.5
     use_response_expansion: true

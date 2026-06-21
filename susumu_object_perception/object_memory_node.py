@@ -63,6 +63,78 @@ LABEL_NAMES = {
 }
 
 
+MEMORY_CLASS_NORMALIZATION = {
+    # COCO は観葉植物の鉢を vase と見ることが多い。セマンティック地図では
+    # 「植物」として扱った方が重複登録もクエリも安定する。
+    'vase': 'potted plant',
+    'person': 'pedestrian',
+    'sofa': 'couch',
+    'table': 'dining table',
+    'fridge': 'refrigerator',
+    # Webots indoor の PottedTree は、全天球クロップで樹冠が umbrella として
+    # 出ることがある。静的認識メモリでは plant として扱う。
+    'umbrella': 'potted plant',
+}
+
+SEMANTIC_CLASS_KEYS = {
+    'potted plant': 'plant',
+    'vase': 'plant',
+    'couch': 'couch',
+    'sofa': 'couch',
+    'dining table': 'table',
+    'table': 'table',
+    'refrigerator': 'refrigerator',
+    'fridge': 'refrigerator',
+    'pedestrian': 'pedestrian',
+    'person': 'pedestrian',
+}
+
+
+# Recognition-task oriented static-object sanity checks. These are disabled by
+# default because moving-object memory should accept partial observations.
+STATIC_CLASS_GEOMETRY_RULES = {
+    # key: semantic_class_key -> (min planar area [m^2], max planar area [m^2], max aspect)
+    'plant': (0.04, 0.65, 3.0),
+    'couch': (0.45, 3.0, 3.0),
+    'table': (0.25, 3.5, 5.0),
+    'chair': (0.12, 0.6, 4.0),
+    'refrigerator': (0.15, 2.5, 5.0),
+}
+
+
+def normalize_class_name(name):
+    name = str(name or 'unknown').strip().lower().replace('_', ' ')
+    while '  ' in name:
+        name = name.replace('  ', ' ')
+    return MEMORY_CLASS_NORMALIZATION.get(name, name)
+
+
+def semantic_class_key(name):
+    name = normalize_class_name(name)
+    return SEMANTIC_CLASS_KEYS.get(name, name)
+
+
+def string_list(value):
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value else []
+    try:
+        return [str(v) for v in value if str(v)]
+    except TypeError:
+        return []
+
+
+def class_name_list(value):
+    names = []
+    for item in string_list(value):
+        for part in item.replace('|', ',').split(','):
+            part = part.strip()
+            if part:
+                names.append(normalize_class_name(part))
+    return names
+
+
 def yaw_from_quat(q):
     siny = 2.0 * (q.w * q.z + q.x * q.y)
     cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
@@ -84,6 +156,10 @@ class ObjectMemoryNode(Node):
             'fine_class_topic', '/perception/object_fine_classes')
         # 副チャネルの UUID→COCO名 をこの秒数だけ保持（古い対応は捨てる）。
         self.declare_parameter('fine_class_ttl', 3.0)
+        # 認識タスクの最終成果物では、tracker の幾何推定だけで付いた pedestrian 等を
+        # 記憶せず、YOLO の fine class が来た物体だけを記憶する。
+        self.declare_parameter('require_fine_class', False)
+        self.declare_parameter('min_fine_conf', 0.0)
         self.declare_parameter('map_frame', 'map')
         self.declare_parameter('map_topic', '/map')
         # 視野判定の原点（全天球カメラ）。視野内非検出の negative observation に使う。
@@ -105,6 +181,25 @@ class ObjectMemoryNode(Node):
         self.declare_parameter('publish_min_existence', 0.3)
         # 確定（記憶として信頼）に必要な最小検出回数。
         self.declare_parameter('min_hits', 3)
+        # 静的物体の記憶用: 物体中心が保存地図の占有セルから離れすぎている場合は
+        # 背景誤分類や空間ゴーストとみなし、DB に登録しない。動的物体記憶では False のまま使う。
+        self.declare_parameter('require_map_support', False)
+        self.declare_parameter('map_support_dist', 0.55)
+        self.declare_parameter('map_support_occupied_threshold', 50)
+        # 静的物体の認識成果物向け: クラスごとの平面形状として明らかに不自然な
+        # 候補を DB 登録前に落とす。評価後処理ではなく、認識メモリ側の誤登録抑制。
+        self.declare_parameter('static_class_geometry_filter', False)
+        # 静的物体の認識成果物向け: LiDAR クラスタ分割や視点差で同一物体が
+        # 近接した複数 DB object になった場合、同じ semantic class の近傍候補を
+        # DB 内で統合する。通常の動的物体メモリでは 0.0 のまま無効。
+        self.declare_parameter('static_duplicate_merge_dist', 0.0)
+        # 静的物体の認識成果物向け: YOLO が chair/couch/table など近い語彙で
+        # 揺れた場合も、指定した互換クラス群の近接候補を同一物体として統合する。
+        # 例: ["chair,couch,dining table"]。
+        self.declare_parameter('static_cross_class_merge_dist', 0.0)
+        self.declare_parameter('static_compatible_class_groups', '')
+        # 統合候補の hits/existence が同等の場合の class_name 優先順。
+        self.declare_parameter('static_merge_class_priority', '')
         # negative observation の評価周期 [s]（毎フレームやると過剰に消える）。
         self.declare_parameter('decay_period', 1.0)
         # DB ファイル。空なら in-memory（再起動で消える）。
@@ -117,6 +212,9 @@ class ObjectMemoryNode(Node):
         self.sensor_frame = self.get_parameter('sensor_frame').value
         self.assoc_dist = float(self.get_parameter('assoc_dist').value)
         self.pos_alpha = float(self.get_parameter('pos_lpf_alpha').value)
+        self.require_fine_class = bool(
+            self.get_parameter('require_fine_class').value)
+        self.min_fine_conf = float(self.get_parameter('min_fine_conf').value)
         self.visible_range = float(self.get_parameter('visible_range').value)
         self.tp = float(self.get_parameter('tp').value)
         self.fp = float(self.get_parameter('fp').value)
@@ -126,6 +224,22 @@ class ObjectMemoryNode(Node):
         self.pub_min_exist = float(
             self.get_parameter('publish_min_existence').value)
         self.min_hits = int(self.get_parameter('min_hits').value)
+        self.require_map_support = bool(
+            self.get_parameter('require_map_support').value)
+        self.map_support_dist = float(
+            self.get_parameter('map_support_dist').value)
+        self.map_support_occ_thresh = int(
+            self.get_parameter('map_support_occupied_threshold').value)
+        self.static_class_geometry_filter = bool(
+            self.get_parameter('static_class_geometry_filter').value)
+        self.static_duplicate_merge_dist = float(
+            self.get_parameter('static_duplicate_merge_dist').value)
+        self.static_cross_class_merge_dist = float(
+            self.get_parameter('static_cross_class_merge_dist').value)
+        self.static_compatible_class_groups = self._parse_class_groups(
+            self.get_parameter('static_compatible_class_groups').value)
+        self.static_merge_class_priority = class_name_list(
+            self.get_parameter('static_merge_class_priority').value)
         self.decay_period = float(self.get_parameter('decay_period').value)
         db_path = self.get_parameter('db_path').value
         reset_db = bool(self.get_parameter('reset_db').value)
@@ -153,7 +267,7 @@ class ObjectMemoryNode(Node):
             TrackedObjects, self.get_parameter('input_topic').value,
             self.on_objects, qos)
 
-        # COCO 細クラス副チャネル: uuid_hex -> (coco_name, stamp_sec)。
+        # COCO 細クラス副チャネル: uuid_hex -> (coco_name, conf, stamp_sec)。
         self.fine_class_ttl = float(self.get_parameter('fine_class_ttl').value)
         self.fine_classes = {}
         self.create_subscription(
@@ -168,7 +282,12 @@ class ObjectMemoryNode(Node):
         self.get_logger().info(
             f'object_memory started. {self.get_parameter("input_topic").value} '
             f'-> SQLite({db_path}) + /semantic_memory/markers '
-            f'(map_frame={self.map_frame}, assoc_dist={self.assoc_dist}m)')
+            f'(map_frame={self.map_frame}, assoc_dist={self.assoc_dist}m, '
+            f'require_fine_class={self.require_fine_class}, '
+            f'require_map_support={self.require_map_support}, '
+            f'static_class_geometry_filter={self.static_class_geometry_filter}, '
+            f'static_duplicate_merge_dist={self.static_duplicate_merge_dist}, '
+            f'static_cross_class_merge_dist={self.static_cross_class_merge_dist})')
 
     # ── DB ───────────────────────────────────────────────────────────────
     def _open_db(self, db_path, reset_db):
@@ -210,20 +329,34 @@ class ObjectMemoryNode(Node):
     def on_fine_classes(self, msg: DiagnosticArray):
         """object_classifier の COCO 細クラス副チャネルを取り込む。
 
-        status: name=UUID hex, message=COCO名。古いエントリは fine_class_ttl で捨てる。
+        status: name=UUID hex, message=COCO名。values に conf が入る。
+        古いエントリは fine_class_ttl で捨てる。
         """
         stamp_sec = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         for st in msg.status:
-            if st.name and st.message:
-                self.fine_classes[st.name] = (st.message, stamp_sec)
+            if not st.name:
+                continue
+            if not st.message:
+                self.fine_classes.pop(st.name, None)
+                continue
+            conf = 0.0
+            for kv in st.values:
+                if kv.key == 'conf':
+                    try:
+                        conf = float(kv.value)
+                    except ValueError:
+                        conf = 0.0
+                    break
+            self.fine_classes[st.name] = (
+                normalize_class_name(st.message), conf, stamp_sec)
         cutoff = stamp_sec - self.fine_class_ttl
         self.fine_classes = {k: v for k, v in self.fine_classes.items()
-                             if v[1] >= cutoff}
+                             if v[2] >= cutoff}
 
-    def _fine_name(self, uuid_bytes):
-        """object_id(UUID) に対応する COCO 細クラス名を返す（無ければ None）。"""
+    def _fine_class(self, uuid_bytes):
+        """object_id(UUID) に対応する (COCO細クラス名, conf) を返す。"""
         entry = self.fine_classes.get(bytes(uuid_bytes).hex())
-        return entry[0] if entry else None
+        return (entry[0], entry[1]) if entry else (None, 0.0)
 
     def on_objects(self, msg: TrackedObjects):
         stamp_sec = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
@@ -249,11 +382,20 @@ class ObjectMemoryNode(Node):
             my = s * p.x + c * p.y + t.y
             label = (obj.classification[0].label
                      if obj.classification else ObjectClassification.UNKNOWN)
+            fine_name, fine_conf = self._fine_class(obj.object_id.uuid)
+            if self.require_fine_class and (
+                    fine_name is None or fine_conf < self.min_fine_conf):
+                continue
+            if self.require_map_support and not self._has_map_support(mx, my):
+                continue
             # class_name は COCO 細クラス(chair 等)を優先し、無ければ Autoware label 名。
             # これで什器を区別して記憶でき、クエリ「椅子」で引ける。
-            class_name = (self._fine_name(obj.object_id.uuid)
-                          or LABEL_NAMES.get(label, 'unknown'))
+            class_name = normalize_class_name(
+                fine_name or LABEL_NAMES.get(label, 'unknown'))
             dims = obj.shape.dimensions
+            if self.static_class_geometry_filter and \
+                    not self._passes_static_class_geometry(class_name, dims):
+                continue
             oid = self._associate_and_update(
                 label, class_name, mx, my, p.z, dims, stamp_sec)
             seen_ids.add(oid)
@@ -263,6 +405,9 @@ class ObjectMemoryNode(Node):
                 (stamp_sec - self.last_decay) >= self.decay_period:
             self._negative_observation(seen_ids, stamp_sec)
             self.last_decay = stamp_sec
+        if self.static_duplicate_merge_dist > 0.0 or \
+                self.static_cross_class_merge_dist > 0.0:
+            self._merge_static_duplicates()
 
         self.db.commit()
         self._publish_markers(stamp_sec)
@@ -278,8 +423,10 @@ class ObjectMemoryNode(Node):
         cur = self.db.execute(
             "SELECT id, x, y, class_name FROM objects")
         best_id, best_d, best_cn = None, self.assoc_dist, None
+        class_key = semantic_class_key(class_name)
         for oid, ox, oy, cn in cur.fetchall():
-            if cn != class_name and cn != 'unknown' and class_name != 'unknown':
+            cn_key = semantic_class_key(cn)
+            if cn_key != class_key and cn != 'unknown' and class_name != 'unknown':
                 continue  # 別クラス同士は統合しない
             d = math.hypot(ox - x, oy - y)
             if d < best_d:
@@ -314,6 +461,194 @@ class ObjectMemoryNode(Node):
             (nx, ny, nz, dims.x, dims.y, dims.z,
              label, merged_cn, new_exist, hits + 1, stamp_sec, best_id))
         return best_id
+
+    def _passes_static_class_geometry(self, class_name, dims):
+        """クラスごとの平面サイズとして明らかに不自然な候補を落とす。
+
+        YOLO がクロップ内の背景を拾うと、LiDAR 側は壁片や家具の一部クラスタの
+        まま `potted plant` / `couch` などとして記憶される。静的認識タスクでは
+        そうした候補を登録前に抑える。
+        """
+        rule = STATIC_CLASS_GEOMETRY_RULES.get(semantic_class_key(class_name))
+        if rule is None:
+            return False
+        sx = abs(float(dims.x))
+        sy = abs(float(dims.y))
+        if sx <= 1e-3 or sy <= 1e-3:
+            return False
+        area = sx * sy
+        aspect = max(sx, sy) / max(1e-3, min(sx, sy))
+        min_area, max_area, max_aspect = rule
+        return min_area <= area <= max_area and aspect <= max_aspect
+
+    def _merge_static_duplicates(self):
+        """近接した同一/互換 semantic class の DB object を統合する。
+
+        認識レビューでは、同じ静的物体が LiDAR の過分割や視点差で複数の
+        memory object として残ることがある。さらに屋内家具は、同じ物体が
+        chair/couch/table のような近い COCO 語彙へ揺れる場合がある。これは
+        評価後処理ではなく、map 上の物体記憶を作る段階で同一物体候補として
+        統合する。
+        """
+        while True:
+            objects = self._all_objects()
+            components = self._static_merge_components(objects)
+            components = [c for c in components if len(c) >= 2]
+            if not components:
+                return
+            # 大きい成分から畳む。1回畳んだ後に重心が動いて別成分と繋がる
+            # 場合があるため、外側の while で再評価する。
+            components.sort(key=len, reverse=True)
+            self._merge_object_component(components[0])
+
+    def _static_merge_components(self, objects):
+        n = len(objects)
+        parent = list(range(n))
+
+        def find(i):
+            while parent[i] != i:
+                parent[i] = parent[parent[i]]
+                i = parent[i]
+            return i
+
+        def union(i, j):
+            ri = find(i)
+            rj = find(j)
+            if ri != rj:
+                parent[rj] = ri
+
+        for i, a in enumerate(objects):
+            for j in range(i + 1, n):
+                b = objects[j]
+                limit = self._static_merge_limit(
+                    a['class_name'], b['class_name'])
+                if limit <= 0.0:
+                    continue
+                d = math.hypot(a['x'] - b['x'], a['y'] - b['y'])
+                if d < limit:
+                    union(i, j)
+
+        grouped = {}
+        for i, o in enumerate(objects):
+            grouped.setdefault(find(i), []).append(o)
+        return list(grouped.values())
+
+    def _merge_object_component(self, objects):
+        """DB 上の object 連結成分を hit-weighted average で 1 件へ畳む。"""
+        objects = sorted(
+            objects, key=lambda o: (int(o['hits']), float(o['existence'])),
+            reverse=True)
+        base = objects[0]
+        total_hits = max(1, sum(max(1, int(o['hits'])) for o in objects))
+        weights = [max(1, int(o['hits'])) / float(total_hits)
+                   for o in objects]
+        class_name, label = self._merged_component_class_and_label(objects)
+        existence = 0.001
+        for o in objects:
+            existence = self._combined_existence(
+                existence, float(o['existence']))
+        self.db.execute(
+            "UPDATE objects SET x=?, y=?, z=?, size_x=?, size_y=?, size_z=?, "
+            "label=?, class_name=?, existence=?, hits=?, last_seen=? WHERE id=?",
+            (sum(w * o['x'] for w, o in zip(weights, objects)),
+             sum(w * o['y'] for w, o in zip(weights, objects)),
+             sum(w * o['z'] for w, o in zip(weights, objects)),
+             sum(w * o['size_x'] for w, o in zip(weights, objects)),
+             sum(w * o['size_y'] for w, o in zip(weights, objects)),
+             sum(w * o['size_z'] for w, o in zip(weights, objects)),
+             label,
+             class_name,
+             existence,
+             total_hits,
+             max(o['last_seen'] for o in objects),
+             base['id']))
+        for o in objects[1:]:
+            self.db.execute("DELETE FROM objects WHERE id=?", (o['id'],))
+
+    def _static_merge_limit(self, class_a, class_b):
+        key_a = semantic_class_key(class_a)
+        key_b = semantic_class_key(class_b)
+        if key_a == 'unknown' or key_b == 'unknown':
+            return 0.0
+        if key_a == key_b:
+            return self.static_duplicate_merge_dist
+        if self.static_cross_class_merge_dist <= 0.0:
+            return 0.0
+        for group in self.static_compatible_class_groups:
+            if key_a in group and key_b in group:
+                return self.static_cross_class_merge_dist
+        return 0.0
+
+    def _parse_class_groups(self, value):
+        groups = []
+        for item in string_list(value):
+            for group_text in item.split(';'):
+                parts = group_text.replace('|', ',').split(',')
+                keys = {semantic_class_key(p) for p in parts if p.strip()}
+                keys.discard('unknown')
+                if len(keys) >= 2:
+                    groups.append(keys)
+        return groups
+
+    def _merged_component_class_and_label(self, objects):
+        known = [o for o in objects if o['class_name'] != 'unknown']
+        if not known:
+            return 'unknown', ObjectClassification.UNKNOWN
+
+        def key(o):
+            rank = self._class_priority_rank(o['class_name'])
+            return (int(o['hits']), float(o['existence']), -rank)
+
+        chosen = max(known, key=key)
+        return chosen['class_name'], chosen['label']
+
+    def _class_priority_rank(self, class_name):
+        name = normalize_class_name(class_name)
+        if name in self.static_merge_class_priority:
+            return self.static_merge_class_priority.index(name)
+        key = semantic_class_key(name)
+        for i, item in enumerate(self.static_merge_class_priority):
+            if semantic_class_key(item) == key:
+                return i
+        return len(self.static_merge_class_priority)
+
+    @staticmethod
+    def _combined_existence(pa, pb):
+        """同一物体として統合する2候補の存在確率を合成する。"""
+        pa = min(0.999, max(0.001, float(pa)))
+        pb = min(0.999, max(0.001, float(pb)))
+        return min(0.999, max(pa, pb, 1.0 - (1.0 - pa) * (1.0 - pb)))
+
+    def _has_map_support(self, x, y):
+        """物体中心の近くに occupied セルがあるかを見る。
+
+        認識タスクの静的物体メモリ向けのゲート。地図から大きく離れた点は
+        画像クロップ内の背景を誤分類した可能性が高いため登録しない。
+        """
+        if self.grid is None or self.map is None:
+            return False
+        info = self.map.info
+        res = info.resolution
+        ox0, oy0 = info.origin.position.x, info.origin.position.y
+        h, w = self.grid.shape
+        cx = int((x - ox0) / res)
+        cy = int((y - oy0) / res)
+        if cx < 0 or cy < 0 or cx >= w or cy >= h:
+            return False
+        radius_cells = max(1, int(math.ceil(self.map_support_dist / res)))
+        min_x = max(0, cx - radius_cells)
+        max_x = min(w - 1, cx + radius_cells)
+        min_y = max(0, cy - radius_cells)
+        max_y = min(h - 1, cy + radius_cells)
+        for yy in range(min_y, max_y + 1):
+            for xx in range(min_x, max_x + 1):
+                if self.grid[yy, xx] < self.map_support_occ_thresh:
+                    continue
+                wx = ox0 + (xx + 0.5) * res
+                wy = oy0 + (yy + 0.5) * res
+                if math.hypot(wx - x, wy - y) <= self.map_support_dist:
+                    return True
+        return False
 
     # ── ② negative observation + 削除 ──────────────────────────────────────
     def _negative_observation(self, seen_ids, stamp_sec):

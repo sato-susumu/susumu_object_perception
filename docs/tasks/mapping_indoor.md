@@ -123,7 +123,8 @@ ros2 run susumu_object_perception eval_map_quality.py maps/<map_name>.yaml
 ros2 run susumu_object_perception check_map_vs_world.py \
   --map maps/<map_name>.yaml \
   --wbt webots_worlds/<world>.wbt \
-  --out maps/<map_name>_vs_world.png
+  --out maps/<map_name>_vs_world.png \
+  --report maps/<map_name>_vs_world.json
 ```
 
 数値だけでなく、`check_map_vs_world.py` の重畳図と RViz で目視確認する。移動量が十分あるのに

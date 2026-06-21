@@ -1,0 +1,10 @@
+frame_id: gps_local
+source_world: outdoor.wbt
+waypoint_format: '[x_m, y_m] relative to initial GPS position'
+purpose: sparse outdoor clearance-aware patrol route for Nav2 GPS navigation
+notes: avoids the failed x<=-4 corridor near tree2; keeps west-side coverage without targeting the unreachable corner
+waypoints:
+- [0.0, -5.0]
+- [-2.0, -5.0]
+- [-2.0, 0.0]
+- [0.0, 0.0]
