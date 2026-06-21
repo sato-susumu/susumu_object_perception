@@ -135,6 +135,7 @@ install(PROGRAMS
   scripts/save_pointcloud2_to_ply.py
   scripts/save_pose_trajectory_to_tum.py
   scripts/generate_webots_ground_truth_map.py
+  scripts/validate_map_assets.py
   scripts/map_progress_monitor.py
   scripts/eval_map_quality.py
   scripts/check_map_vs_world.py
@@ -149,6 +150,9 @@ install(PROGRAMS
   scripts/render_recognition_overlay.py
   scripts/filter_object_memory_db.py
   scripts/evaluate_recognition_vs_world.py
+  scripts/generate_recognition_debug_viewpoints.py
+  scripts/record_recognition_debug.py
+  scripts/evaluate_debug_crops_yolo.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

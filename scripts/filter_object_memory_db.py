@@ -77,6 +77,44 @@ def parse_class_priority(value):
             if v.strip()]
 
 
+def parse_class_distance_overrides(values):
+    """Parse class-specific map support distances.
+
+    Accepted forms:
+      --map-support-class-dist plant=0.55
+      --map-support-class-dist 'potted plant=0.55,table=0.55'
+    Keys are normalized to the same semantic class key used by merge rules.
+    """
+    overrides = {}
+    for item in values or []:
+        for part in str(item).split(','):
+            part = part.strip()
+            if not part:
+                continue
+            if '=' in part:
+                name, value = part.split('=', 1)
+            elif ':' in part:
+                name, value = part.split(':', 1)
+            else:
+                raise ValueError(
+                    'map support class distance must be class=meters: %s'
+                    % part)
+            key = semantic_class_key(name)
+            try:
+                dist = float(value)
+            except ValueError:
+                raise ValueError(
+                    'invalid map support distance for %s: %s'
+                    % (name, value))
+            overrides[key] = dist
+    return overrides
+
+
+def map_support_dist_for(class_name, default_dist, overrides):
+    key = semantic_class_key(class_name)
+    return overrides.get(key, default_dist)
+
+
 def load_pgm(path):
     with open(path, 'rb') as f:
         magic = f.readline().strip()
@@ -108,6 +146,12 @@ def occupied_world_points(map_yaml):
     with open(map_yaml) as f:
         meta = yaml.safe_load(f)
     pgm_path = os.path.join(os.path.dirname(map_yaml), meta['image'])
+    if not os.path.exists(pgm_path):
+        raise FileNotFoundError(
+            'map image missing: %s referenced by %s. '
+            'Run `ros2 run susumu_object_perception validate_map_assets.py %s` '
+            'and regenerate the map image with nav2_map_server map_saver_cli.'
+            % (pgm_path, map_yaml, map_yaml))
     img = load_pgm(pgm_path)
     negate = int(meta.get('negate', 0))
     occ_thresh = float(meta.get('occupied_thresh', 0.65))
@@ -286,7 +330,10 @@ def merge_compatible_objects(con, args):
 def filter_db(args):
     if os.path.abspath(args.db) != os.path.abspath(args.out_db):
         shutil.copyfile(args.db, args.out_db)
-    occ_xy = occupied_world_points(args.map) if args.map_support_dist >= 0.0 else None
+    class_map_support = parse_class_distance_overrides(
+        args.map_support_class_dist)
+    use_map_support = args.map_support_dist >= 0.0 or bool(class_map_support)
+    occ_xy = occupied_world_points(args.map) if use_map_support else None
     con = sqlite3.connect(args.out_db)
     con.row_factory = sqlite3.Row
     rows = con.execute(
@@ -298,9 +345,14 @@ def filter_db(args):
                 r['class_name'], r['size_x'], r['size_y']):
             reasons.append('geometry')
         if occ_xy is not None:
+            support_dist = map_support_dist_for(
+                r['class_name'], args.map_support_dist, class_map_support)
+            if support_dist < 0.0:
+                continue
             d = nearest_occ_dist(occ_xy, float(r['x']), float(r['y']))
-            if d > args.map_support_dist:
-                reasons.append(f'map_support:{d:.3f}m')
+            if d > support_dist:
+                reasons.append(
+                    f'map_support:{d:.3f}m>{support_dist:.3f}m')
         if reasons:
             con.execute('DELETE FROM objects WHERE id=?', (int(r['id']),))
             deleted.append((int(r['id']), str(r['class_name']), ','.join(reasons)))
@@ -322,6 +374,14 @@ def main():
     ap.add_argument('--out-db', required=True)
     ap.add_argument('--map', required=True)
     ap.add_argument('--map-support-dist', type=float, default=-1.0)
+    ap.add_argument(
+        '--map-support-class-dist',
+        action='append',
+        default=[],
+        help=(
+            'class-specific map support distance override, e.g. '
+            'plant=0.55 or "potted plant=0.55,table=0.55". '
+            'Class names are normalized to semantic class keys.'))
     ap.add_argument('--static-class-geometry-filter', action='store_true')
     ap.add_argument(
         '--merge-same-class-dist', type=float, default=0.0,
@@ -340,4 +400,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc))

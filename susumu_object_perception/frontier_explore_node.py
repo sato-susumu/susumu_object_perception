@@ -24,7 +24,10 @@
 import math
 import os
 import subprocess
+import threading
 from collections import deque
+
+import yaml
 
 import rclpy
 from rclpy.node import Node
@@ -151,6 +154,8 @@ class FrontierExploreNode(Node):
         self.declare_parameter(
             'map_save_path',
             os.path.expanduser('~/ros2_ws/src/susumu_object_perception/maps/city'))
+        self.declare_parameter('map_saver_timeout_sec', 20.0)
+        self.declare_parameter('map_saver_transient_local', True)
         # 【非frontier的な特殊探索: sweep モード】屋外の特徴が乏しい開放空間では frontier が
         # ロボット至近にしか出ず原点付近から動けない。そこで frontier 探索の前に、外周/spiral
         # の遠征ゴールを順に送り、未知でも構わず領域を舐めて回る（coverage 型）。全体を一巡
@@ -237,6 +242,10 @@ class FrontierExploreNode(Node):
             self.get_parameter('bootstrap_time_allowance').value)
         self.save_map = self._bool_param('save_map')
         self.map_save_path = self.get_parameter('map_save_path').value
+        self.map_saver_timeout_sec = float(
+            self.get_parameter('map_saver_timeout_sec').value)
+        self.map_saver_transient_local = self._bool_param(
+            'map_saver_transient_local')
 
         self._map = None
         self._busy = False
@@ -260,6 +269,7 @@ class FrontierExploreNode(Node):
         self._nav_goal_handle = None
         self._nav_token = 0
         self._active_nav_token = 0
+        self._map_save_thread = None
         self._ignore_nav_tokens = set()
         self._latest_imu_yaw = None
         self._yaw_offset = None
@@ -1196,14 +1206,74 @@ class FrontierExploreNode(Node):
         # nav2 map_saver_cli で OccupancyGrid を pgm+yaml に保存。
         os.makedirs(os.path.dirname(self.map_save_path), exist_ok=True)
         self._publish_status(f'saving map to {self.map_save_path}')
+        self._map_save_thread = threading.Thread(
+            target=self._run_map_saver_cli, daemon=True)
+        self._map_save_thread.start()
+
+    def _run_map_saver_cli(self):
+        cmd = [
+            'ros2', 'run', 'nav2_map_server', 'map_saver_cli',
+            '-f', self.map_save_path,
+            '--ros-args',
+            '-p', f'save_map_timeout:={self.map_saver_timeout_sec:.1f}',
+        ]
+        if self.map_saver_transient_local:
+            cmd.extend(['-p', 'map_subscribe_transient_local:=true'])
+        process_timeout = max(30.0, self.map_saver_timeout_sec + 10.0)
         try:
-            subprocess.Popen(
-                ['ros2', 'run', 'nav2_map_server', 'map_saver_cli',
-                 '-f', self.map_save_path,
-                 '--ros-args', '-p', 'save_map_timeout:=20.0'])
-            self._publish_status(f'map_saver launched: {self.map_save_path}')
+            completed = subprocess.run(
+                cmd, check=False, text=True, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, timeout=process_timeout)
+        except subprocess.TimeoutExpired:
+            self._publish_status(
+                f'map save failed: map_saver_cli timed out after '
+                f'{process_timeout:.1f}s')
+            return
         except Exception as e:  # noqa: BLE001
             self._publish_status(f'map save failed: {e}')
+            return
+        output = (completed.stdout or '').strip()
+        if completed.returncode != 0:
+            suffix = self._tail_for_status(output)
+            self._publish_status(
+                f'map save failed: map_saver_cli exit '
+                f'{completed.returncode}{suffix}')
+            return
+        ok, detail = self._saved_map_assets_status()
+        if ok:
+            self._publish_status(f'map saved: {detail}')
+        else:
+            suffix = self._tail_for_status(output)
+            self._publish_status(f'map save failed: {detail}{suffix}')
+
+    def _tail_for_status(self, text):
+        if not text:
+            return ''
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if not lines:
+            return ''
+        return f' ({lines[-1][:180]})'
+
+    def _saved_map_assets_status(self):
+        yaml_path = self.map_save_path
+        if not yaml_path.endswith(('.yaml', '.yml')):
+            yaml_path = self.map_save_path + '.yaml'
+        if not os.path.exists(yaml_path):
+            return False, f'map yaml missing after save: {yaml_path}'
+        try:
+            with open(yaml_path, encoding='utf-8') as f:
+                meta = yaml.safe_load(f) or {}
+        except Exception as exc:  # noqa: BLE001
+            return False, f'map yaml invalid after save: {yaml_path}: {exc}'
+        image = meta.get('image')
+        if not image:
+            return False, f'map yaml has no image field: {yaml_path}'
+        image_path = str(image)
+        if not os.path.isabs(image_path):
+            image_path = os.path.join(os.path.dirname(yaml_path), image_path)
+        if not os.path.exists(image_path):
+            return False, f'map image missing after save: {image_path}'
+        return True, f'{yaml_path} -> {image_path}'
 
     # ---- viz / status ----------------------------------------------------
 

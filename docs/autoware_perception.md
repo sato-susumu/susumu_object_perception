@@ -184,6 +184,12 @@ apt に **`autoware_multi_object_tracker`（追跡）と `autoware_shape_estimat
 
 出力は Autoware 標準型 `autoware_perception_msgs/TrackedObjects`。`object_id`(UUID) は
 内部 ID 先頭 4 バイトに埋め込み、可視化側で復元する。独自メッセージは作らない。
+診断時は `object_tracker_debug:=True` で `/perception/object_tracker/debug`
+(`diagnostic_msgs/DiagnosticArray`) を出し、各 track が `published` / `min_hits` / `map_blocked` の
+どの理由で扱われたかを確認できる。controlled comparison 用に `object_tracker_min_hits` も launch から
+差し替えられるが、既定は `2` のまま。壁際静止物体の切り分け用に
+`object_tracker_wall_margin_moving_cells` / `object_tracker_wall_margin_static_cells` も launch から
+差し替え可能にした。既定はノード内既定と同じ `6` / `22` で、通常起動の挙動は変えない。
 
 #### トラッカー出力段の 2D 地図照合（壁際の緑ボックス対策）
 
@@ -201,6 +207,11 @@ hits/existence/変位では区別できない（どちらも不動・高 existen
 - **静止トラック**（`_is_stationary` が真）: `wall_margin_static_cells`（既定 22 = 1.10m）。
   壁から離れた不動ゴーストまで壁扱いにして消す。机は壁から 1.5m 以上離れているため
   この margin でも巻き込まれず残る。
+
+Fridge など壁近傍の静止家具を診断するときは
+`object_tracker_min_hits:=1 object_tracker_wall_margin_static_cells:=3` のように launch 引数で比較する。
+ただし `wall_margin_static_cells=22` は壁際静止ゴースト抑制の採用値なので、通常巡回 F1 / extra を
+再評価するまでは既定値を下げない。
 
 加えて、SLAM 地図 `maps/cafe.pgm` には机も薄く占有セルとして焼き込まれているため、
 margin を広げると机検出まで壁判定で消えてしまう。そこで **`maps/clear_tables.py` で机
@@ -384,7 +395,11 @@ ANIMAL...）にマップし classification を上書きする（LiDAR×カメラ
 Webots 系 launch では `object_yolo_imgsz:=...` で Ultralytics 推論の `imgsz`、`object_crop_fovs_deg`
 で複数クロップ画角を渡せる。空文字のときは従来通り単一 `crop_fov_deg` だけを使う。2026-06-21 の
 屋内フル巡回では `object_crop_fovs_deg:=75,55,40 object_yolo_imgsz:=960` が Table/Sofa 除外 F1 を
-`0.727` から `0.167` へ悪化させたため、既定は `imgsz=640` + 単一クロップのままにする。
+`0.727` から `0.167` へ悪化させた。追加改善9で複数FOV時の代表選択は confidence 最大ではなく、
+FOV 間の同一 class 系統 support と center/mask overlap を加点する方式に変更し、同条件の
+Table/Sofa 除外 F1 は map support なし評価で `0.471` まで戻った。ただし採用値 `0.727` には届かず、
+source 側 `maps/indoor.pgm` 欠落で map support / overlay 評価も未再現のため、既定は
+`imgsz=640` + 単一クロップのままにする。
 LiDAR 対象方向がクロップ中心に来る前提なので、`center_tolerance_frac`(既定 0.45) より
 中心から外れた YOLO bbox は背景検出として捨てる。これにより、クロップ端の家具や壁面物体を
 LiDAR 対象へ誤付与して semantic DB に余分な物体が増える問題を抑える。`require_mask_center` は
@@ -392,6 +407,9 @@ segment weight 使用時だけ有効で、`mask_center_window_frac` と `min_mas
 上の mask 被覆を確認する。通常の detect weight では mask が無いため無効にする。植物系ラベル
 （`potted plant` / `vase` / `umbrella`）には `plant_color_min_frac` で緑/黄色系画素の最低比率も
 要求でき、壁片や家具の植物誤認をさらに抑える。
+複数FOV時の代表選択には `multi_fov_agreement_bonus`,
+`multi_fov_center_overlap_weight`, `multi_fov_mask_overlap_weight` を使うが、通常は
+`object_crop_fovs_deg` を空にして単一クロップで運用する。
 さらに `min_consistent_hits` 回（既定 1、余分検出をさらに減らす実験では 2 以上）同系統クラスが続くまで
 `/perception/object_fine_classes` へ細クラスを出さない。分類済みトラックの定期再確認は
 `reclassify_interval_sec` を正値にすると有効になるが、屋内フル巡回の実測では一時的な YOLO miss で
@@ -407,7 +425,13 @@ segment weight 使用時だけ有効で、`mask_center_window_frac` と `min_mas
 ロボット状態/コンポーネント診断用のメッセージ群で、DiagnosticArray は DiagnosticStatus の配列を
 送る用途のため、独自 msg を増やさない本パッケージの方針と合う。
 参考: <https://docs.ros.org/en/humble/p/diagnostic_msgs/>、
-<https://index.ros.org/p/diagnostic_msgs/>
+<https://index.ros.org/p/diagnostic_msgs/>。multi-FOV 合意選択の根拠は、Autoware の
+image projection based fusion / ROI cluster fusion が 2D ROI と LiDAR cluster の対応で分類を
+refine する考え方、および Ultralytics segmentation results が instance ごとに mask / class /
+confidence / box を持つ仕様を踏まえた。参考:
+<https://autowarefoundation.github.io/autoware_universe/main/perception/autoware_image_projection_based_fusion/>、
+<https://autowarefoundation.github.io/autoware_universe/main/perception/autoware_image_projection_based_fusion/docs/roi-cluster-fusion/>、
+<https://docs.ultralytics.com/tasks/segment>。
 YOLO 初期化失敗時は classic 等へ勝手に落とさず `[FATAL]` 終了（信号検出ノードと同方針）。
 
 **間引き（CPU 実用化のため）**: tracked_objects は ~10Hz × 物体数ぶん来るが、物体の種類は急に

@@ -44,6 +44,29 @@ yaw がある場合は NavigateToPose の向きに反映し、`waypoint_viz_node
 `<prefix>.json`, `<prefix>.csv`, `<prefix>.md` を更新するため、長い巡回を途中で止めても
 reached/missed が残る。`mission_timeout_sec:=<秒>` を渡すと wall-clock で評価全体を打ち切り、
 未実行 waypoint を `mission_timeout` として report に残す。
+自己位置精度も評価する場合は `truth_monitor:=True truth_report_prefix:=/abs/path/to/truth` を渡す。
+Webots GPS/IMU truth と `map->base_footprint` の aligned error / heading error / yaw error を
+`<prefix>.json`, `.csv`, `.md` に残す。真値 `/gps` は検証だけに使い、AMCL / SLAM / Nav2 へは入力しない。
+監視ノードは `/waypoint_nav/status` の `mission complete` / `mission_timeout` を見て自動停止する。
+各サンプルには直近の waypoint index と status text も残し、Markdown/JSON には waypoint 別の
+max aligned / heading / yaw error と worst waypoint を出す。drift が終盤だけに出る場合は、AMCL
+だけでなく地図終端形状、接近経路、goal tolerance の切り分けに使う。
+`truth_odom_frame:=odom`（既定）も同時に評価し、`odom->base_footprint` の aligned / heading / yaw
+error を map 推定とは別に出す。空文字にすると odom 評価だけ無効化できる。
+`ekf_odom:=True` を渡すと評価専用 `robot_localization` EKF を起動し、`filtered_odom_topic`
+（既定 `/odometry/filtered`）を truth monitor が同時評価する。EKF config は
+既定 `config/ekf_odom_twist_imu_eval.yaml` で `publish_tf:false` にしているため、既存 Nav2 の TF へは入らない。
+この既定 config は `/odom` の x/y pose を使わず、wheel odom の twist と `/imu` の yaw/yaw-rate だけを
+融合する。`config/ekf_odom_eval.yaml` は cycle04 の pose+twist 比較用で、位置改善としては未採用。
+EKF を `odom->base_link` の TF 発行元として切り分ける場合は
+`ekf_odom_params_file:=config/ekf_odom_twist_imu_tf.yaml` と
+`ros2_control_params_file:=config/webots_ros2control_ekf_odom_tf.yaml` を同時に渡す。後者は
+diffdrive controller の `/odom` topic は残し、`enable_odom_tf:false` で TF だけ止める。通常起動の
+既定は従来どおり diffdrive TF のまま。EKF TF 評価時は `ekf_odom_start_sec:=2.0` で EKF を早めに起動し、
+`nav_start_delay_sec:=2.5` で Webots controller 接続後の Nav2 起動を少し遅らせると、`odom->base_link`
+の初期 TF 待ちを避けやすい。
+`config/webots_ros2control_ekf_odom_tf_radius1046.yaml` は cycle08 の wheel radius scale 切り分け用。
+path length 比は改善するが odom aligned と進行性が悪化したため、通常の EKF TF 評価推奨値にはしない。
 認識性能を優先する indoor run の実験では、通常巡回用 `indoor_waypoints.yaml` とは別に
 `indoor_recognition_waypoints.yaml` を渡せる。これは occupied 小〜中サイズ成分を見る追加視点入りの
 点列。ただし 2026-06-20/21 のライブ認識評価では余分検出増加または recall 低下で悪化したため未採用。
@@ -95,9 +118,19 @@ reached/missed が残る。`mission_timeout_sec:=<秒>` を渡すと wall-clock 
 - 屋内 `indoor.wbt` の合格確認は `slam:=True` で行う。2026-06-20 の認識併走フル巡回では
   `reached=22/22 missed=[]` を確認済み。
 - `slam:=False map_file:=maps/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
-  モードも、2026-06-20 の `mode:=realtime` 試験で `reached=22/22 missed=[]` を確認済み。
-  これはナビ完走の確認であり、同条件の認識評価は採用中の SLAM 巡回結果より悪化したため
-  認識成果物の採用条件にはしない。Nav2 パラメータの根拠と履歴は [Nav2 tuning](../nav2_tuning.md) に残す。
+  モードは `reached=22/22 missed=[]` を維持している。自己位置評価 cycle01-08 の要点は次の表に集約する。
+
+  | cycle | 採用/未採用 | 代表値 | 判断 |
+  |---|---|---|---|
+  | 01b→01c | 採用: `max_beams=90`, `update_min_d/a=0.10` | 従来 `21/22`, max aligned `1.251m` → 採用値 `22/22`, `0.185m` | AMCL 更新頻度とビーム数は現行値を維持 |
+  | 02-03 | 採用: truth monitor の waypoint context と `odom_frame` 同時計測 | map max `0.220m`、raw odom max `0.500m` | AMCL と odom 系を分けて評価できる診断基盤として維持 |
+  | 04-05 | 採用: `config/ekf_odom_twist_imu_eval.yaml`、未採用: pose+twist EKF | filtered max aligned `0.209m`, max yaw `3.08deg` | `/odom` x/y pose は融合せず、wheel twist + IMU yaw/yaw-rate を評価用既定にする |
+  | 06-07 | 採用: opt-in EKF TF 構成と起動順引数 | `base_link->odom` wait `0`、map max `0.227m`、EKF max `0.191m` | 競合なしだが map 精度改善ではないため通常既定化は保留 |
+  | 08 | 未採用: wheel radius multiplier `1.046` の既定化 | path 比 `0.999`、EKF max aligned `0.291m`、progress failure 1 回 | path length は改善したが位置整合と進行性が悪化。次は `1.02`〜`1.03` 程度で再評価 |
+
+  評価成果物は `maps/indoor_localization_cycle*_nav.*` / `_truth.*`。シミュレータ真値 `/gps` は
+  AMCL / EKF / Nav2 へ入力せず、検証専用に留める。Nav2 パラメータの根拠と履歴は
+  [Nav2 tuning](../nav2_tuning.md) に残す。
 - 実験用 `indoor_recognition_waypoints.yaml` は 2026-06-21 に `view_clearance=0.6m` で再生成した
   22 点列では `reached=22/22 missed=[]` を確認済み。ただし認識評価は通常巡回より悪化したため、
   ナビ合格・認識採用の基準にはしない。
@@ -109,6 +142,14 @@ reached/missed が残る。`mission_timeout_sec:=<秒>` を渡すと wall-clock 
 
 - Nav2 Waypoint Follower: https://docs.nav2.org/configuration/packages/configuring-waypoint-follower.html
 - Nav2 NavigateToPose: https://docs.nav2.org/configuration/packages/bt-plugins/actions/NavigateToPose.html
+- Nav2 AMCL configuration: https://docs.nav2.org/configuration/packages/configuring-amcl.html
+- Nav2 Smoothing Odometry using Robot Localization: https://docs.nav2.org/setup_guides/odom/setup_robot_localization.html
+- Nav2 Transform setup / REP-105 summary: https://docs.nav2.org/setup_guides/transformation/setup_transforms.html
+- ROS 2 Control diff_drive_controller parameters: https://control.ros.org/humble/doc/ros2_controllers/diff_drive_controller/doc/userdoc.html
+- ROS 2 Launch design / process orchestration: https://design.ros2.org/articles/roslaunch.html
+- robot_localization EKF example parameters: https://github.com/cra-ros-pkg/robot_localization/blob/ros2/params/ekf.yaml
+- Webots TurtleBot3Burger PROTO wheel radius: https://raw.githubusercontent.com/cyberbotics/webots/R2022b/projects/robots/robotis/turtlebot/protos/TurtleBot3Burger.proto
+- nav_msgs/Odometry frame contract: https://docs.ros2.org/foxy/api/nav_msgs/msg/Odometry.html
 - ROS 2 Actions: https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Understanding-ROS2-Actions/Understanding-ROS2-Actions.html
 
 ## 関連

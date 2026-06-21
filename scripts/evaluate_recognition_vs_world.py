@@ -65,6 +65,8 @@ class ExpectedObject:
     map_x: float
     map_y: float
     accepted_labels: list
+    nearest_map_occupied_m: float = None
+    has_map_support: bool = False
 
 
 @dataclass
@@ -237,6 +239,27 @@ def distance(expected, detection):
                       expected.map_y - detection.y)
 
 
+def nearest_detection_info(expected, detections, match_distance,
+                           require_label_match=False):
+    best = None
+    for det in detections:
+        label_match = labels_match(det.class_name, expected.accepted_labels)
+        if require_label_match and not label_match:
+            continue
+        dist = distance(expected, det)
+        if best is None or dist < best[0]:
+            best = (dist, det, label_match)
+    if best is None:
+        return None
+    dist, det, label_match = best
+    return {
+        'distance_m': dist,
+        'within_match_distance': dist <= match_distance,
+        'label_match': label_match,
+        'detection': asdict(det),
+    }
+
+
 def evaluate(expected, detections, match_distance):
     correct_candidates = []
     for ei, exp in enumerate(expected):
@@ -283,10 +306,23 @@ def evaluate(expected, detections, match_distance):
             'distance_m': dist,
         })
 
-    missed = [
-        asdict(exp) for i, exp in enumerate(expected)
-        if i not in matched_expected
-    ]
+    missed = []
+    for i, exp in enumerate(expected):
+        if i in matched_expected:
+            continue
+        row = asdict(exp)
+        nearest = nearest_detection_info(
+            exp, detections, match_distance, require_label_match=False)
+        nearest_label = nearest_detection_info(
+            exp, detections, match_distance, require_label_match=True)
+        row['nearest_detection'] = nearest
+        row['nearest_label_detection'] = nearest_label
+        row['has_near_detection'] = bool(
+            nearest is not None and nearest['within_match_distance'])
+        row['has_near_label_detection'] = bool(
+            nearest_label is not None and
+            nearest_label['within_match_distance'])
+        missed.append(row)
     extra = [
         asdict(det) for i, det in enumerate(detections)
         if i not in matched_detections
@@ -301,13 +337,22 @@ def evaluate(expected, detections, match_distance):
     recall = tp / total_expected if total_expected else 0.0
     f1 = (2.0 * precision * recall / (precision + recall)
           if (precision + recall) > 0.0 else 0.0)
+    missed_with_near = sum(1 for row in missed
+                           if row.get('has_near_detection'))
+    missed_with_near_label = sum(1 for row in missed
+                                 if row.get('has_near_label_detection'))
     return {
         'summary': {
             'expected_count': total_expected,
             'detection_count': total_detections,
             'correct_count': tp,
             'wrong_label_count': len(wrong_label),
-            'missed_without_near_detection_count': len(missed),
+            'missed_count': len(missed),
+            'missed_with_near_detection_count': missed_with_near,
+            'missed_without_near_detection_count':
+                len(missed) - missed_with_near,
+            'missed_with_near_label_detection_count':
+                missed_with_near_label,
             'extra_detection_count': len(extra),
             'class_aware_false_positive_count': class_aware_fp,
             'class_aware_false_negative_count': class_aware_fn,
@@ -352,6 +397,53 @@ def load_pgm(path):
     return data.reshape(height, width)
 
 
+def load_map_occupied_points(map_yaml):
+    with open(map_yaml, encoding='utf-8') as f:
+        meta = yaml.safe_load(f)
+    pgm_path = os.path.join(os.path.dirname(map_yaml), meta['image'])
+    if not os.path.exists(pgm_path):
+        raise FileNotFoundError(
+            'map image missing: %s referenced by %s. '
+            'Run `ros2 run susumu_object_perception validate_map_assets.py %s` '
+            'and regenerate the map image with nav2_map_server map_saver_cli.'
+            % (pgm_path, map_yaml, map_yaml))
+    img = load_pgm(pgm_path)
+    negate = int(meta.get('negate', 0))
+    occ_thresh = float(meta.get('occupied_thresh', 0.65))
+    if negate:
+        occ_prob = img.astype(np.float32) / 255.0
+    else:
+        occ_prob = (255.0 - img.astype(np.float32)) / 255.0
+    occ = occ_prob >= occ_thresh
+    ys, xs = np.nonzero(occ)
+    res = float(meta['resolution'])
+    ox, oy = float(meta['origin'][0]), float(meta['origin'][1])
+    h, _ = occ.shape
+    xy = np.column_stack((
+        ox + (xs + 0.5) * res,
+        oy + (h - ys - 0.5) * res,
+    ))
+    return xy.astype(np.float32)
+
+
+def nearest_map_occupied_distance(occ_xy, x, y):
+    if occ_xy is None or occ_xy.size == 0:
+        return None
+    d = np.hypot(occ_xy[:, 0] - x, occ_xy[:, 1] - y)
+    return float(d.min())
+
+
+def attach_expected_map_support(expected, map_yaml, support_dist):
+    if not map_yaml:
+        return
+    occ_xy = load_map_occupied_points(map_yaml)
+    for exp in expected:
+        d = nearest_map_occupied_distance(occ_xy, exp.map_x, exp.map_y)
+        exp.nearest_map_occupied_m = d
+        exp.has_map_support = bool(
+            d is not None and d <= float(support_dist))
+
+
 def map_to_cell(x, y, meta, width, height):
     res = float(meta['resolution'])
     ox, oy = float(meta['origin'][0]), float(meta['origin'][1])
@@ -366,6 +458,12 @@ def render_png(map_yaml, out_png, result, scale):
     with open(map_yaml, encoding='utf-8') as f:
         meta = yaml.safe_load(f)
     pgm_path = os.path.join(os.path.dirname(map_yaml), meta['image'])
+    if not os.path.exists(pgm_path):
+        raise FileNotFoundError(
+            'map image missing: %s referenced by %s. '
+            'Run `ros2 run susumu_object_perception validate_map_assets.py %s` '
+            'and regenerate the map image with nav2_map_server map_saver_cli.'
+            % (pgm_path, map_yaml, map_yaml))
     img = load_pgm(pgm_path)
     height, width = img.shape
 
@@ -494,6 +592,23 @@ def fmt_float(value, digits=3):
     return f'{float(value):.{digits}f}'
 
 
+def fmt_optional_float(value, digits=3):
+    if value is None:
+        return ''
+    return fmt_float(value, digits)
+
+
+def fmt_nearest(info):
+    if not info:
+        return ''
+    det = info['detection']
+    suffix = ' near' if info.get('within_match_distance') else ''
+    label = ' label-ok' if info.get('label_match') else ''
+    return (
+        f"#{det['did']} {det['class_name']} "
+        f"{fmt_float(info['distance_m'], 2)}m{suffix}{label}")
+
+
 def write_markdown(path, report):
     summary = report['summary']
     inputs = report['inputs']
@@ -510,6 +625,8 @@ def write_markdown(path, report):
         f"- min_hits: {inputs['min_hits']}",
         f"- ignored_types: {inputs.get('ignored_types', [])}",
         f"- match_distance_m: {summary['match_distance_m']}",
+        f"- expected_map_support_dist_m: "
+        f"{inputs.get('expected_map_support_dist_m', '')}",
         '',
         '## Summary',
         '',
@@ -521,7 +638,12 @@ def write_markdown(path, report):
         'detection_count',
         'correct_count',
         'wrong_label_count',
+        'missed_count',
+        'missed_with_near_detection_count',
         'missed_without_near_detection_count',
+        'missed_with_near_label_detection_count',
+        'expected_with_map_support_count',
+        'missed_with_map_support_count',
         'extra_detection_count',
         'class_aware_false_positive_count',
         'class_aware_false_negative_count',
@@ -541,9 +663,9 @@ def write_markdown(path, report):
             lines.append('None.')
             return
         lines.append(
-            '| expected | accepted | detection | det_label | dist_m | exist | hits |'
+            '| expected | accepted | map_occ_m | detection | det_label | dist_m | exist | hits |'
         )
-        lines.append('|---|---|---|---|---:|---:|---:|')
+        lines.append('|---|---|---:|---|---|---:|---:|---:|')
         for row in rows:
             exp = row['expected']
             det = row['detection']
@@ -551,6 +673,7 @@ def write_markdown(path, report):
                 f"| {exp['eid']} {exp['wbt_type']} `{exp['name']}` "
                 f"({fmt_float(exp['map_x'], 2)}, {fmt_float(exp['map_y'], 2)}) "
                 f"| {', '.join(exp['accepted_labels'])} "
+                f"| {fmt_optional_float(exp.get('nearest_map_occupied_m'), 2)} "
                 f"| #{det['did']} ({fmt_float(det['x'], 2)}, {fmt_float(det['y'], 2)}) "
                 f"| {det['class_name']} "
                 f"| {fmt_float(row['distance_m'], 2)} "
@@ -563,14 +686,19 @@ def write_markdown(path, report):
 
     lines.extend(['', '## Missed Ground Truth', ''])
     if report['missed']:
-        lines.append('| expected | accepted | map_xy | world_xy |')
-        lines.append('|---|---|---:|---:|')
+        lines.append(
+            '| expected | accepted | map_xy | world_xy | map_occ_m | map_support | nearest_any | nearest_label |')
+        lines.append('|---|---|---:|---:|---:|---|---|---|')
         for exp in report['missed']:
             lines.append(
                 f"| {exp['eid']} {exp['wbt_type']} `{exp['name']}` "
                 f"| {', '.join(exp['accepted_labels'])} "
                 f"| ({fmt_float(exp['map_x'], 2)}, {fmt_float(exp['map_y'], 2)}) "
-                f"| ({fmt_float(exp['world_x'], 2)}, {fmt_float(exp['world_y'], 2)}) |"
+                f"| ({fmt_float(exp['world_x'], 2)}, {fmt_float(exp['world_y'], 2)}) "
+                f"| {fmt_optional_float(exp.get('nearest_map_occupied_m'), 2)} "
+                f"| {str(bool(exp.get('has_map_support', False)))} "
+                f"| {fmt_nearest(exp.get('nearest_detection'))} "
+                f"| {fmt_nearest(exp.get('nearest_label_detection'))} |"
             )
     else:
         lines.append('None.')
@@ -613,8 +741,13 @@ def write_csv(path, report):
     fields = [
         'status', 'expected_id', 'expected_type', 'expected_name',
         'expected_labels', 'expected_x', 'expected_y',
+        'expected_nearest_map_occupied_m', 'expected_has_map_support',
         'detection_id', 'detection_class', 'detection_x', 'detection_y',
         'distance_m', 'existence', 'hits',
+        'nearest_detection_id', 'nearest_detection_class',
+        'nearest_detection_distance_m', 'nearest_detection_label_match',
+        'nearest_label_detection_id', 'nearest_label_detection_class',
+        'nearest_label_detection_distance_m',
     ]
     os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
     with open(path, 'w', newline='', encoding='utf-8') as f:
@@ -632,6 +765,10 @@ def write_csv(path, report):
                     'expected_labels': ';'.join(exp['accepted_labels']),
                     'expected_x': exp['map_x'],
                     'expected_y': exp['map_y'],
+                    'expected_nearest_map_occupied_m':
+                        exp.get('nearest_map_occupied_m', ''),
+                    'expected_has_map_support':
+                        exp.get('has_map_support', ''),
                     'detection_id': det['did'],
                     'detection_class': det['class_name'],
                     'detection_x': det['x'],
@@ -641,6 +778,10 @@ def write_csv(path, report):
                     'hits': det['hits'],
                 })
         for exp in report['missed']:
+            nearest = exp.get('nearest_detection') or {}
+            nearest_det = nearest.get('detection') or {}
+            nearest_label = exp.get('nearest_label_detection') or {}
+            nearest_label_det = nearest_label.get('detection') or {}
             writer.writerow({
                 'status': 'missed',
                 'expected_id': exp['eid'],
@@ -649,6 +790,19 @@ def write_csv(path, report):
                 'expected_labels': ';'.join(exp['accepted_labels']),
                 'expected_x': exp['map_x'],
                 'expected_y': exp['map_y'],
+                'expected_nearest_map_occupied_m':
+                    exp.get('nearest_map_occupied_m', ''),
+                'expected_has_map_support':
+                    exp.get('has_map_support', ''),
+                'nearest_detection_id': nearest_det.get('did', ''),
+                'nearest_detection_class': nearest_det.get('class_name', ''),
+                'nearest_detection_distance_m': nearest.get('distance_m', ''),
+                'nearest_detection_label_match': nearest.get('label_match', ''),
+                'nearest_label_detection_id': nearest_label_det.get('did', ''),
+                'nearest_label_detection_class':
+                    nearest_label_det.get('class_name', ''),
+                'nearest_label_detection_distance_m':
+                    nearest_label.get('distance_m', ''),
             })
         for det in report['extra']:
             writer.writerow({
@@ -682,6 +836,8 @@ def run(args):
     ignored_types = set(args.ignore_type)
     expected, skipped, robot_xy = parse_world_objects(
         args.wbt, args.robot, extra_targets, ignored_types)
+    attach_expected_map_support(
+        expected, args.map, args.expected_map_support_dist)
     detections = load_detections(
         args.db, args.min_existence, args.min_hits)
     ignored_labels = set()
@@ -696,6 +852,14 @@ def run(args):
             if normalized_label(d.class_name) not in ignored_labels
         ]
     result = evaluate(expected, detections, args.match_distance)
+    expected_with_map_support = sum(
+        1 for exp in expected if exp.has_map_support)
+    missed_with_map_support = sum(
+        1 for row in result['missed'] if row.get('has_map_support'))
+    result['summary']['expected_with_map_support_count'] = (
+        expected_with_map_support)
+    result['summary']['missed_with_map_support_count'] = (
+        missed_with_map_support)
     report = {
         'inputs': {
             'wbt': args.wbt,
@@ -705,6 +869,7 @@ def run(args):
             'min_existence': args.min_existence,
             'min_hits': args.min_hits,
             'ignored_types': sorted(ignored_types),
+            'expected_map_support_dist_m': args.expected_map_support_dist,
         },
         'summary': result['summary'],
         'correct': result['correct'],
@@ -758,6 +923,11 @@ def main():
     ap.add_argument('--min-existence', type=float, default=0.5)
     ap.add_argument('--min-hits', type=int, default=5)
     ap.add_argument('--match-distance', type=float, default=1.0)
+    ap.add_argument(
+        '--expected-map-support-dist',
+        type=float,
+        default=0.55,
+        help='distance [m] used only for reporting expected-object map support')
     ap.add_argument('--scale', type=float, default=0.0,
                     help='PNG map enlargement factor. 0 chooses automatically')
     ap.add_argument(
@@ -777,4 +947,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc))

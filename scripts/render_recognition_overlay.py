@@ -97,6 +97,12 @@ def render(map_yaml, db_path, out_path, min_existence, min_hits, scale,
     with open(map_yaml) as f:
         meta = yaml.safe_load(f)
     pgm_path = os.path.join(os.path.dirname(map_yaml), meta['image'])
+    if not os.path.exists(pgm_path):
+        raise FileNotFoundError(
+            'map image missing: %s referenced by %s. '
+            'Run `ros2 run susumu_object_perception validate_map_assets.py %s` '
+            'and regenerate the map image with nav2_map_server map_saver_cli.'
+            % (pgm_path, map_yaml, map_yaml))
     img = load_pgm(pgm_path)
     h, w = img.shape
     objects = load_objects(
@@ -242,4 +248,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc))

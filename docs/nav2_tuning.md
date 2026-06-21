@@ -73,6 +73,18 @@ flowchart LR
 
 `config/nav2_params.yaml` の調整対象になりやすいパラメータ。**変更時はこの表も更新する。**
 
+### AMCL（保存地図 `slam:=False` の自己位置推定）
+
+| パラメータ | 現在値 | 意味 / 調整の効果 |
+|---|---|---|
+| `laser_model_type` | `likelihood_field` | 地図の likelihood field で `/scan` 観測を評価する |
+| `max_beams` | 90 | 1 scan から AMCL 更新に使う最大ビーム数。60 から増やし、狭い屋内終盤の向きずれを抑える |
+| `update_min_d` | 0.10 | この距離 [m] 以上移動したら AMCL filter を更新する。0.25 から詰めて、低速巡回中の補正間隔を短くする |
+| `update_min_a` | 0.10 | この回転 [rad] 以上で AMCL filter を更新する。0.20 から詰めて、旋回中の補正を早める |
+| `min_particles` / `max_particles` | 500 / 2000 | particle 数の下限 / 上限 |
+| `pf_err` / `pf_z` | 0.05 / 0.99 | KLD sampling の誤差・信頼度 |
+| `laser_likelihood_max_dist` | 2.0 | 障害物からの距離を likelihood field へ反映する最大距離 [m] |
+
 ### コントローラ（`controller_server` / `FollowPath` = DWB）
 
 | パラメータ | 現在値 | 意味 / 調整の効果 |
@@ -157,7 +169,8 @@ flowchart LR
 | カクついて方向転換が多い | `sim_time` | 上げる（先読みを長く） |
 | `No valid trajectories`（立ち往生） | `inflation_radius` / スポーン位置 | 膨張を下げる／開けた場所へ |
 | 動的障害物（人）の軌跡が残る | （STVL 廃止で解決済み） | 旧 STVL の `voxel_decay`(3s) 残留問題は廃止で解消（[§2.1](#21-3d-障害物層の遍歴1表に集約)）。現在は `predicted_layer` が毎フレーム焼き直すため軌跡は残らず、2D `/scan` の obstacle_layer も raytrace clearing で消える |
-| 自己位置がずれて誤計画 | AMCL（`/initialpose`） | GUI の「原点へワープ」で再初期化 |
+| 自己位置がずれて誤計画 | AMCL（`max_beams`, `update_min_d`, `update_min_a`, `/initialpose`） | まず `truth_monitor:=True` で Webots GPS/IMU truth と `map->base_footprint` を評価する。大きくずれる場合は AMCL 更新頻度・ビーム数・初期姿勢を疑う。GUI の「原点へワープ」で再初期化 |
+| AMCL 調整後も短周期の姿勢・速度が揺れる | `robot_localization` EKF（wheel odom twist + `/imu` yaw） | Nav2/REP-105 では AMCL が `map->odom`、オドメトリ系が `odom->base_link` を担う。`robot_localization` を入れる場合は `odom->base_link` の平滑化として評価し、AMCL の代替にしない。真値 `/gps` は評価専用で、EKF 入力には使わない。cycle05 では `/odom` の x/y pose を融合せず twist と IMU yaw だけを使う構成が raw odom drift を大きく下げた。cycle06/07 の TF 置換は opt-in で競合なく完走し、起動順調整で初期 `odom->base_link` 待ちは 0 件。cycle08 の wheel radius multiplier `1.046` は path length 比を `0.999` にしたが odom aligned と進行性が悪化したため既定化は保留 |
 
 > **歩行者（HuNav）が動かない問題は Nav2 ではない。** これは `config/agents_house.yaml`
 > 側（init_pose / goals が壁・家具・別部屋にある等）の問題。Nav2 調整では直らないので
@@ -183,6 +196,7 @@ flowchart LR
 
 | 日付 | 変更 | 理由 / 結果 |
 |---|---|---|
+| 2026-06-22 | 自己位置評価 cycle01-08 を実施し、AMCL 更新値、truth/odom/EKF 診断、EKF TF opt-in、wheel radius scale をまとめて評価した。採用: `amcl.max_beams=90`, `update_min_d/a=0.10`、truth monitor の waypoint/odom/filtered 指標、`config/ekf_odom_twist_imu_eval.yaml`、EKF TF 評価用の `config/webots_ros2control_ekf_odom_tf.yaml` と起動順引数。未採用: pose+twist EKF、EKF TF の通常既定化、wheel radius multiplier `1.046` の通常推奨化 | AMCL 採用値は `reached=22/22`, max aligned `0.185m`。twist+IMU EKF は filtered max aligned `0.209m`, max yaw `3.08deg` で評価用既定に採用。EKF TF + 起動順調整は `base_link->odom` wait `0`、map max `0.227m`、EKF max `0.191m` で opt-in 採用。wheel radius `1.046` は path 比 `0.999` まで改善したが EKF max aligned `0.291m` と progress failure 1 回で未採用。詳細値は `docs/tasks/waypoint_navigation.md` の集約表と `maps/indoor_localization_cycle*_nav.*` / `_truth.*` を参照。次は radius multiplier `1.02`〜`1.03`、wheel separation、左右差を小さく切り分ける |
 | 2026-06-21 | 屋外専用 `config/nav2_params_webots_explore_outdoor.yaml` で `local_costmap.plugins` に `static_layer` を入れる実験を2条件（`footprint_clearing_enabled:false/true`）で実施したが、既定未採用。最終設定は `local_costmap.plugins=["obstacle_layer","inflation_layer"]` に戻した | サイクル22で #6 の robot pose が保存地図/static と global costmap 上は occupied なのに local costmap は free だったため、DWB に保存地図を見せる仮説を検証した。`false` 版は `reached=14/53`, monitor samples `346`, `pose_static_lethal=220`。`true` 版も `reached=14/53`, monitor samples `410`, `pose_global_lethal_static_free=134`, `pose_global_lethal=115`。どちらも cycle20 既定 `reached=16/53` より悪く、#14 で `(4.4〜4.6,1.5〜1.7)` 付近の static/global/local lethal に入る主因を解けない。Nav2 StaticLayer 公式 docs と上流 `static_layer.cpp` を確認し、local static は切り分けには有効だが既定 tuning としては採用しない |
 | 2026-06-20 | `planner_server.GridBased.plugin` を `nav2_navfn_planner/NavfnPlanner` から `nav2_smac_planner/SmacPlanner2D` に変更。Smac 2D の `max_planning_time:3.5`, `cost_travel_multiplier:5.0`, `use_final_approach_orientation:false` を設定。`local_costmap.obstacle_layer.footprint_clearing_enabled:true` を明示。`global_costmap.plugins` から `obstacle_layer` を外し、global は `static_layer + predicted_layer + inflation_layer` に限定。`inflation_radius:0.45`, `cost_scaling_factor:2.0`, `DWB BaseObstacle.scale:0.08` へ変更 | 保存地図AMCL巡回（`slam:=False map_file:=maps/indoor.yaml nav_params_file:=config/nav2_params.yaml`）で、相対パス解決後も Navfn が waypoint #6 `(-0.28,-3.38)` へ `failed to create plan` を繰り返した。Smac 2D では原因が `Starting point in lethal space` と分かった。footprint clearing 後および global obstacle 除去後の評価は `reached=21/22 missed=[6]`。#6 直前の推定位置・#6・#7 は保存地図上 free だったが、走行中にロボットが壁際へ寄り、再計画時の footprint 内に static/inflation の lethal が入った。Nav2 公式の tuning guide は通路全体に滑らかな inflation potential を作り、Smac 2D は `cost_travel_multiplier` で高コスト領域から離すと説明しているため、waypoint 数を減らさず中央寄せを強めた。最終評価（`mode:=realtime`）は `reached=22/22 missed=[]`、#6 も成功。参照: Nav2 Tuning Guide / Smac 2D Planner docs / DWB Controller docs |
 | 2026-06-15 | **STVL 層（`stvl_layer`）を local/global から削除**。人の現在位置の障害物化を `predicted_layer`（予測層）に統合し、`prediction_node` が全トラックの現在位置 + 移動トラックの進路先を予測 OccupancyGrid に焼く。予測パスは confidence しきい撤廃（移動なら必ず焼く）、点列を**線分補間**で連続描画、膨張 6→8 セル | **STVL は人の通過跡を `voxel_decay`(3s) 残すので「移動軌跡のコスト」が出る**問題。予測層は毎フレーム全消去するので軌跡が残らない。これで現在位置・進路先を一括で担う。検証: 進路が出るフレーム 95%→**100%**、進路上の連続性 60%→**77%**、costmap 全体 LETHAL 25%（健全）、壁 100% 維持、ナビ可能 |
@@ -192,3 +206,16 @@ flowchart LR
 | 2026-06-14 | obstacle_layer/voxel_layer の入力を生 `/scan`・`/velodyne_points` に設定 | 純粋シミュレーター化に伴い、人も普通の障害物として costmap に乗せる |
 
 > 構築・調整の詳細な経緯は [`../SETUP.md`](../SETUP.md) を参照。
+
+## 6. 参照した一次情報
+
+- Nav2 AMCL configuration: https://docs.nav2.org/configuration/packages/configuring-amcl.html
+- Nav2 tuning guide: https://docs.nav2.org/tuning/index.html
+- Nav2 AMCL source (`shouldUpdateFilter`): https://github.com/ros-navigation/navigation2/blob/main/nav2_amcl/src/amcl_node.cpp
+- Nav2 Smoothing Odometry using Robot Localization: https://docs.nav2.org/setup_guides/odom/setup_robot_localization.html
+- Nav2 Transform setup / REP-105 summary: https://docs.nav2.org/setup_guides/transformation/setup_transforms.html
+- ROS 2 Control diff_drive_controller parameters: https://control.ros.org/humble/doc/ros2_controllers/diff_drive_controller/doc/userdoc.html
+- ROS 2 Launch design / process orchestration: https://design.ros2.org/articles/roslaunch.html
+- robot_localization EKF example parameters: https://github.com/cra-ros-pkg/robot_localization/blob/ros2/params/ekf.yaml
+- Webots TurtleBot3Burger PROTO wheel radius: https://raw.githubusercontent.com/cyberbotics/webots/R2022b/projects/robots/robotis/turtlebot/protos/TurtleBot3Burger.proto
+- nav_msgs/Odometry frame contract: https://docs.ros2.org/foxy/api/nav_msgs/msg/Odometry.html

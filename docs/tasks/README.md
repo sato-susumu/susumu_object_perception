@@ -11,8 +11,8 @@
 | マッピング（屋内） | 運用対象 | `maps/indoor.yaml`、`maps/break_room.yaml`。評価実行は `mode:=realtime` | 地図品質が崩れた場合は衝突・`/scan`・SLAM 設定を切り分ける | [mapping_indoor.md](mapping_indoor.md) |
 | マッピング（屋外） | 方針転換中 | 屋外本線は **GLIMで3D点群を作る → trajectory条件を比較 → Nav2用2D地図化 → waypoint生成**。cycle25 で plan / actual corridor 監視を採用。cycle26 で `expand_waypoint_route.py` を診断・候補生成用に追加。cycle27 で outdoor-only `safe_pose_guard` を追加したが、Nav2 goal で安全姿勢へ戻す方式は live 悪化のため既定未採用。cycle21-24 の各局所対策も既定未採用。world 由来 `*_gt.yaml` は評価専用 | 次は lethal pose に入った後の Nav2 再計画ではなく、lethal 前の経路ブラックリスト化、または短時間の直接制御 escape を屋外専用に評価する。cycle27 は `reached=11/96` と `9/96` で停止 | [mapping_outdoor.md](mapping_outdoor.md) |
 | ウェイポイント生成 | 屋内採用済み | `maps/indoor_waypoints.yaml`。確認 PNG も同時生成 | 認識用追加視点はナビ完走しても認識が悪化したため未採用 | [waypoint_generation.md](waypoint_generation.md) |
-| 巡回ナビ | 屋内採用済み | `indoor.wbt` + `indoor_waypoints.yaml` は `reached=22/22 missed=[]` | missed が出たら waypoint 生成、地図、Nav2 tuning の順で見る | [waypoint_navigation.md](waypoint_navigation.md) |
-| 認識 | 改善継続中 | 屋内採用値は `yolov8s-seg.pt` + mask/色ゲート + 座席統合。Table/Sofa 除外 F1 `0.727` | 未検出の Fridge / PottedTree / BunchOfSunFlowers。multi-FOV/imgsz 960 は未採用 | [recognition.md](recognition.md) |
+| 巡回ナビ | 屋内採用済み | `indoor.wbt` + `indoor_waypoints.yaml` は `reached=22/22 missed=[]`。AMCL は cycle01c で `max_beams=90`, `update_min_d/a=0.10` を採用。cycle05 で評価用 `robot_localization` EKF 既定を `config/ekf_odom_twist_imu_eval.yaml` に変更。cycle06/07 で opt-in の EKF TF 構成（`config/ekf_odom_twist_imu_tf.yaml` + `config/webots_ros2control_ekf_odom_tf.yaml`、`ekf_odom_start_sec:=2.0 nav_start_delay_sec:=2.5`）を検証。cycle08 の wheel radius multiplier `1.046` は path 比 `0.999` まで改善したが odom max aligned `0.291m` と progress failure 1 回のため既定未採用 | 次は wheel radius multiplier を `1.02`〜`1.03` 程度へ下げ、path length と odom aligned / progress failure のトレードオフを詰める。真値 `/gps` は評価専用 | [waypoint_navigation.md](waypoint_navigation.md) |
+| 認識 | 改善継続中 | 屋内採用値は `yolov8s-seg.pt` + mask/色ゲート + 座席統合。Table/Sofa 除外 F1 `0.727`。cycle29 で map asset validation、cycle30 で map_saver 完了検査、cycle31/32 で `maps/indoor.pgm` / `maps/break_room.pgm` 復旧を採用。追加改善14で class別 map support を採用し、multi-FOV+map support は F1 `0.222`→`0.500`。追加改善18で debug recorder、追加改善19で debug crop 保存、追加改善20/21で stage/tracker 診断、追加改善22で tracker wall margin、追加改善23で YOLO predict/accept 分離、追加改善24で track id 別 object association 診断、追加改善25で crop yaw/pitch offset 診断、追加改善26で shape-height crop 診断、追加改善27で 3D bbox projection crop 診断までを採用/診断採用 | 次は通常巡回 Fridge positive crop が `cabinet` / `dining table` / `chair` 相当に寄る原因を、hard positive/negative crop と固定クラスの軽量 custom classifier で切り分ける。汎用 YOLO bbox crop と `yolov8m-seg.pt` は既定未採用。既定 margin 22 / YOLO conf 0.15 / accept 0.15 は維持 | [recognition.md](recognition.md) |
 | カラー点群出力 | 基本機能あり、精密較正は課題 | `/perception/colorized_points`、`/slam/*colorized_points_map`、PLY 保存 | 投影誤差 1deg 未満を断言できない。realtime 4方向 validation と較正入力の整備 | [colorized_pointcloud.md](colorized_pointcloud.md) |
 
 ## 読む順
@@ -35,6 +35,9 @@
 | `maps/<world>_recognition_overlay.png` | 認識 | 認識レビュー |
 | `maps/<world>_recognition_eval.{md,json,csv,png}` | 認識 | 採用/未採用判断 |
 | `maps/colorized/*.ply` | カラー点群出力 | 点群レビュー、外部可視化 |
+
+`*.pgm` はすべて commit 対象にする。保存地図は YAML だけでは後段が再現できないため、`.yaml` と `.pgm`
+をペアで扱う。確認用 PNG / overlay PNG は再生成可能なので引き続き追跡しない。
 
 ## 更新ルール
 

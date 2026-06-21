@@ -54,6 +54,7 @@
 
   <!-- Navigation -->
   <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>robot_localization</exec_depend>
   <!-- slam:=True に切り替えたとき nav2_bringup が使う（既定は slam:=False で AMCL） -->
   <exec_depend>slam_toolbox</exec_depend>
   <!-- 3D LiDAR loop-closure backend for Webots colored point cloud SLAM. -->

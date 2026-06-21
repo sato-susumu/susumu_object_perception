@@ -59,6 +59,7 @@ from autoware_perception_msgs.msg import (
     ObjectClassification,
     Shape,
 )
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from nav_msgs.msg import OccupancyGrid
 from rclpy.qos import DurabilityPolicy
 from unique_identifier_msgs.msg import UUID
@@ -245,6 +246,9 @@ class ObjectTrackerNode(Node):
         self.declare_parameter('occupied_thresh', 50)
         self.declare_parameter('wall_margin_moving_cells', 6)    # 0.30m
         self.declare_parameter('wall_margin_static_cells', 22)   # 1.10m
+        # 診断用。True のとき、各 track が publish / min_hits / map_blocked の
+        # どの理由で扱われたかを DiagnosticArray に出す。通常は無効。
+        self.declare_parameter('publish_debug_diagnostics', False)
 
         self.tracking_frame = self.get_parameter('tracking_frame').value
         self.assoc_dist = float(self.get_parameter('association_max_dist').value)
@@ -277,6 +281,8 @@ class ObjectTrackerNode(Node):
             self.get_parameter('wall_margin_moving_cells').value)
         self.margin_static = int(
             self.get_parameter('wall_margin_static_cells').value)
+        self.publish_debug_diagnostics = bool(
+            self.get_parameter('publish_debug_diagnostics').value)
         self.map = None
         self.grid = None
 
@@ -298,6 +304,10 @@ class ObjectTrackerNode(Node):
         self.pub = self.create_publisher(
             TrackedObjects,
             self.get_parameter('output_topic').value, qos)
+        self.pub_debug = None
+        if self.publish_debug_diagnostics:
+            self.pub_debug = self.create_publisher(
+                DiagnosticArray, '/perception/object_tracker/debug', 10)
         self.sub = self.create_subscription(
             DetectedObjects,
             self.get_parameter('input_topic').value,
@@ -448,11 +458,27 @@ class ObjectTrackerNode(Node):
         out = TrackedObjects()
         out.header.stamp = stamp
         out.header.frame_id = self.tracking_frame
+        debug = DiagnosticArray()
+        debug.header = out.header
+        stamp_sec = stamp.sec + stamp.nanosec * 1e-9
 
         for tr in self.tracks:
+            reason = 'published'
+            blocked = False
             if tr.hits < self.min_hits:
+                reason = 'min_hits'
+            else:
+                blocked = self._track_blocked_on_map(tr)
+                if blocked:
+                    reason = 'map_blocked'
+
+            if self.pub_debug is not None:
+                debug.status.append(
+                    self._make_debug_status(tr, reason, blocked, stamp_sec))
+
+            if reason == 'min_hits':
                 continue  # まだ安定していないトラックは出さない
-            if self._track_blocked_on_map(tr):
+            if reason == 'map_blocked':
                 continue  # 地図上で壁/地図外に居るトラックは出さない（壁上の緑ボックス対策）
 
             to = TrackedObject()
@@ -502,6 +528,39 @@ class ObjectTrackerNode(Node):
             out.objects.append(to)
 
         self.pub.publish(out)
+        if self.pub_debug is not None:
+            self.pub_debug.publish(debug)
+
+    def _make_debug_status(self, tr, reason, blocked, stamp_sec):
+        st = DiagnosticStatus()
+        st.name = bytes(tr.uuid).hex()
+        st.level = (
+            DiagnosticStatus.OK if reason == 'published'
+            else DiagnosticStatus.WARN)
+        st.message = reason
+        speed = float(np.linalg.norm(tr.vel))
+        stationary = self._is_stationary(tr)
+        margin = self.margin_static if stationary else self.margin_moving
+        age = max(0.0, stamp_sec - float(tr.last_stamp))
+        st.values = [
+            KeyValue(key='frame_id', value=self.tracking_frame),
+            KeyValue(key='x', value='%.6f' % float(tr.pos[0])),
+            KeyValue(key='y', value='%.6f' % float(tr.pos[1])),
+            KeyValue(key='vx', value='%.6f' % float(tr.vel[0])),
+            KeyValue(key='vy', value='%.6f' % float(tr.vel[1])),
+            KeyValue(key='speed', value='%.6f' % speed),
+            KeyValue(key='hits', value=str(int(tr.hits))),
+            KeyValue(key='existence', value='%.6f' % float(tr.existence)),
+            KeyValue(key='age_sec', value='%.6f' % age),
+            KeyValue(key='is_stationary', value=str(bool(stationary))),
+            KeyValue(key='map_blocked', value=str(bool(blocked))),
+            KeyValue(key='wall_margin_cells', value=str(int(margin))),
+            KeyValue(key='label', value=str(int(tr.label))),
+            KeyValue(key='shape_x', value='%.6f' % float(tr.shape.x)),
+            KeyValue(key='shape_y', value='%.6f' % float(tr.shape.y)),
+            KeyValue(key='shape_z', value='%.6f' % float(tr.shape.z)),
+        ]
+        return st
 
 
 def make_shape(dimensions):

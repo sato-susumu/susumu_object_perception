@@ -36,7 +36,7 @@ flowchart TB
     c-->d; e-->d
   end
   subgraph S3["③ 問い合わせ→移動 = Object Goal Navigation + LLM"]
-    f["CLIP埋め込み + LLM<br/>曖昧語→物体特定"]:::own
+    f["固定辞書 / LLM補助<br/>曖昧語→既知クラス"]:::own
     g["座標取得→Nav2 NavigateToPose"]:::own
     f-->g
   end
@@ -55,7 +55,7 @@ flowchart TB
 | Kimera | リアルタイム metric-semantic VI-SLAM（2D 意味ラベルを 3D メッシュに融合） | C++ |
 | Voxblox++ | RGB-D→TSDF instance-aware semantic map + 3D object discovery | ❌ ROS1 のみ |
 | Hydra (MIT-SPARK) | リアルタイム 3D Scene Graph（objects/places/rooms 階層） | ❌ **Iron 以降のみ＝Humble 不可** |
-| ConceptGraphs | open-vocabulary 3D scene graph + CLIP + GPT-4 | GPU 重い |
+| ConceptGraphs | foundation-model 3D scene graph + GPT-4 | GPU 重い |
 | RTABMap_Semantic_Mapping (gjcliff) | RTAB-Map `.db` + Ultralytics/YOLO | ✅ **Humble で動く** |
 | object-level-mapping (benchun123) | Voxblox++ ベース。association 設計は明確だが**公開コードは未完**（global 化未実装） | ❌ ROS1・未完 |
 
@@ -81,7 +81,7 @@ non-detection）」時に **existence 確率（尤度）をベイズ的に下げ
 
 | 実装 | 中身 |
 |---|---|
-| **ConceptGraphs**（ICRA2024） | 各 3D 物体に **CLIP 埋め込み**。open-set テキストは CLIP 類似度、**曖昧クエリ（例「座るもの」）は GPT-4 推論**で解決→ planning へ。「open-vocabulary 物体マッピング」の代表 |
+| **ConceptGraphs**（ICRA2024） | 3D 物体グラフと GPT-4 推論で曖昧クエリ（例「座るもの」）を planning へ接続する研究例 |
 | **ReMEmbR**（NVIDIA-AI-IOT） | LLM+VLM の長期時空間メモリ。「Where can I sit?」等に **goal pose を返す→ナビへ**。command-r + Ollama + LangGraph + MilvusDB。Nova Carter 実機動作。**自然語→場所→移動のエンドツーエンド参照** |
 
 > 注意: ReMEmbR は VLM caption ベースのメモリで、明示的な物体クラス/座標を持たない設計。
@@ -106,7 +106,7 @@ non-detection）」時に **existence 確率（尤度）をベイズ的に下げ
 
 1. **記憶の永続化**: 追跡（一時的・フレーム間）を「記憶」（永続 object DB: クラス/map 座標/
    existence 確率）に拡張。RGB-D bbox→深度→TF(map) で 3D 座標化（既存 shape_estimation と同流）。
-2. **open-vocab クエリ層**: 物体に CLIP 埋め込みを保存し、LLM（command-r/GPT-4）で曖昧語→物体選択。
+2. **クエリ層**: class synonym 辞書で曖昧語を既知クラスへ寄せ、必要な場合だけ LLM を補助的に使う。
 3. **クエリ→移動の接続**: 選択物体の座標→`NavigateToPose`（teleop_gui の巡回機構を流用可）。
 
 接続点の候補: 既存の `/perception/tracked_objects`（TrackedObjects, existence_probability 付き）
@@ -118,7 +118,7 @@ non-detection）」時に **existence 確率（尤度）をベイズ的に下げ
 - ConceptGraphs 公開コードを ROS2 ノード化できるか、GPU 要件・リアルタイム性が屋内で実用か。
 - object permanence（existence likelihood / Perpetua / POCD）を **Nav2 costmap 更新へ反映**する
   既存 ROS2 実装はあるか、mapping 層止まりか。
-- **屋外つくばチャレンジ級**（広域 2D 占有格子 + 動的）での open-vocabulary semantic mapping 事例。
+- **屋外つくばチャレンジ級**（広域 2D 占有格子 + 動的）での semantic mapping 事例。
 - 既存自作 perception（`tracked_objects` 等）に RGB-D semantic object mapping を最小コストで
   接続する最適点（トピック流用可否）。
 

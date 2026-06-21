@@ -72,17 +72,22 @@ webots_worlds/*.wbproj
 .codex/auto_improve.stop
 .codex/auto_improve_runs/
 
-# ===== 保存地図の PGM / 確認用オーバーレイ PNG (バイナリ画像、含めない) =====
+# ===== 保存地図の PGM / 確認用オーバーレイ PNG =====
 # PGM は frontier 探索/SLAM で生成する占有格子地図（generate_waypoints.py の入力）。
+# 後段の Nav2 / waypoint / 認識評価が YAML だけ残る状態で壊れないよう、PGM は追跡対象にする。
 # PNG は generate_waypoints.py がウェイポイントを地図に重ねた確認用画像（再生成可能）。
-# どちらも各自の環境で生成する前提。yaml メタと <world>_waypoints.yaml はテキスト
-# なので追跡する。
-maps/*.pgm
+# 確認用 PNG は各自の環境で再生成する前提なので追跡しない。
 maps/*.png
-# 例外: cafe.pgm は hunav_gazebo_wrapper 同梱の cafe world 用既存地図のコピー
-# （MD5一致）で、map_server / amcl / RViz Fixed Frame=map のために必須。
-# マッピング生成物ではなく、cafe world の前提地図として追跡する。
-!maps/cafe.pgm
+maps/*_crops/
+maps/*_object_assoc/
+maps/indoor_localization_cycle*.csv
+maps/indoor_localization_cycle*.json
+maps/indoor_localization_cycle*.md
+maps/indoor_recognition_cycle*.csv
+maps/indoor_recognition_cycle*.json
+maps/indoor_recognition_cycle*.md
+maps/indoor_recognition_cycle*.yaml
+maps/*_vs_world.json
 
 # ===== 色付き点群 PLY (大容量バイナリ、リポジトリに含めない) =====
 # colorized_pointcloud_mapper が omni camera + LiDAR fusion で作る色付き点群地図。

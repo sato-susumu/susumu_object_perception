@@ -2,8 +2,8 @@
 """自然語クエリで物体メモリを引き、その物体の手前へ Nav2 で移動するノード。
 
 docs/semantic_object_memory_research.md の ③（Object Goal Navigation + LLM）の MVP。
-research.md は最終的に CLIP 埋め込み + LLM で曖昧語を解決する構想だが、MVP では
-**固定辞書**（「椅子」→ chair 等）でクラス名を引き、object_memory_node の SQLite DB から
+research.md の現行方針に合わせ、MVP では **固定辞書**（「椅子」→ chair 等）で
+クラス名を引き、object_memory_node の SQLite DB から
 最有力（existence 最大）の object 座標を取り、その手前の approach pose を作って
 `NavigateToPose` に投げる。
 

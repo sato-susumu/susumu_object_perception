@@ -35,8 +35,27 @@ def generate_launch_description():
     use_image_recognition = LaunchConfiguration('image_recognition')
     object_yolo_weights = LaunchConfiguration('object_yolo_weights')
     object_yolo_imgsz = LaunchConfiguration('object_yolo_imgsz')
+    object_yolo_conf = LaunchConfiguration('object_yolo_conf')
+    object_min_accept_conf = LaunchConfiguration('object_min_accept_conf')
     object_crop_fovs_deg = LaunchConfiguration('object_crop_fovs_deg')
+    object_crop_yaw_offsets_deg = LaunchConfiguration(
+        'object_crop_yaw_offsets_deg')
+    object_crop_pitch_offsets_deg = LaunchConfiguration(
+        'object_crop_pitch_offsets_deg')
+    object_crop_shape_center_height_fracs = LaunchConfiguration(
+        'object_crop_shape_center_height_fracs')
+    object_crop_shape_bbox_margins_deg = LaunchConfiguration(
+        'object_crop_shape_bbox_margins_deg')
     object_classifier_debug = LaunchConfiguration('object_classifier_debug')
+    object_debug_crop_dir = LaunchConfiguration('object_debug_crop_dir')
+    object_debug_crop_max_per_track = LaunchConfiguration(
+        'object_debug_crop_max_per_track')
+    object_tracker_debug = LaunchConfiguration('object_tracker_debug')
+    object_tracker_min_hits = LaunchConfiguration('object_tracker_min_hits')
+    object_tracker_wall_margin_moving_cells = LaunchConfiguration(
+        'object_tracker_wall_margin_moving_cells')
+    object_tracker_wall_margin_static_cells = LaunchConfiguration(
+        'object_tracker_wall_margin_static_cells')
     indoor_objects = LaunchConfiguration('indoor_objects')
     use_slam = LaunchConfiguration('slam')
     map_file = LaunchConfiguration('map_file')
@@ -51,6 +70,8 @@ def generate_launch_description():
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
     nav_params_file = LaunchConfiguration('nav_params_file')
+    ros2_control_params_file = LaunchConfiguration('ros2_control_params_file')
+    nav_start_delay_sec = LaunchConfiguration('nav_start_delay_sec')
 
     # robot + Webots + Nav2。slam:=True なら Nav2 bringup の slam_toolbox、
     # slam:=False なら map_file の保存地図 + AMCL を使う。
@@ -69,8 +90,25 @@ def generate_launch_description():
             ('image_recognition', use_image_recognition),
             ('object_yolo_weights', object_yolo_weights),
             ('object_yolo_imgsz', object_yolo_imgsz),
+            ('object_yolo_conf', object_yolo_conf),
+            ('object_min_accept_conf', object_min_accept_conf),
             ('object_crop_fovs_deg', object_crop_fovs_deg),
+            ('object_crop_yaw_offsets_deg', object_crop_yaw_offsets_deg),
+            ('object_crop_pitch_offsets_deg', object_crop_pitch_offsets_deg),
+            ('object_crop_shape_center_height_fracs',
+             object_crop_shape_center_height_fracs),
+            ('object_crop_shape_bbox_margins_deg',
+             object_crop_shape_bbox_margins_deg),
             ('object_classifier_debug', object_classifier_debug),
+            ('object_debug_crop_dir', object_debug_crop_dir),
+            ('object_debug_crop_max_per_track',
+             object_debug_crop_max_per_track),
+            ('object_tracker_debug', object_tracker_debug),
+            ('object_tracker_min_hits', object_tracker_min_hits),
+            ('object_tracker_wall_margin_moving_cells',
+             object_tracker_wall_margin_moving_cells),
+            ('object_tracker_wall_margin_static_cells',
+             object_tracker_wall_margin_static_cells),
             ('indoor_objects', indoor_objects),
             ('colored_slam', use_colored_slam),
             ('lidar_model', lidar_model),
@@ -83,6 +121,8 @@ def generate_launch_description():
             ('omni_calibration_json', omni_calibration_json),
             ('use_sim_time', use_sim_time),
             ('nav_params_file', nav_params_file),
+            ('ros2_control_params_file', ros2_control_params_file),
+            ('nav_start_delay_sec', nav_start_delay_sec),
         ],
     )
 
@@ -121,11 +161,49 @@ def generate_launch_description():
             'object_yolo_imgsz', default_value='640',
             description='object_classifier_node.py の YOLO 推論画像サイズ'),
         DeclareLaunchArgument(
+            'object_yolo_conf', default_value='0.15',
+            description='object_classifier_node.py の YOLO predict conf。既定 0.15'),
+        DeclareLaunchArgument(
+            'object_min_accept_conf', default_value='0.15',
+            description='object_classifier_node.py の分類採用conf。既定 0.15'),
+        DeclareLaunchArgument(
             'object_crop_fovs_deg', default_value='',
             description='object_classifier_node.py の複数FOVクロップ（例: 75,55,40）'),
         DeclareLaunchArgument(
+            'object_crop_yaw_offsets_deg', default_value='',
+            description='object_classifier_node.py のcrop中心yaw offset[deg]（例: -12,0,12）'),
+        DeclareLaunchArgument(
+            'object_crop_pitch_offsets_deg', default_value='',
+            description='object_classifier_node.py のcrop中心pitch offset[deg]（例: -8,0,8）'),
+        DeclareLaunchArgument(
+            'object_crop_shape_center_height_fracs', default_value='',
+            description='object_classifier_node.py のshape高さ方向crop中心。例: 0,0.5,0.75'),
+        DeclareLaunchArgument(
+            'object_crop_shape_bbox_margins_deg', default_value='',
+            description='object_classifier_node.py の3D bbox投影crop margin[deg]。例: 4,10,18'),
+        DeclareLaunchArgument(
             'object_classifier_debug', default_value='False',
             description='True で /perception/object_classifier/debug に YOLO 候補の採否理由を出す'),
+        DeclareLaunchArgument(
+            'object_debug_crop_dir', default_value='',
+            description='空でなければ object_classifier_node.py の raw crop と metadata.jsonl を保存する'),
+        DeclareLaunchArgument(
+            'object_debug_crop_max_per_track', default_value='3',
+            description='object_classifier_node.py のdebug crop保存上限/track。-1で無制限'),
+        DeclareLaunchArgument(
+            'object_tracker_debug', default_value='False',
+            description='True で /perception/object_tracker/debug に track publish/reject 理由を出す'),
+        DeclareLaunchArgument(
+            'object_tracker_min_hits', default_value='2',
+            description='object_tracker_node.py の出力最小hit数。既定 2'),
+        DeclareLaunchArgument(
+            'object_tracker_wall_margin_moving_cells',
+            default_value='6',
+            description='object_tracker_node.py の移動track向け壁margin[cell]。既定 6'),
+        DeclareLaunchArgument(
+            'object_tracker_wall_margin_static_cells',
+            default_value='22',
+            description='object_tracker_node.py の静止track向け壁margin[cell]。既定 22'),
         DeclareLaunchArgument(
             'colored_slam', default_value='True',
             description='色付き点群SLAMマップを /slam/colorized_points_map に出す'),
@@ -160,5 +238,11 @@ def generate_launch_description():
             'nav_params_file', default_value='',
             description='Nav2 params 差し替え（空なら標準。探索は inflation を下げた '
                         'config/nav2_params_webots_explore.yaml を指定）'),
+        DeclareLaunchArgument(
+            'ros2_control_params_file', default_value='',
+            description='ros2_control params 差し替え。空なら webots_ros2_turtlebot 標準'),
+        DeclareLaunchArgument(
+            'nav_start_delay_sec', default_value='0.0',
+            description='Webots controller 接続後に Nav2 起動を遅らせる秒数。既定 0'),
         robot_nav,
     ])

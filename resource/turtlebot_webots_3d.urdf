@@ -49,6 +49,17 @@
             </ros>
         </device>
 
+        <!-- Webots GPS truth。評価ノードだけが購読し、SLAM / AMCL / Nav2 へは入力しない。 -->
+        <device reference="gps" type="GPS">
+            <ros>
+                <enabled>true</enabled>
+                <updateRate>10</updateRate>
+                <topicName>/gps</topicName>
+                <alwaysOn>true</alwaysOn>
+                <frameName>gps_link</frameName>
+            </ros>
+        </device>
+
         <plugin type="webots_ros2_driver::Ros2IMU">
             <enabled>true</enabled>
             <updateRate>20</updateRate>

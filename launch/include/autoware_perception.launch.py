@@ -45,6 +45,12 @@ def generate_launch_description():
     # 既定 False（屋外: 壁を確実に除外し人/車だけ拾う）。
     indoor_objects = LaunchConfiguration('indoor_objects')
     indoor_max_height = LaunchConfiguration('indoor_max_height')
+    object_tracker_debug = LaunchConfiguration('object_tracker_debug')
+    object_tracker_min_hits = LaunchConfiguration('object_tracker_min_hits')
+    object_tracker_wall_margin_moving_cells = LaunchConfiguration(
+        'object_tracker_wall_margin_moving_cells')
+    object_tracker_wall_margin_static_cells = LaunchConfiguration(
+        'object_tracker_wall_margin_static_cells')
 
     declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
     declare_input = DeclareLaunchArgument(
@@ -68,6 +74,18 @@ def generate_launch_description():
     declare_indoor_max_height = DeclareLaunchArgument(
         'indoor_max_height', default_value='1.6',
         description='室内物体検出時、この高さ[m]より高い検出は高所として除外')
+    declare_object_tracker_debug = DeclareLaunchArgument(
+        'object_tracker_debug', default_value='False',
+        description='True で /perception/object_tracker/debug に track publish/reject 理由を出す')
+    declare_object_tracker_min_hits = DeclareLaunchArgument(
+        'object_tracker_min_hits', default_value='2',
+        description='object_tracker_node.py の出力最小hit数。既定 2')
+    declare_object_tracker_wall_margin_moving_cells = DeclareLaunchArgument(
+        'object_tracker_wall_margin_moving_cells', default_value='6',
+        description='object_tracker_node.py の移動track向け壁margin[cell]。既定 6')
+    declare_object_tracker_wall_margin_static_cells = DeclareLaunchArgument(
+        'object_tracker_wall_margin_static_cells', default_value='22',
+        description='object_tracker_node.py の静止track向け壁margin[cell]。既定 22')
 
     crop_box_param = os.path.join(cfg, 'autoware_crop_box.param.yaml')
     ground_param = os.path.join(cfg, 'autoware_ground_filter.param.yaml')
@@ -215,6 +233,12 @@ def generate_launch_description():
         output='screen',
         parameters=[sim_time_param, {
             'input_topic': '/perception/detected_objects_in_map',
+            'publish_debug_diagnostics': object_tracker_debug,
+            'min_hits': ParameterValue(object_tracker_min_hits, value_type=int),
+            'wall_margin_moving_cells': ParameterValue(
+                object_tracker_wall_margin_moving_cells, value_type=int),
+            'wall_margin_static_cells': ParameterValue(
+                object_tracker_wall_margin_static_cells, value_type=int),
         }],
     )
 
@@ -249,6 +273,10 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     ld.add_action(declare_indoor_objects)
     ld.add_action(declare_indoor_max_height)
+    ld.add_action(declare_object_tracker_debug)
+    ld.add_action(declare_object_tracker_min_hits)
+    ld.add_action(declare_object_tracker_wall_margin_moving_cells)
+    ld.add_action(declare_object_tracker_wall_margin_static_cells)
     ld.add_action(declare_input)
     ld.add_action(declare_lidar_frame)
     ld.add_action(declare_num_rings)

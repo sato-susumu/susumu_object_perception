@@ -24,7 +24,8 @@ import os
 import launch
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription)
+from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
+                            OpaqueFunction, TimerAction)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
@@ -33,6 +34,51 @@ from webots_ros2_driver.webots_launcher import WebotsLauncher
 from webots_ros2_driver.webots_controller import WebotsController
 from webots_ros2_driver.wait_for_controller_connection import \
     WaitForControllerConnection
+
+
+def _resolve_package_file(value, pkg, default_path, subdir):
+    if value == '':
+        return default_path
+    if os.path.isabs(value):
+        return value
+    if '/' not in value:
+        return os.path.join(pkg, subdir, value)
+    return os.path.join(pkg, value)
+
+
+def _make_robot_control_actions(context, *, pkg, tb3_pkg, robot_description_path,
+                                use_sim_time, ros2_control_params_file,
+                                nav_start_delay_sec, mappings, navigation_nodes,
+                                ros_control_spawners):
+    default_ros2_control_params = os.path.join(
+        tb3_pkg, 'resource', 'ros2control.yml')
+    ros2_control_params = _resolve_package_file(
+        ros2_control_params_file.perform(context),
+        pkg,
+        default_ros2_control_params,
+        'config')
+    turtlebot_driver = WebotsController(
+        robot_name='TurtleBot3Burger',
+        parameters=[
+            {'robot_description': robot_description_path,
+             'use_sim_time': use_sim_time,
+             'set_robot_state_publisher': True},
+            ros2_control_params,
+        ],
+        remappings=mappings,
+        respawn=True,
+    )
+    nav_delay = float(nav_start_delay_sec.perform(context) or 0.0)
+    nav_actions = list(navigation_nodes)
+    if nav_delay > 0.0:
+        nav_actions = [
+            TimerAction(period=nav_delay, actions=nav_actions)
+        ]
+    waiting_nodes = WaitForControllerConnection(
+        target_driver=turtlebot_driver,
+        nodes_to_start=ros_control_spawners + nav_actions,
+    )
+    return [turtlebot_driver, waiting_nodes]
 
 
 def generate_launch_description():
@@ -46,6 +92,11 @@ def generate_launch_description():
     # Nav2 params 差し替え用（空なら従来の webots_ros2_turtlebot 標準を使う）。
     # 探索マッピングでは inflation を下げた config/nav2_params_webots_explore.yaml を渡す。
     nav_params_file = LaunchConfiguration('nav_params_file', default='')
+    # ros2_control params 差し替え用。空なら従来の webots_ros2_turtlebot 標準を使う。
+    # EKF が odom->base_link TF を出す評価では diffdrive 側の enable_odom_tf:false 設定を渡す。
+    ros2_control_params_file = LaunchConfiguration(
+        'ros2_control_params_file', default='')
+    nav_start_delay_sec = LaunchConfiguration('nav_start_delay_sec')
     # slam:=False の AMCL/保存地図ナビで Nav2 map_server に読ませる地図。
     # 空なら従来の webots_ros2_turtlebot 標準地図を使う。
     map_file = LaunchConfiguration('map_file', default='')
@@ -57,8 +108,27 @@ def generate_launch_description():
     use_image_recognition = LaunchConfiguration('image_recognition', default=True)
     object_yolo_weights = LaunchConfiguration('object_yolo_weights')
     object_yolo_imgsz = LaunchConfiguration('object_yolo_imgsz')
+    object_yolo_conf = LaunchConfiguration('object_yolo_conf')
+    object_min_accept_conf = LaunchConfiguration('object_min_accept_conf')
     object_crop_fovs_deg = LaunchConfiguration('object_crop_fovs_deg')
+    object_crop_yaw_offsets_deg = LaunchConfiguration(
+        'object_crop_yaw_offsets_deg')
+    object_crop_pitch_offsets_deg = LaunchConfiguration(
+        'object_crop_pitch_offsets_deg')
+    object_crop_shape_center_height_fracs = LaunchConfiguration(
+        'object_crop_shape_center_height_fracs')
+    object_crop_shape_bbox_margins_deg = LaunchConfiguration(
+        'object_crop_shape_bbox_margins_deg')
     object_classifier_debug = LaunchConfiguration('object_classifier_debug')
+    object_debug_crop_dir = LaunchConfiguration('object_debug_crop_dir')
+    object_debug_crop_max_per_track = LaunchConfiguration(
+        'object_debug_crop_max_per_track')
+    object_tracker_debug = LaunchConfiguration('object_tracker_debug')
+    object_tracker_min_hits = LaunchConfiguration('object_tracker_min_hits')
+    object_tracker_wall_margin_moving_cells = LaunchConfiguration(
+        'object_tracker_wall_margin_moving_cells')
+    object_tracker_wall_margin_static_cells = LaunchConfiguration(
+        'object_tracker_wall_margin_static_cells')
     use_colored_slam = LaunchConfiguration('colored_slam', default=True)
     lidar_model = LaunchConfiguration('lidar_model')
     scan_min_height = LaunchConfiguration('scan_min_height')
@@ -201,9 +271,9 @@ def generate_launch_description():
                             joint_state_broadcaster_spawner]
 
     # driver の URDF は本パッケージの 3D LiDAR 拡張版（/lidar/points）を使う。
-    # ros2_control 設定は webots_ros2_turtlebot の resource を流用。
+    # ros2_control 設定は既定で webots_ros2_turtlebot の resource を流用し、
+    # 評価・調整時だけ launch 引数で差し替える。
     robot_description_path = os.path.join(pkg, 'resource', 'turtlebot_webots_3d.urdf')
-    ros2_control_params = os.path.join(tb3_pkg, 'resource', 'ros2control.yml')
     use_twist_stamped = ('ROS_DISTRO' in os.environ
                          and os.environ['ROS_DISTRO'] in ['rolling', 'jazzy'])
     if use_twist_stamped:
@@ -212,17 +282,6 @@ def generate_launch_description():
     else:
         mappings = [('/diffdrive_controller/cmd_vel_unstamped', '/cmd_vel'),
                     ('/diffdrive_controller/odom', '/odom')]
-    turtlebot_driver = WebotsController(
-        robot_name='TurtleBot3Burger',
-        parameters=[
-            {'robot_description': robot_description_path,
-             'use_sim_time': use_sim_time,
-             'set_robot_state_publisher': True},
-            ros2_control_params,
-        ],
-        remappings=mappings,
-        respawn=True,
-    )
 
     # Nav2 は nav2_bringup の bringup_launch.py を直接呼び、slam 引数を渡す。
     # こうすると localization が排他的に切り替わる:
@@ -266,6 +325,18 @@ def generate_launch_description():
         ],
         condition=launch.conditions.IfCondition(use_nav))
     navigation_nodes.append(turtlebot_navigation)
+    robot_control = OpaqueFunction(
+        function=lambda context: _make_robot_control_actions(
+            context,
+            pkg=pkg,
+            tb3_pkg=tb3_pkg,
+            robot_description_path=robot_description_path,
+            use_sim_time=use_sim_time,
+            ros2_control_params_file=ros2_control_params_file,
+            nav_start_delay_sec=nav_start_delay_sec,
+            mappings=mappings,
+            navigation_nodes=navigation_nodes,
+            ros_control_spawners=ros_control_spawners))
 
     # 転倒検知（常時監視）。IMU の姿勢から機体の傾きを見て、しきい値超えで転倒を警告する。
     # odom は 2D 前提で roll/pitch=0 のため転倒を検知できず、IMU(InertialUnit)を使う。
@@ -294,6 +365,12 @@ def generate_launch_description():
             ('min_elev_deg', lidar_min_elev),
             ('max_elev_deg', lidar_max_elev),
             ('indoor_objects', LaunchConfiguration('indoor_objects')),
+            ('object_tracker_debug', object_tracker_debug),
+            ('object_tracker_min_hits', object_tracker_min_hits),
+            ('object_tracker_wall_margin_moving_cells',
+             object_tracker_wall_margin_moving_cells),
+            ('object_tracker_wall_margin_static_cells',
+             object_tracker_wall_margin_static_cells),
         ],
         condition=launch.conditions.IfCondition(use_perception))
 
@@ -380,10 +457,20 @@ def generate_launch_description():
             # YOLO mask が乗る候補だけを採ることで、クロップ背景の植物誤認を抑える。
             'yolo.weights': object_yolo_weights,
             'yolo.imgsz': ParameterValue(object_yolo_imgsz, value_type=int),
-            'yolo.conf': 0.15,
-            'min_accept_conf': 0.15,
+            'yolo.conf': ParameterValue(object_yolo_conf, value_type=float),
+            'min_accept_conf': ParameterValue(
+                object_min_accept_conf, value_type=float),
             'crop_fov_deg': 75.0,
-            'crop_fovs_deg': object_crop_fovs_deg,
+            'crop_fovs_deg': ParameterValue(
+                object_crop_fovs_deg, value_type=str),
+            'crop_yaw_offsets_deg': ParameterValue(
+                object_crop_yaw_offsets_deg, value_type=str),
+            'crop_pitch_offsets_deg': ParameterValue(
+                object_crop_pitch_offsets_deg, value_type=str),
+            'crop_shape_center_height_fracs': ParameterValue(
+                object_crop_shape_center_height_fracs, value_type=str),
+            'crop_shape_bbox_margins_deg': ParameterValue(
+                object_crop_shape_bbox_margins_deg, value_type=str),
             # LiDAR 対象方向の中心ROIと YOLO bbox の重なりで fine class を絞る実験用ゲート。
             # 屋内フル巡回では正解候補の hits が伸びにくくなったため、既定は無効。
             'center_window_frac': 0.25,
@@ -403,6 +490,10 @@ def generate_launch_description():
             'max_inferences_per_cycle': 4,
             'publish_unknown_fine_class_clears': False,
             'publish_debug_diagnostics': object_classifier_debug,
+            'debug_crop_dir': ParameterValue(
+                object_debug_crop_dir, value_type=str),
+            'debug_crop_max_per_track': ParameterValue(
+                object_debug_crop_max_per_track, value_type=int),
         }],
         condition=launch.conditions.IfCondition(use_image_recognition))
 
@@ -478,12 +569,6 @@ def generate_launch_description():
         output='screen',
         condition=launch.conditions.IfCondition(use_rviz))
 
-    # シミュレータ準備完了（driver 接続）を待ってから nav/control を起動する。
-    waiting_nodes = WaitForControllerConnection(
-        target_driver=turtlebot_driver,
-        nodes_to_start=navigation_nodes + ros_control_spawners,
-    )
-
     return LaunchDescription([
         DeclareLaunchArgument(
             'world', default_value='outdoor.wbt',
@@ -521,11 +606,49 @@ def generate_launch_description():
             'object_yolo_imgsz', default_value='640',
             description='object_classifier_node.py の YOLO 推論画像サイズ。大きいほど小物に有利だが重い'),
         DeclareLaunchArgument(
+            'object_yolo_conf', default_value='0.15',
+            description='object_classifier_node.py の YOLO predict conf。既定 0.15'),
+        DeclareLaunchArgument(
+            'object_min_accept_conf', default_value='0.15',
+            description='object_classifier_node.py の分類採用conf。既定 0.15'),
+        DeclareLaunchArgument(
             'object_crop_fovs_deg', default_value='',
             description='object_classifier_node.py の複数FOVクロップ（例: 75,55,40）。空なら crop_fov_deg のみ'),
         DeclareLaunchArgument(
+            'object_crop_yaw_offsets_deg', default_value='',
+            description='object_classifier_node.py のcrop中心yaw offset[deg]（例: -12,0,12）。空なら0のみ'),
+        DeclareLaunchArgument(
+            'object_crop_pitch_offsets_deg', default_value='',
+            description='object_classifier_node.py のcrop中心pitch offset[deg]（例: -8,0,8）。空なら0のみ'),
+        DeclareLaunchArgument(
+            'object_crop_shape_center_height_fracs', default_value='',
+            description='object_classifier_node.py のshape高さ方向crop中心。例: 0,0.5,0.75。空ならpose中心のみ'),
+        DeclareLaunchArgument(
+            'object_crop_shape_bbox_margins_deg', default_value='',
+            description='object_classifier_node.py の3D bbox投影crop margin[deg]。例: 4,10,18'),
+        DeclareLaunchArgument(
             'object_classifier_debug', default_value='False',
             description='True で /perception/object_classifier/debug に YOLO 候補の採否理由を出す'),
+        DeclareLaunchArgument(
+            'object_debug_crop_dir', default_value='',
+            description='空でなければ object_classifier_node.py の raw crop と metadata.jsonl を保存する'),
+        DeclareLaunchArgument(
+            'object_debug_crop_max_per_track', default_value='3',
+            description='object_classifier_node.py のdebug crop保存上限/track。-1で無制限'),
+        DeclareLaunchArgument(
+            'object_tracker_debug', default_value='False',
+            description='True で /perception/object_tracker/debug に track publish/reject 理由を出す'),
+        DeclareLaunchArgument(
+            'object_tracker_min_hits', default_value='2',
+            description='object_tracker_node.py の出力最小hit数。既定 2'),
+        DeclareLaunchArgument(
+            'object_tracker_wall_margin_moving_cells',
+            default_value='6',
+            description='object_tracker_node.py の移動track向け壁margin[cell]。既定 6'),
+        DeclareLaunchArgument(
+            'object_tracker_wall_margin_static_cells',
+            default_value='22',
+            description='object_tracker_node.py の静止track向け壁margin[cell]。既定 22'),
         DeclareLaunchArgument(
             'indoor_objects', default_value='False',
             description=('室内物体検出: map_roi_filter が高所（天井/壁上部）を除外しつつ'
@@ -570,13 +693,25 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='direct_visual_lidar_calibration の calib.json。空なら初期TFを使う'),
+        DeclareLaunchArgument(
+            'use_sim_time', default_value='true',
+            description='Webots はシミュレーション時刻のため true 必須'),
+        DeclareLaunchArgument(
+            'nav_params_file', default_value='',
+            description='Nav2 params 差し替え。空なら webots_ros2_turtlebot 標準'),
+        DeclareLaunchArgument(
+            'ros2_control_params_file', default_value='',
+            description='ros2_control params 差し替え。空なら webots_ros2_turtlebot 標準'),
+        DeclareLaunchArgument(
+            'nav_start_delay_sec', default_value='0.0',
+            description='Webots controller 接続後に Nav2 起動を遅らせる秒数。既定 0'),
         webots,
         webots._supervisor,
         robot_state_publisher,
         footprint_publisher,
         omni_sensor_tf,
         pointcloud_to_laserscan,
-        turtlebot_driver,
+        robot_control,
         fall_detector,
         perception,
         colorized_points,
@@ -590,7 +725,6 @@ def generate_launch_description():
         traffic_light_marker,
         colorized_mapper,
         rviz,
-        waiting_nodes,
         # Webots 終了時に全ノードを落とす
         launch.actions.RegisterEventHandler(
             event_handler=launch.event_handlers.OnProcessExit(

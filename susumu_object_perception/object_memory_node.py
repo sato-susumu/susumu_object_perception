@@ -135,6 +135,26 @@ def class_name_list(value):
     return names
 
 
+def class_distance_map(value):
+    distances = {}
+    for item in string_list(value):
+        for part in item.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            if '=' in part:
+                name, dist = part.split('=', 1)
+            elif ':' in part:
+                name, dist = part.split(':', 1)
+            else:
+                continue
+            try:
+                distances[semantic_class_key(name)] = float(dist)
+            except ValueError:
+                continue
+    return distances
+
+
 def yaw_from_quat(q):
     siny = 2.0 * (q.w * q.z + q.x * q.y)
     cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
@@ -185,6 +205,7 @@ class ObjectMemoryNode(Node):
         # 背景誤分類や空間ゴーストとみなし、DB に登録しない。動的物体記憶では False のまま使う。
         self.declare_parameter('require_map_support', False)
         self.declare_parameter('map_support_dist', 0.55)
+        self.declare_parameter('map_support_class_distances', '')
         self.declare_parameter('map_support_occupied_threshold', 50)
         # 静的物体の認識成果物向け: クラスごとの平面形状として明らかに不自然な
         # 候補を DB 登録前に落とす。評価後処理ではなく、認識メモリ側の誤登録抑制。
@@ -228,6 +249,8 @@ class ObjectMemoryNode(Node):
             self.get_parameter('require_map_support').value)
         self.map_support_dist = float(
             self.get_parameter('map_support_dist').value)
+        self.map_support_class_distances = class_distance_map(
+            self.get_parameter('map_support_class_distances').value)
         self.map_support_occ_thresh = int(
             self.get_parameter('map_support_occupied_threshold').value)
         self.static_class_geometry_filter = bool(
@@ -285,6 +308,7 @@ class ObjectMemoryNode(Node):
             f'(map_frame={self.map_frame}, assoc_dist={self.assoc_dist}m, '
             f'require_fine_class={self.require_fine_class}, '
             f'require_map_support={self.require_map_support}, '
+            f'map_support_class_distances={self.map_support_class_distances}, '
             f'static_class_geometry_filter={self.static_class_geometry_filter}, '
             f'static_duplicate_merge_dist={self.static_duplicate_merge_dist}, '
             f'static_cross_class_merge_dist={self.static_cross_class_merge_dist})')
@@ -386,12 +410,13 @@ class ObjectMemoryNode(Node):
             if self.require_fine_class and (
                     fine_name is None or fine_conf < self.min_fine_conf):
                 continue
-            if self.require_map_support and not self._has_map_support(mx, my):
-                continue
             # class_name は COCO 細クラス(chair 等)を優先し、無ければ Autoware label 名。
             # これで什器を区別して記憶でき、クエリ「椅子」で引ける。
             class_name = normalize_class_name(
                 fine_name or LABEL_NAMES.get(label, 'unknown'))
+            if self.require_map_support and not self._has_map_support(
+                    mx, my, class_name):
+                continue
             dims = obj.shape.dimensions
             if self.static_class_geometry_filter and \
                     not self._passes_static_class_geometry(class_name, dims):
@@ -619,7 +644,11 @@ class ObjectMemoryNode(Node):
         pb = min(0.999, max(0.001, float(pb)))
         return min(0.999, max(pa, pb, 1.0 - (1.0 - pa) * (1.0 - pb)))
 
-    def _has_map_support(self, x, y):
+    def _map_support_dist_for(self, class_name):
+        return self.map_support_class_distances.get(
+            semantic_class_key(class_name), self.map_support_dist)
+
+    def _has_map_support(self, x, y, class_name='unknown'):
         """物体中心の近くに occupied セルがあるかを見る。
 
         認識タスクの静的物体メモリ向けのゲート。地図から大きく離れた点は
@@ -635,7 +664,10 @@ class ObjectMemoryNode(Node):
         cy = int((y - oy0) / res)
         if cx < 0 or cy < 0 or cx >= w or cy >= h:
             return False
-        radius_cells = max(1, int(math.ceil(self.map_support_dist / res)))
+        support_dist = self._map_support_dist_for(class_name)
+        if support_dist < 0.0:
+            return True
+        radius_cells = max(1, int(math.ceil(support_dist / res)))
         min_x = max(0, cx - radius_cells)
         max_x = min(w - 1, cx + radius_cells)
         min_y = max(0, cy - radius_cells)
@@ -646,7 +678,7 @@ class ObjectMemoryNode(Node):
                     continue
                 wx = ox0 + (xx + 0.5) * res
                 wy = oy0 + (yy + 0.5) * res
-                if math.hypot(wx - x, wy - y) <= self.map_support_dist:
+                if math.hypot(wx - x, wy - y) <= support_dist:
                     return True
         return False
 
