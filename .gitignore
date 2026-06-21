@@ -79,6 +79,10 @@ webots_worlds/*.wbproj
 # なので追跡する。
 maps/*.pgm
 maps/*.png
+# 例外: cafe.pgm は hunav_gazebo_wrapper 同梱の cafe world 用既存地図のコピー
+# （MD5一致）で、map_server / amcl / RViz Fixed Frame=map のために必須。
+# マッピング生成物ではなく、cafe world の前提地図として追跡する。
+!maps/cafe.pgm
 
 # ===== 色付き点群 PLY (大容量バイナリ、リポジトリに含めない) =====
 # colorized_pointcloud_mapper が omni camera + LiDAR fusion で作る色付き点群地図。
