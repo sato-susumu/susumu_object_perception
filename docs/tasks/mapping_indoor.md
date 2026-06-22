@@ -156,8 +156,8 @@ ros2 run susumu_object_perception check_map_vs_world.py \
 
 | 日付 | world / map | 条件 | 結果 |
 |---|---|---|---|
-| 2026-06-21 cycle31 | `indoor.wbt` → `maps/indoor.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli -f maps/indoor --ros-args -p save_map_timeout:=20.0 -p map_subscribe_transient_local:=true` で保存 | `validate_map_assets.py maps/indoor.yaml` OK。`eval_map_quality.py`: `99x201`, `5.0x10.1m`, 壁率 `2.6%`, 最大連結成分 `99%`, 判定 `OK(微小片あり)` |
-| 2026-06-21 cycle32 | `break_room.wbt` → `maps/break_room.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli -f maps/break_room --ros-args -p save_map_timeout:=20.0 -p map_subscribe_transient_local:=true` で保存 | `validate_map_assets.py maps/break_room.yaml` OK。`eval_map_quality.py`: `188x140`, `9.4x7.0m`, 壁率 `2.3%`, 最大連結成分 `100%`, 判定 `OK`。`check_map_vs_world.py`: wall `near_ratio_inside=0.848`, obstacle `0.750` |
+| 2026-06-21 | `indoor.wbt` → `maps/indoor.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `99x201`, `5.0x10.1m`, 壁率 `2.6%`, 最大連結成分 `99%`, 判定 `OK(微小片あり)` |
+| 2026-06-21 | `break_room.wbt` → `maps/break_room.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `188x140`, `9.4x7.0m`, 壁率 `2.3%`, 最大連結成分 `100%`, 判定 `OK`。`check_map_vs_world.py`: wall `near_ratio_inside=0.848`, obstacle `0.750` |
 
 次は地図品質が崩れた場合に、衝突ログ・`/scan`・SLAM 設定のどこで占有が欠けたかを切り分ける。
 

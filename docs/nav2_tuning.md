@@ -1,13 +1,13 @@
 # Nav2 調整ガイド — susumu_object_perception
 
-`config/nav2_params.yaml` の調整に関する設計意図・現在値・調整の指針・変更履歴をまとめる。
+`config/nav2_params.yaml` の調整に関する設計意図・現在値・調整の指針・採用判断をまとめる。
 
 > ## ⚠️ 運用ルール（最重要）
 >
 > **`config/nav2_params.yaml` を変更したら、必ず本ドキュメントを更新してから完了とする。**
 >
 > - [§2 現在値](#2-現在値要点) の表に新しい値を反映する。
-> - [§5 調整履歴](#5-調整履歴) に「日付 / 変更 / 理由・結果」を1行追記する。
+> - [§5 調整履歴サマリ](#5-調整履歴サマリ) に採用/未採用の判断を簡潔に反映する。
 >
 > 値だけ変えてここを放置すると、なぜその値にしたのかが失われ、次の調整で振り出しに戻る。
 
@@ -138,10 +138,10 @@ flowchart LR
 ### 2.1 3D 障害物層の遍歴（1表に集約）
 
 動的障害物（人）を costmap に乗せる層は3世代を経て、現在は自作 `predicted_layer` に確定した。
-各方式の入力・蓄積特性・壁保持・通過跡・結果を比較する（時系列の経緯は [§5 調整履歴](#5-調整履歴)）。
+各方式の入力・蓄積特性・壁保持・通過跡・結果を比較する（判断の要約は [§5 調整履歴サマリ](#5-調整履歴サマリ)）。
 
-> 注: 以下の履歴表・調整履歴に出てくる `/velodyne_points` は当時のトピック名。2026-06-18 の
-> MID-360 化で 3D LiDAR トピックは `/lidar/points`、frame は `lidar_link` に改名済み。履歴は
+> 注: 以下の比較表に出てくる `/velodyne_points` は当時のトピック名。2026-06-18 の
+> MID-360 化で 3D LiDAR トピックは `/lidar/points`、frame は `lidar_link` に改名済み。記録は
 > 当時の事実として原文のまま残す。現行の入力トピックは `/lidar/points` 系で読み替えること。
 
 | 時期 | 層 | 入力 | 蓄積 | 壁保持 | 軌跡（通過跡） | 結果 |
@@ -170,7 +170,7 @@ flowchart LR
 | `No valid trajectories`（立ち往生） | `inflation_radius` / スポーン位置 | 膨張を下げる／開けた場所へ |
 | 動的障害物（人）の軌跡が残る | （STVL 廃止で解決済み） | 旧 STVL の `voxel_decay`(3s) 残留問題は廃止で解消（[§2.1](#21-3d-障害物層の遍歴1表に集約)）。現在は `predicted_layer` が毎フレーム焼き直すため軌跡は残らず、2D `/scan` の obstacle_layer も raytrace clearing で消える |
 | 自己位置がずれて誤計画 | AMCL（`max_beams`, `update_min_d`, `update_min_a`, `/initialpose`） | まず `truth_monitor:=True` で Webots GPS/IMU truth と `map->base_footprint` を評価する。大きくずれる場合は AMCL 更新頻度・ビーム数・初期姿勢を疑う。GUI の「原点へワープ」で再初期化 |
-| AMCL 調整後も短周期の姿勢・速度が揺れる | `robot_localization` EKF（wheel odom twist + `/imu` yaw） | Nav2/REP-105 では AMCL が `map->odom`、オドメトリ系が `odom->base_link` を担う。`robot_localization` を入れる場合は `odom->base_link` の平滑化として評価し、AMCL の代替にしない。真値 `/gps` は評価専用で、EKF 入力には使わない。cycle05 では `/odom` の x/y pose を融合せず twist と IMU yaw だけを使う構成が raw odom drift を大きく下げた。cycle06/07 の TF 置換は opt-in で競合なく完走し、起動順調整で初期 `odom->base_link` 待ちは 0 件。cycle08 の wheel radius multiplier `1.046` は path length 比を `0.999` にしたが odom aligned と進行性が悪化したため既定化は保留 |
+| AMCL 調整後も短周期の姿勢・速度が揺れる | `robot_localization` EKF（wheel odom twist + `/imu` yaw） | Nav2/REP-105 では AMCL が `map->odom`、オドメトリ系が `odom->base_link` を担う。`robot_localization` は `odom->base_link` の平滑化として評価し、AMCL の代替にしない。真値 `/gps` は評価専用で、EKF 入力には使わない。採用中の評価設定は twist + IMU yaw。pose+twist EKF、EKF TF の通常既定化、wheel radius multiplier `1.046` は悪化または不安定化のため未採用 |
 
 > **歩行者（HuNav）が動かない問題は Nav2 ではない。** これは `config/agents_house.yaml`
 > 側（init_pose / goals が壁・家具・別部屋にある等）の問題。Nav2 調整では直らないので
@@ -180,30 +180,28 @@ flowchart LR
 
 ## 4. 調整の手順
 
-1. 変更前の値と症状を記録（下の「調整履歴」に追記）。
+1. 変更前の値と症状を記録（下の「調整履歴サマリ」に反映）。
 2. `config/nav2_params.yaml` を編集。
 3. `colcon build --packages-select susumu_object_perception --symlink-install` で install に反映。
 4. ライブ起動して `/cmd_vel`・costmap・到達ログで効果を確認。
    - 起動中なら `ros2 param set /controller_server FollowPath.<param> <値>` で
      一部パラメータは再起動なしに試せる（恒久化は yaml 編集が必要）。
-5. **本ドキュメントの「現在値」表と「調整履歴」を更新**してコミット。
+5. **本ドキュメントの「現在値」表と「調整履歴サマリ」を更新**してコミット。
 
 ---
 
-## 5. 調整履歴
+## 5. 調整履歴サマリ
 
-新しいものを上に追記する。
+履歴は個別サイクルではなく、現行判断に必要な単位で集約する。
 
-| 日付 | 変更 | 理由 / 結果 |
+| 領域 | 採用 | 未採用 / 注意 |
 |---|---|---|
-| 2026-06-22 | 自己位置評価 cycle01-08 を実施し、AMCL 更新値、truth/odom/EKF 診断、EKF TF opt-in、wheel radius scale をまとめて評価した。採用: `amcl.max_beams=90`, `update_min_d/a=0.10`、truth monitor の waypoint/odom/filtered 指標、`config/ekf_odom_twist_imu_eval.yaml`、EKF TF 評価用の `config/webots_ros2control_ekf_odom_tf.yaml` と起動順引数。未採用: pose+twist EKF、EKF TF の通常既定化、wheel radius multiplier `1.046` の通常推奨化 | AMCL 採用値は `reached=22/22`, max aligned `0.185m`。twist+IMU EKF は filtered max aligned `0.209m`, max yaw `3.08deg` で評価用既定に採用。EKF TF + 起動順調整は `base_link->odom` wait `0`、map max `0.227m`、EKF max `0.191m` で opt-in 採用。wheel radius `1.046` は path 比 `0.999` まで改善したが EKF max aligned `0.291m` と progress failure 1 回で未採用。詳細値は `docs/tasks/waypoint_navigation.md` の集約表と `maps/indoor_localization_cycle*_nav.*` / `_truth.*` を参照。次は radius multiplier `1.02`〜`1.03`、wheel separation、左右差を小さく切り分ける |
-| 2026-06-21 | 屋外専用 `config/nav2_params_webots_explore_outdoor.yaml` で `local_costmap.plugins` に `static_layer` を入れる実験を2条件（`footprint_clearing_enabled:false/true`）で実施したが、既定未採用。最終設定は `local_costmap.plugins=["obstacle_layer","inflation_layer"]` に戻した | サイクル22で #6 の robot pose が保存地図/static と global costmap 上は occupied なのに local costmap は free だったため、DWB に保存地図を見せる仮説を検証した。`false` 版は `reached=14/53`, monitor samples `346`, `pose_static_lethal=220`。`true` 版も `reached=14/53`, monitor samples `410`, `pose_global_lethal_static_free=134`, `pose_global_lethal=115`。どちらも cycle20 既定 `reached=16/53` より悪く、#14 で `(4.4〜4.6,1.5〜1.7)` 付近の static/global/local lethal に入る主因を解けない。Nav2 StaticLayer 公式 docs と上流 `static_layer.cpp` を確認し、local static は切り分けには有効だが既定 tuning としては採用しない |
-| 2026-06-20 | `planner_server.GridBased.plugin` を `nav2_navfn_planner/NavfnPlanner` から `nav2_smac_planner/SmacPlanner2D` に変更。Smac 2D の `max_planning_time:3.5`, `cost_travel_multiplier:5.0`, `use_final_approach_orientation:false` を設定。`local_costmap.obstacle_layer.footprint_clearing_enabled:true` を明示。`global_costmap.plugins` から `obstacle_layer` を外し、global は `static_layer + predicted_layer + inflation_layer` に限定。`inflation_radius:0.45`, `cost_scaling_factor:2.0`, `DWB BaseObstacle.scale:0.08` へ変更 | 保存地図AMCL巡回（`slam:=False map_file:=maps/indoor.yaml nav_params_file:=config/nav2_params.yaml`）で、相対パス解決後も Navfn が waypoint #6 `(-0.28,-3.38)` へ `failed to create plan` を繰り返した。Smac 2D では原因が `Starting point in lethal space` と分かった。footprint clearing 後および global obstacle 除去後の評価は `reached=21/22 missed=[6]`。#6 直前の推定位置・#6・#7 は保存地図上 free だったが、走行中にロボットが壁際へ寄り、再計画時の footprint 内に static/inflation の lethal が入った。Nav2 公式の tuning guide は通路全体に滑らかな inflation potential を作り、Smac 2D は `cost_travel_multiplier` で高コスト領域から離すと説明しているため、waypoint 数を減らさず中央寄せを強めた。最終評価（`mode:=realtime`）は `reached=22/22 missed=[]`、#6 も成功。参照: Nav2 Tuning Guide / Smac 2D Planner docs / DWB Controller docs |
-| 2026-06-15 | **STVL 層（`stvl_layer`）を local/global から削除**。人の現在位置の障害物化を `predicted_layer`（予測層）に統合し、`prediction_node` が全トラックの現在位置 + 移動トラックの進路先を予測 OccupancyGrid に焼く。予測パスは confidence しきい撤廃（移動なら必ず焼く）、点列を**線分補間**で連続描画、膨張 6→8 セル | **STVL は人の通過跡を `voxel_decay`(3s) 残すので「移動軌跡のコスト」が出る**問題。予測層は毎フレーム全消去するので軌跡が残らない。これで現在位置・進路先を一括で担う。検証: 進路が出るフレーム 95%→**100%**、進路上の連続性 60%→**77%**、costmap 全体 LETHAL 25%（健全）、壁 100% 維持、ナビ可能 |
-| 2026-06-15 | **予測コストマップ層を自作 C++ プラグイン `susumu_object_perception::PredictedCostmapLayer` に確定**（local/global）。`prediction_node` の予測 OccupancyGrid `/perception/predicted_costmap`(map) を `max` 合成で乗せる。`occupied_threshold:50` | **perception を Nav2 に連携する初の層**。当初 ObstacleLayer 点群方式 → **古い予測が蓄積し costmap が LETHAL 55% でぐちゃぐちゃ**になりナビ不能。次に StaticLayer(OccupancyGrid)方式 → **他層を上書きして壁が消失(LETHAL 0%)**。最終的に **max 合成の自作 C++ 層**で「他層を壊さず(壁100%維持)・蓄積せず(全体22%健全)」を両立。真値検証で移動中の人の進路 0.5m 先占有 58%、NavigateToPose ゴール受理 OK。**標準層では毎フレーム入れ替えデータを costmap に入れられない（ObstacleLayer=蓄積/StaticLayer=上書き）のが教訓** |
-| 2026-06-15 | **3D 障害物層を Nav2 標準 `voxel_layer` → STVL（`spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer`）に置換**（local/global 両方）。`voxel_decay:3.0`(線形)。mark=`/perception/no_ground/pointcloud`、clear=生 `/velodyne_points`(VLP16 frustum, `model_type:1`)。`ros-humble-spatio-temporal-voxel-layer` を apt 導入。2D `obstacle_layer`（/scan）と static_layer は未変更 | **persistence:0 + raytrace だけでは歩く人の跡が消えきらない**（人がレイを遮った背後はクリアされず残る）問題への対策。STVL は voxel に観測時刻を持たせ `voxel_decay` 秒で**時間減衰により自動消去**するため、レイが当たらない領域も寿命切れで消える。動的環境向けの定番手法を既存パッケージ（新規開発なし）で採用 |
-| 2026-06-14 | voxel_layer 入力を `/velodyne_points` → `/perception/no_ground/pointcloud`（Autoware 地面除去済み）に変更、高さ帯 min/max=-0.18/1.8。`/scan` の生成高さ帯 min_height -0.20→0.0 | **自動巡回が動かなかった**原因が、生点群の地面（46%）を costmap が障害物化し local_costmap の 90% が LETHAL だったこと。地面除去点群に切替で 90%→37% になり経路生成・ゴール到達を確認 |
-| 2026-06-14 | obstacle_layer/voxel_layer の入力を生 `/scan`・`/velodyne_points` に設定 | 純粋シミュレーター化に伴い、人も普通の障害物として costmap に乗せる |
+| 自己位置評価 | `amcl.max_beams=90`, `update_min_d/a=0.10`。truth monitor で waypoint/odom/filtered を評価。EKF 評価は twist + IMU yaw を標準ケースにする | pose+twist EKF、EKF TF の通常既定化、wheel radius multiplier `1.046` は悪化または不安定化のため通常設定にしない |
+| 屋外 local costmap | 屋外既定は `obstacle_layer + inflation_layer` | local static layer は切り分けには有効だが、到達率が悪化したため既定未採用 |
+| 保存地図巡回 | Smac 2D、global は `static_layer + predicted_layer + inflation_layer`、local footprint clearing、inflation/cost tuning を採用。屋内保存地図巡回は `reached=22/22` | Navfn では free な目標でも再計画失敗を繰り返すケースがあり未採用 |
+| 動的障害物 | 人の現在位置と進路先は `predicted_layer` が毎フレーム焼き直す | STVL は `voxel_decay` 分の通過跡が残るため廃止 |
+| 予測 costmap | 自作 `susumu_object_perception::PredictedCostmapLayer` が `/perception/predicted_costmap` を max 合成。壁保持 100%、軌跡残りなし | ObstacleLayer 点群方式は予測が蓄積し、StaticLayer 方式は他層を上書きして壁が消えるため不採用 |
+| 地面処理 | costmap 入力は地面除去済み点群を使い、2D `/scan` は obstacle/raytrace 用に残す | 生 3D 点群を voxel_layer へ入れると地面が焼かれ、LETHAL 率が過大になる |
 
 > 構築・調整の詳細な経緯は [`../SETUP.md`](../SETUP.md) を参照。
 

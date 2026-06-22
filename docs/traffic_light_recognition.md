@@ -264,56 +264,20 @@ TrafficSignalArray
 > ことがある。その場合は `min_height` を信号灯の高さに上げる、`angle_tol_deg` を狭める、
 > `use_direction_pitch:=true` にする等で調整する。
 
-## 検証段階
+## 検証サマリ
 
-確定方針: **まず認識ノード単体**を静止画像/ダミー publish で作り込み、ロジックを固めてから
-シミュレータの実信号につなぐ。**1〜3 すべて実証済み**。
+| 項目 | 結果 |
+|---|---|
+| ノード単体 | 合成信号画像で `classic` が RED/AMBER/GREEN を分類できる |
+| シミュレータ接続 | `GenericTrafficLight` を Webots world に置き、カメラ入力で赤/青遷移を認識できる |
+| YOLO backend | COCO `yolov8n.pt` の bbox 検出 + bbox 内色判定が classic より頑健 |
+| 色プロファイル | Webots の橙寄り赤灯は `traffic_light_webots.param.yaml` + `position_aware` で RED/AMBER/GREEN 判定できる。実環境は `traffic_light_real.param.yaml` に差し替える |
+| 全天球対応 | `/omni_camera/image_raw/image_color` を全周 N 分割の透視ビューへ展開し、前方信号を検出できる。信号が上端寄りに小さく映る配置では `omni.view_pitch_deg` を調整する |
+| LiDAR 3D 位置推定 | 検出方位 + 高さ帯 + 最近傍まとまりで、奥の建物に引っ張られず信号位置を分離できる |
 
-1. ✅ **ノード単体**: 合成信号画像（赤/黄/青の円）を publish し、`classic` が
-   RED(1)/AMBER(2)/GREEN(3) を正しく分類することを確認。
-2. ✅ **シミュレータ接続**: `outdoor.wbt` に `GenericTrafficLight` を追加（city_traffic は
-   車用で TB3 連携なし）。TB3 カメラ `/camera/image_raw/image_color` を入力に、信号の
-   赤⇄青遷移を認識できることを確認。
-   - 配置メモ: 車道用信号は灯火が高所のため、TB3 の Camera を上向き（`rotation 0 1 0 -0.15`）
-     にし、信号を前方 4.5m・`rotation 0 0 1 3.14159`（灯火面を TB3 へ向ける）で配置すると
-     灯火がカメラ画角に入る。
-3. ✅ **yolo バックエンド**: COCO `yolov8n.pt` で検出 → bbox 内で色判定。Webots 実信号で
-   検出信頼度 ~0.8（classic ~0.62 より頑健）。
-4. ✅ **色プロファイル + 位置判定**: Webots の赤灯は H≈23 の橙色で、色相のみだと AMBER に誤判定
-   され **RED が出なかった**。`config/traffic_light_webots.param.yaml`（橙赤プロファイル）+
-   `position_aware:=true lamp_layout:=vertical`（点灯位置の上下で赤/青を確証）により、
-   **RED / AMBER / GREEN すべてを正しく認識**できることを確認。実環境向けは
-   `config/traffic_light_real.param.yaml`（純赤プロファイル）に差し替える。
-5. ✅ **全天球カメラ対応**（2026-06-18）: 入力を全天球 `/omni_camera/image_raw/image_color` に
-   変更し、全周 8 分割の透視ビュー（fov 75°）で検出する `omni_mode` を実装。Webots `outdoor.wbt`
-   （前方 4.5m に `GenericTrafficLight`）で実検証した:
-   - 全天球画像上の信号の実位置は x_frac≈0.51（前方＝パノラマ中央）。
-   - `equirect_to_perspective` で各方位ビューを展開し、前方周辺ビュー（yaw 0°/45°/315°、視野が
-     重なるため同一信号が複数ビューに出る）で信号を検出。
-   - `/perception/traffic_signals` に **RED** が `traffic_signal_id`=0/45/315（方位 deg）で出る
-     ことを確認（webots プロファイルで橙赤を RED 判定）。
-   - `traffic_light_marker_node` の全天球モードで、方位帯マーカーが信号方位（中央）に重畳される
-     注釈画像 `/perception/traffic_light/image_annotated`(2048x1024) を確認。
-   - 注意: 全天球カメラはロボット上部 0.75m にあり、前方 4.5m の信号を見上げる角度が急なため、
-     信号は正距円筒画像の上端寄り（y_frac≈0.12、仰角 ≈+69°）に小さく映る。fov 75° のビューなら
-     `view_pitch=0` でも画角に入り検出できた。信号が画角から外れる配置では `omni.view_pitch_deg`
-     を上向きに振る。
-6. ✅ **LiDAR 連携で 3D 位置推定**（2026-06-18）: `traffic_light_localizer_node.py` を追加し、
-   検出方向 × LiDAR で信号の 3D 位置を出す。Webots `outdoor.wbt`（信号 x=4.5m、奥に建物 x=6m）で検証:
-   - 検出 ROI に bbox 中心から復元した方向単位ベクトルを載せ（`results[0].pose.position`）、
-     localizer がその方向の LiDAR 点を集めて 3D 化する。
-   - `/perception/traffic_light/poses` に **x≈3.98m, z≈1.22m**（方位 + 高さ帯 0.9〜2.5m + 最近傍
-     まとまり）で出ることを確認。信号配置 4.5m に近く、奥の建物 6m とは分離できた。
-   - `/perception/traffic_light/markers` に色付き球 + `色 距離` テキストが信号位置に出る。
-   - **シミュレーションの制約**: Webots `GenericTrafficLight` は細いポール + 小さな灯火筐体で、
-     MID-360 相当 LiDAR が返す点が乏しい（灯火は高所で +52° 垂直 FOV を超えがち、ポールは細く
-     点が少ない）。一方で奥の `SimpleBuilding`（壁）は点が密。そのため「最近傍まとまり」を採らず
-     最頻距離帯を採ると建物（6m）に引っ張られた。最近傍まとまり + 高さ帯フィルタで信号（≈4m）を
-     分離した。実環境やより大きい信号機なら点が増え、より安定する。
-   - **検出方向の仰角(pitch)は信頼しすぎない**: 全天球カメラがロボット上部 0.75m から前方 4.5m の
-     信号を急角度で見上げるため、fov 75° のビューに信号灯の下部しか入らず、復元 pitch（≈21°）が
-     灯火の真の仰角（≈69°）より小さく出る。LiDAR 連携では既定で pitch を使わず方位 + 高さ帯で
-     絞る（`use_direction_pitch:=false`）。
+制約: Webots `GenericTrafficLight` は細いポールと小さい灯火筐体のため、MID-360 相当 LiDAR の点が少ない。
+検出方向の pitch も全天球クロップの切れ方でずれることがあるため、既定では pitch を使わず
+方位 + 高さ帯で絞る（`use_direction_pitch:=false`）。
 
 ### 可視化（実装済み）
 

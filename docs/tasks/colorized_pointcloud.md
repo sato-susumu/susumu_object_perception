@@ -109,7 +109,7 @@ ros2 run susumu_object_perception validate_omni_colorization.py \
 `--out-prefix` を指定すると JSON / CSV / Markdown の評価レポートを保存する。標準出力だけだと
 過去 run と比較しづらいため、採用/未採用判断ではレポートも成果物として残す。
 
-### 直近結果（2026-06-21）
+### 履歴サマリ（2026-06-21）
 
 `validate_omni_colorization.py` に次を追加した。
 
@@ -125,8 +125,7 @@ ros2 run susumu_object_perception validate_omni_colorization.py \
   --out-prefix /tmp/omni_colorization_fast_yaw0_v2
 ```
 
-結果は `validation_passed=true`。レポートは
-`/tmp/omni_colorization_fast_yaw0_v2.{json,csv,md}` に保存された。
+代表 run は `validation_passed=true`。レポートは JSON / CSV / Markdown に保存できる。
 
 | 指標 | 値 |
 |---|---:|
@@ -139,8 +138,9 @@ ros2 run susumu_object_perception validate_omni_colorization.py \
 
 小球の orange / white marker は点数が少なく、score や centroid が不安定なまま。大ターゲット
 （赤/黄パネル、緑箱、マゼンタ円柱）は色一致率が合格し、投影誤差も 10deg ゲート内に収まった。
-このため現状の合格判定は「主要ターゲットの色入れ替わりが無いこと」を確認する実用ゲートであり、
-1deg 未満の精密外部較正を証明するものではない。
+判断: 現状の合格判定は「主要ターゲットの色入れ替わりが無いこと」を確認する実用ゲート。
+1deg 未満の精密外部較正を証明するものではないため、精密評価は realtime 4方向 validation と
+キャリブレーション入力の整備を次に見る。
 
 方針参考:
 

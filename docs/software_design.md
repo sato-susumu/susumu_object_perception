@@ -221,7 +221,7 @@ tkinter のウィンドウをメインスレッドで動かし、rclpy を別ス
 | planner | `nav2_navfn_planner/NavfnPlanner` | Nav2 1.1.20 と整合する `/` 形式のプラグイン名 |
 | amcl.scan_topic | `scan` | AMCL は /scan（3D 点群から生成）で自己位置推定 |
 
-> Nav2 パラメータの調整指針・症状別の対処・変更履歴は
+> Nav2 パラメータの調整指針・症状別の対処・採用判断は
 > [`nav2_tuning.md`](nav2_tuning.md) にまとめている。**Nav2 を調整したら必ず更新すること。**
 
 ---

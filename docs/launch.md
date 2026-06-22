@@ -86,7 +86,7 @@ ros2 run susumu_object_perception evaluate_glim_map_variants.py \
   --waypoint-max-segment-length 4.0
 
 # `--waypoint-route-clearance 0.75` は edge 安全余裕の実験用。
-# cycle21 live で悪化したため、屋外既定にはしていない。
+# live評価で悪化したため、屋外既定にはしていない。
 
 ros2 run susumu_object_perception generate_webots_ground_truth_map.py \
   --wbt webots_worlds/village_square_trimmed.wbt \
@@ -153,8 +153,8 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | `webots_outdoor_waypoint_nav.launch.py` | `mission_timeout_sec` | `0.0` | 0 以下なら無効。wall-clock で巡回評価全体を打ち切る |
 | `webots_outdoor_waypoint_nav.launch.py` | `costmap_monitor` | `False` | 評価時だけ `nav2_pose_costmap_monitor_node.py` を起動し、pose/static/global/local costmap/plan/scan と waypoint edge / path error / robot trace を記録 |
 | `webots_outdoor_waypoint_nav.launch.py` | `costmap_monitor_prefix` | 空 | `costmap_monitor:=True` のとき `<prefix>.json/.csv/.md/.png` に診断と軌跡重畳画像を保存 |
-| `webots_outdoor_waypoint_nav.launch.py` | `behavior_tree` | 空 | `NavigateToPose` goal に渡す BT XML。空なら Nav2 既定 recovery BT。`behavior_trees/outdoor_patrol_replanning_no_recovery.xml` は cycle22 で悪化したため診断用 |
-| `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_guard` | `False` | 診断用。True で現在姿勢が global costmap 高コストセルに入ったら最後の安全AMCL姿勢へ戻る goal を挟む。cycle27 では既定未採用 |
+| `webots_outdoor_waypoint_nav.launch.py` | `behavior_tree` | 空 | `NavigateToPose` goal に渡す BT XML。空なら Nav2 既定 recovery BT。`behavior_trees/outdoor_patrol_replanning_no_recovery.xml` は悪化確認済みのため診断用 |
+| `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_guard` | `False` | 診断用。True で現在姿勢が global costmap 高コストセルに入ったら最後の安全AMCL姿勢へ戻る goal を挟む。live評価で悪化したため既定未採用 |
 | `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_cost_threshold` | `80` | `safe_pose_guard` の危険判定 costmap 値 |
 | `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_safe_threshold` | `40` | `safe_pose_guard` が最後の安全姿勢として記録する最大 costmap 値 |
 | `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_hold_sec` | `1.0` | 危険 cost が継続したとみなす保持時間[s] |
@@ -173,7 +173,7 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | `waypoints` | `maps/outdoor_gps_smoke_waypoints.yaml` | 初期 GPS 位置からの相対 waypoint |
 | `output_prefix` | `/tmp/outdoor_gps_nav` | follower の JSON/CSV/Markdown 出力先 prefix |
 
-詳細と評価値は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md#gps-waypoint--localization-prototype2026-06-21) を参照。
+詳細と評価値は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md) を参照。
 
 ## 屋外 GPS + Nav2 launch の主な引数
 
@@ -191,7 +191,7 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 比較用に `config/nav2_params_outdoor_gps_smac_rpp.yaml` もあるが、`outdoor_gps_5m_waypoints.yaml`
 では reached `1/4` に悪化したため未採用。通常は `config/nav2_params_outdoor_gps.yaml` を使う。
 
-詳細と評価値は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md#gps-localization--nav2-navigation-prototype2026-06-21) を参照。
+詳細と評価値は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md) を参照。
 
 ## 色付き点群系 launch の主な引数
 

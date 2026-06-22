@@ -111,63 +111,17 @@ TF:
 
 - direct_visual_lidar_calibration: https://github.com/koide3/direct_visual_lidar_calibration
 
-## 今回の試行錯誤
+## 実装方針サマリ
 
-1. 最初に Gazebo Classic 11 で全天球相当を考えた。
-   - `gazebo_ros_camera` は通常カメラなら素直に動く。
-   - ただし全天球/魚眼で歪みモデル、`CameraInfo`、後段の点群投影を一貫して扱う確実な経路が弱い。
-   - Gazebo用には6方向90度カメラを合成するフォールバックを入れたが、ユーザー要望に合わせて主対象はWebotsの球面投影へ切り替えた。
-
-2. Webotsを調べた。
-   - `/usr/local/webots/projects/samples/devices/worlds/spherical_camera.wbt` に `Camera { projection "spherical" }` の実例があった。
-   - Webots公式ドキュメントの説明では、360度の正距円筒画像には `projection "cylindrical"` が適しているため、最終実装は `projection "cylindrical"` にした。
-   - `webots_ros2_driver` からは通常の `Camera` device として扱えるため、`resource/turtlebot_webots_3d.urdf` に `reference="omni_camera"` を追加した。
-
-3. 全天球画像の補正方針を決めた。
-   - Webots cylindrical camera の出力は全天球の正距円筒画像として扱う。
-   - 点群色付けは正距円筒モデルで `yaw/pitch -> pixel` に投影する。
-   - 物体画像は、物体中心方向の局所透視投影に再サンプリングし、通常カメラ風のクロップにする。
-
-4. キャリブレーション初期値をTFで明示した。
-   - `base_link -> lidar_link = z 0.20m`
-   - `base_link -> omni_camera_link = z 0.75m`
-   - よって初期外部パラメータは同軸で、カメラがLiDARより55cm上。0.32m では全天球画像の大部分にロボット天面が写り込み、色付き点群がロボット表面色を拾ったため、マスト搭載相当の高さに上げた。
-   - 厳密には、ターゲットレス/ターゲット方式で `lidar_link -> omni_camera_link` を推定して置き換える。
-
-5. Webots の実投影を shader から確認した。
-   - `/usr/local/webots/resources/wren/shaders/merge_spherical.frag` を読むと、cylindrical では `xCurrentAngle = (0.5 - texUv.x) * fovX`、`yCurrentAngle = (texUv.y - 0.5) * fovY / fovYCorrectionCoefficient + pi/2` を使っていた。
-   - これに合わせて `colorized_pointcloud_node.py` / `object_image_crop_node.py` の既定投影を `webots_cylindrical` にし、Webots camera の取り付け姿勢を含む回転 `WEBOTS_CYLINDRICAL_ROT` を適用した。
-   - これで単純な `yaw/pitch` 実装より、緑箱・マゼンタ円柱を含む全方位の色一致が大きく改善した。
-   - 2026-06-20 に投影式を `omni_projection.py` へ共通化し、色付き点群、物体クロップ、物体分類クロップ、信号認識ビュー、検証スクリプトが同じ `equirect_uv()` / `perspective_directions()` を使うようにした。評価だけ古い式・固定解像度を持つ状態を避けるため。
-
-6. キャリブレーション用データの出力を追加した。
-   - `/omni_camera/equirect/camera_info` は ROS 標準に無い `distortion_model: equirectangular` を明示する補助情報。`direct_visual_lidar_calibration` では `--camera_model equirectangular` を指定すると画像サイズから intrinsic を作るため、これは主に記録・確認用。
-   - Webots の `/lidar/points/point_cloud` は intensity を持たないため、`/lidar/points_intensity` を追加した。疑似 intensity は距離から作る。キャリブレーションの主情報は幾何+画像なので、まずは前処理を通すための補助値として扱う。
-   - `/omni_camera/image_raw/compressed` を追加し、bag記録は圧縮画像を既定にした。全天球 2048x1024 raw をそのまま記録すると bag が膨れすぎるため、キャリブレーションでは JPEG 圧縮画像を使う。
-
-7. 色付き点群SLAM地図を追加した。
-   - `colorized_pointcloud_mapper_node.py` が `/perception/colorized_points` を TF で `map` に変換し、voxel downsample しながら `/slam/colorized_points_map` として蓄積する。
-   - `slam_toolbox` がまだ `map` を出していない場合は `odom` にフォールバックし、`map` が使えるようになったら蓄積をクリアして `map` へ切り替える。
-   - `/slam/save_colorized_map` で `~/ros2_ws/colorized_slam_maps/colorized_map_<timestamp>.ply` に保存できる。
-   - これは「2D LiDAR SLAMで姿勢を安定化し、その姿勢に全天球RGB付き3D LiDAR点群を積む」方式。完全な3D loop-closure付きカラー点群SLAMではないが、今の構成で動く現実的な第一段階。
-
-8. GLIM で 3D loop-closure 付き色付き点群SLAMを追加した。
-   - この環境には `glim_ros` / `glim` の CUDA 版が入っていた。
-   - 初回起動では `/usr/local/lib/libgtsam_points*.so` と `/opt/ros/humble/lib/x86_64-linux-gnu/libgtsam.so.4` が混在し、`undefined symbol: gtsam::NonlinearFactor::rekey(...)` で落ちた。
-   - `LD_LIBRARY_PATH=/usr/local/lib:/opt/ros/humble/lib:/opt/ros/humble/lib/x86_64-linux-gnu:...` を GLIM ノードだけに適用すると起動できたので、`webots_glim_colored_slam.launch.py` の `additional_env` に閉じ込めた。
-   - `config/glim_webots/` に Webots VLP-16 相当向け GLIM 設定を追加し、`config_global_mapping_pose_graph.json` を使って明示的な pose graph loop closure 構成にした。
-   - GLIM は ROS topic として `/glim_ros/pose_corrected` を出すが、この環境では `glim_map -> glim_imu` TF を publish しなかったため、`pose_stamped_tf_bridge_node.py` で PoseStamped を TF に変換した。
-   - GLIM が出す `glim_imu -> glim_lidar` と bridge の `glim_map -> glim_imu` をつなぎ、`colorized_pointcloud_mapper_node.py` は `source_frame_override:=glim_lidar` で `/perception/colorized_points` を `glim_map` へ積む。
-   - 既存 Webots/Nav2 の `odom -> base_link` TF と衝突しないよう、GLIM は `glim_*` の独立フレームツリーにした。
-
-9. MID-360 化に追従した（2026-06-18）。
-   - LiDAR を MID-360 相当に変更し、トピック/フレームを汎用名に統一した。GLIM カラー化のデータ経路は
-     既に汎用名で組んであり、入力は `/lidar/points_intensity`（`pointcloud_intensity_node` が
-     `/lidar/points` または Webots の `/lidar/points/point_cloud` から生成）、frame は `lidar_link`。
-   - GLIM config は `config/glim_webots/`（`webots_glim_colored_slam.launch.py` の既定）を使う。
-     `points_topic` は `/lidar/points_intensity`、`imu_topic` は `/imu` で MID-360 でもそのまま動く。
-   - `config/glim_webots_vlp16/` は `glim_webots/` と中身が同一の未使用コピー（参照する launch なし）。
-     MID-360/VLP-16 で GLIM 設定差を付ける必要が出るまでは `glim_webots/` 一本で足りる。
+| 領域 | 現行方針 |
+|---|---|
+| 全天球カメラ | Webots は `projection "cylindrical"` を主対象にする。Gazebo Classic は 6 面カメラ合成をフォールバックとして残す |
+| 投影モデル | `omni_projection.py` に集約し、色付き点群、物体クロップ、分類クロップ、信号認識ビュー、検証スクリプトで同じ式を使う |
+| 初期TF | `base_link -> lidar_link = z 0.20m`、`base_link -> omni_camera_link = z 0.75m`。ロボット天面の写り込みを避けるためカメラはマスト搭載相当 |
+| キャリブレーション記録 | `/omni_camera/equirect/camera_info`、`/omni_camera/image_raw/compressed`、`/lidar/points_intensity` を出す。圧縮画像を bag 記録の既定にする |
+| 色付き点群地図 | 2D SLAM/odom 姿勢へ `/perception/colorized_points` を蓄積し、`/slam/colorized_points_map` として publish/save する |
+| GLIM 色付き地図 | GLIM は `glim_*` の独立 TF tree で動かし、`/slam/glim_colorized_points_map` へ蓄積する。`config/glim_webots/` を MID-360/VLP-16 共通の既定にする |
+| 既知の注意 | GLIM だけ `LD_LIBRARY_PATH` を launch 側で補正する。`config/glim_webots_vlp16/` は参照されていない未使用コピー |
 
 ## 検証コマンド
 
@@ -235,34 +189,14 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 GLIM 終了時は `/tmp/dump/graph.bin`, `/tmp/dump/graph.txt`, `/tmp/dump/traj_lidar.txt`, `/tmp/dump/odom_lidar.txt` が生成される。
 `/tmp/dump` は GLIM の固定出力先なので、設定ファイルまで厳密に再検証したい場合は起動前に消す。
 
-## 色付き点群の検査結果
+## 色付き点群の検査結果サマリ
 
-2026-06-17 に `webots_calibration.launch.py nav:=False rviz:=False perception:=False omni_perception:=True mode:=fast` で実データ検査した。
+`/omni_camera/image_raw/image_color`、圧縮画像、equirect camera_info、`/lidar/points_intensity`、
+`/perception/colorized_points`、`/slam/colorized_points_map` は publish される。点群は
+`x/y/z/rgb` を持ち、主要ターゲットに非黒 RGB が入る。
 
-確認できたこと:
-
-- `/omni_camera/image_raw/image_color` は publish される。
-- `/omni_camera/image_raw/compressed` は JPEG として publish される。
-- `/perception/colorized_points` は publish される。
-- `/omni_camera/equirect/camera_info` は `width=2048`, `height=1024`, `distortion_model=equirectangular` で publish される。
-- `/lidar/points_intensity` は `x/y/z/intensity` フィールドを持つ。
-- `PointCloud2` は `x/y/z/rgb` フィールドを持ち、全点に非黒RGBが入る。
-- `/slam/colorized_points_map` は `x/y/z/rgb` フィールドを持ち、`slam:=True` では `frame_id=map` になる。
-- 初期実装では水平投影の左右が逆だったため、`atan2(y, x)` から `atan2(-y, x)` に修正した。
-- 初期実装では縦方向が逆で床/ロボット天面色を拾っていたため、`v=(pi/2 + pitch)/pi*height` に修正した。
-- 0.32m搭載では全天球画像の大部分にロボット天面が写り、色付き点群が自己投影色を拾ったため、Webotsの全天球カメラを `z=0.75m` に上げた。
-- その後、Webots shader 互換の `webots_cylindrical` 投影に置き換えた。
-
-shader 互換投影への修正後の代表統計:
-
-| 検査領域 | 期待 | 結果 |
-|---|---|---|
-| 赤パネル | 赤 | `mean RGB ≈ [223, 54, 54]`, score `0.99` |
-| 黄パネル | 黄 | `mean RGB ≈ [129, 121, 37]`, score `0.97` |
-| 緑箱 | 緑 | `mean RGB ≈ [45, 176, 38]`, score `0.50` |
-| マゼンタ円柱 | マゼンタ | `mean RGB ≈ [162, 46, 156]`, score `0.87` |
-
-4方向回転検査:
+現行検査は `validate_omni_colorization.py` に集約する。評価側も `omni_projection.py` を使い、
+`--out-prefix` で JSON/CSV/Markdown を保存できる。
 
 ```bash
 ros2 run susumu_object_perception validate_omni_colorization.py \
@@ -270,93 +204,26 @@ ros2 run susumu_object_perception validate_omni_colorization.py \
   --min-large-target-score 0.40 --mode realtime
 ```
 
-| yaw | 赤panel | 黄panel | 緑box | マゼンタcylinder |
-|---:|---:|---:|---:|---:|
-| 0 deg | 0.99 | 0.97 | 0.50 | 0.87 |
-| 90 deg | 0.93 | 0.95 | 0.52 | 0.87 |
-| 180 deg | 0.97 | 0.99 | 0.56 | 0.86 |
-| 270 deg | 0.91 | 0.96 | 0.56 | 0.92 |
+代表値:
 
-小球マーカー込みの summary は `color_score mean=0.685 min=0.133`, `image_projection_error_deg mean=8.270 max=19.863`。小球マーカーは VLP-16相当では点数が7-15点程度で、画像側の同色ピクセル抽出にも引っ張られるため、1度未満評価用のターゲットとしては不十分だった。
+| 項目 | 結果 |
+|---|---|
+| 大ターゲット色一致 | 赤/黄/緑/マゼンタの 4 方位でおおむね pass |
+| 軽量 1 方位 fast 検証 | `validation_passed=true`, `color_score mean≈0.77`, `large_image_projection_error_deg max≈8.2` |
+| 1度未満の精密投影評価 | 現検査 world と点密度では未達。大きい高コントラストターゲットか外部キャリブレーションが必要 |
 
-2026-06-18 に同じ4方向を `--require-pass` 付きで再実行し、`validation_passed=true` を確認した。
-合否は大ターゲット（赤/黄パネル、緑箱、マゼンタ円柱）の色一致率 `0.40` 以上と、画像投影健全性 `20deg` 以内で判定した。
-`8deg` しきい値では赤パネルが最大 `9.20deg`、小型の orange/white marker が `16-20deg` になり失敗したため、画像 centroid は1度未満評価ではなく、投影が大きく破綻していないことの補助指標に下げた。
+色付き点群SLAMは、`odom` から開始し `slam_toolbox` の `map` が出たら map 蓄積へ切り替わる。
+`/slam/save_colorized_map` で PLY 保存でき、短時間走行で点数が増えることを確認済み。
 
-2026-06-20 に検証スクリプトを整理した。
+GLIM 色付き地図は `glim_map` frame で publish され、MID-360 経路でも `/lidar/points_intensity`
+と `/perception/colorized_points` が sensor QoS で流れる。`ros2 topic echo` で確認する場合は
+`--qos-reliability best_effort` を付ける。pose-graph backend は起動するが、短い検証だけでは
+実ループ制約の成立までは確認していない。`/tmp/dump` は GLIM の固定出力先なので、設定込みで
+再検証する前に消す。
 
-- `validate_omni_colorization.py` は `omni_projection.py` の `equirect_uv()` を使うようにし、評価側の投影式重複をなくした。
-- 画像サイズは取得した画像の `width/height` を使い、`2048x1024` 固定をやめた。
-- `--mode fast|realtime`、`--lidar-z`、`--camera-z`、`--yaw-offset-deg`、`--pitch-offset-deg` を追加した。
-- summary に `large_image_projection_error_deg` を追加し、LiDAR点数が少ない小球マーカーと、大ターゲットの投影誤差を分けて見られるようにした。
-- 1方位の軽量ライブ検証:
-
-```bash
-ros2 run susumu_object_perception validate_omni_colorization.py \
-  --yaws 0 --startup-sec 35 --grab-timeout-sec 15 --require-pass \
-  --min-large-target-score 0.40 --mode fast
-```
-
-結果は `validation_passed=true`。summary は `color_score mean=0.770 min=0.042`,
-`image_projection_error_deg mean=8.121 max=19.819`,
-`large_image_projection_error_deg mean=4.709 max=8.178`。小球の orange marker は点数が少なく
-score `0.04` だったが、大ターゲットは red/yellow/green/magenta すべて `0.55` 以上だった。
-
-2026-06-21 に、同じ検証スクリプトへ `--out-prefix` と `--max-large-image-error-deg` を追加した。
-`--out-prefix` は JSON / CSV / Markdown の評価レポートを保存し、標準出力だけで流れないようにする。
-`--max-large-image-error-deg` は小球を除いた大ターゲットだけの投影誤差ゲートで、既定は 10deg。
-軽量 1 方位 fast 検証では `validation_passed=true`、`large_image_projection_error_deg max=8.175`、
-`color_score mean=0.769`。レポートは `/tmp/omni_colorization_fast_yaw0_v2.{json,csv,md}` に保存された。
-
-結論:
-
-`/perception/colorized_points` は、主要な色付き物体についてロボットyawを変えても色が入れ替わらず、Webots上で実用確認できる段階になった。ただし、現状の検査worldとVLP-16相当の点密度では、画像投影誤差を1度未満と断言できる評価にはなっていない。1度未満を狙うなら、`direct_visual_lidar_calibration` による外部パラメータ最適化、または点密度の高いLiDAR/大きい高コントラストターゲットが必要。
-
-色付き点群SLAMの検査:
-
-- `webots_simulation.launch.py world:=calibration.wbt nav:=True slam:=True rviz:=False perception:=False omni_perception:=True colored_slam:=True mode:=fast` で起動した。
-- 同じ構成を短く起動するため、`webots_colored_slam.launch.py` を追加した。
-- 起動直後は `odom` に蓄積し、`slam_toolbox` が `map` を出した時点で `odom -> map` に切り替わることをログで確認した。
-- `/slam/colorized_points_map` は `frame_id: map` で publish された。
-- 静止時は `width=1549`。`/cmd_vel` で約8秒動かした後は `width=13458` まで増えた。
-- `/slam/save_colorized_map` で `/home/taro/ros2_ws/colorized_slam_maps/colorized_map_1781722681.ply` を保存できた。PLYヘッダは `element vertex 13458`。
-
-GLIM 3D loop-closure 色付き点群SLAMの検査:
-
-- `webots_glim_colored_slam.launch.py rviz:=False mode:=fast perception:=False` で GLIM が `libglobal_mapping_pose_graph.so` を読み込むことを確認した。
-- 起動直後に `/slam/glim_colorized_points_map` が `frame_id: glim_map`, `width=1601` で publish された。
-- `tf2_echo glim_map glim_lidar` は `glim_map -> glim_imu -> glim_lidar` の接続を確認できた。初期静止時の yaw は約 `-1.02deg` で、VLP-16相当 + Webots IMU の初期推定としては現実的な範囲。
-- 小さな四角ループ走行後、`/slam/glim_colorized_points_map` は `points=16867`, `colored_ratio=1.0000`, `rgb_std=[52.4,47.8,50.5]` になり、走行で地図が増えることを確認した。
-- `/slam/save_colorized_map` で `/home/taro/ros2_ws/colorized_slam_maps/colorized_map_1781729933.ply` を保存できた。PLY検査は `points=16867`, `header_vertices=16867`, `colored_ratio=1.0000`, `validation_passed=true`。
-- GLIM 正常終了時に `/tmp/dump/graph.bin`, `/tmp/dump/graph.txt`, `/tmp/dump/traj_lidar.txt`, `/tmp/dump/odom_lidar.txt` が生成された。今回の実行では `graph.txt` が `num_submaps: 6`, `num_all_frames: 2691` を示した。
-- ただし、短い四角ループでは `num_matching_cost_factors: 0` だった。pose-graph loop-closure backend は起動済みだが、この検証だけでは実ループ制約の成立までは確認できていない。
-
-既知の課題:
-
-- GLIM viewer extension は `glim_imu -> glim_lidar` の時刻外挿警告を多く出す。mapper は最新TFを使うため `/slam/glim_colorized_points_map` は出ているが、ログはまだうるさい。
-- Webots fast mode では LiDAR/IMU 間のサンプル数が少なく、GLIM が `insufficient number of IMU data between LiDAR scans` を警告する。より厳密なループ閉じ検証では `mode:=realtime` または LiDAR/IMU publish rate 調整を試す。
-- 実ループ制約を成立させるには、より特徴の多い world、長めの周回、`min_travel_dist` / `max_neighbor_dist` / `min_inliear_fraction` の追加調整が必要。
-- `config_global_mapping_gpu.json` も追加して試したが、短い calibration world 周回ではカラー map は `points=17540` まで増えた一方、終了時に GTSAM `IndeterminantLinearSystemException` が連続して `/tmp/dump` が残らなかった。既定は安定して保存できた `config_global_mapping_pose_graph.json` に戻した。
-- `/tmp/dump` は GLIM の固定出力先で前回内容が残りやすい。設定ファイルの保存確認まで含めるときは起動前に削除する。
-
-MID-360 でのカラー化 GLIM SLAM 再検証（2026-06-18）:
-
-- `webots_glim_colored_slam.launch.py rviz:=False mode:=fast perception:=False`（既定 MID-360）で起動。
-- `libglobal_mapping_pose_graph.so` ロード、Webots controller 接続、`glim_map -> glim_lidar` TF 接続を確認。
-- `/lidar/points_intensity` が `x/y/z/intensity`・`width=20160`・frame=`lidar_link` で出る。
-- `/perception/colorized_points` は `x/y/z/rgb`・全点色付き（例 10132/10132）・frame=`lidar_link`。
-- `/slam/glim_colorized_points_map` は `frame_id=glim_map`、全点色付き。静止時 `width≈2222`、8 秒走行後
-  `width=31644`（colored=31644/31644）まで増え、走行で地図が蓄積されることを確認した。
-- **QoS 注意**: `/slam/glim_colorized_points_map` は publisher が BEST_EFFORT。`ros2 topic echo`
-  （既定 RELIABLE）では「incompatible QoS」で受信できない。確認は `--qos-reliability best_effort`
-  を付けるか、SensorDataQoS で購読する subscriber を使う。`/perception/colorized_points` /
-  `/lidar/points_intensity` も同様に sensor QoS。
-
-次の改善候補:
-
-- `direct_visual_lidar_calibration` 等で初期TFを最適化し、色付き点群で検証する。
-- 1度未満の定量検査には、大きいAprilTag/ChArUco板や複数の垂直エッジ板を使い、LiDAR点が十分乗る距離と高さに置く。
-- 実用優先なら、全天球画像は Webots cylindrical camera、色付けは6面rectilinear補助カメラのcubemapから行う構成も候補。
+次の改善候補は `direct_visual_lidar_calibration` 等で `lidar_link -> omni_camera_link` を最適化し、
+色付き点群で再評価すること。1度未満を定量評価するなら、大きい AprilTag/ChArUco 板や複数の
+垂直エッジ板を LiDAR 点が十分乗る距離と高さに置く。
 
 ## 追加調査: 誤差をキャリブレーションで吸収する方法
 

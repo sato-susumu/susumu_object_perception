@@ -333,164 +333,50 @@ Webots の位置づけ:
 - 「MID-360 のスキャンパターン忠実性」は Gazebo Classic plugin のほうが向いている。
 - Webots で無理に scan pattern を完全再現するより、標準近似 + 必要なら後処理 node に留めるのが現実的。
 
-## 最終実装メモ
+## 最終実装サマリ
 
-実装日: 2026-06-18
+ロボット/URDF/トピック/フレーム名はセンサ名に寄せず汎用名に統一する。
 
-ユーザー指定により、ロボット/URDF/トピック/フレーム名は MID-360 や Velodyne に寄せず、汎用名にした。
+| 項目 | 現行 |
+|---|---|
+| 標準 Gazebo ロボット | `models/turtlebot3_waffle_3d/model.sdf` |
+| VLP-16 退避版 | `models/turtlebot3_waffle_vlp16/model.sdf` |
+| 標準 URDF | `urdf/turtlebot3_waffle_3d.urdf.xacro` |
+| LiDAR frame | `lidar_link` |
+| Gazebo topic | `/lidar/points` |
+| Webots topic | `/lidar/points/point_cloud` |
+| intensity 付与後 topic | `/lidar/points_intensity` |
 
-- 標準 Gazebo ロボット: `models/turtlebot3_waffle_3d/model.sdf`
-- VLP-16 退避版: `models/turtlebot3_waffle_vlp16/model.sdf`
-- 標準 URDF: `urdf/turtlebot3_waffle_3d.urdf.xacro`
-- VLP-16 退避版 URDF: `urdf/turtlebot3_waffle_vlp16.urdf.xacro`
-- LiDAR frame: `lidar_link`
-- LiDAR pointcloud topic: `/lidar/points`
-- Webots pointcloud topic: `/lidar/points/point_cloud`
-- intensity 付与後 topic: `/lidar/points_intensity`
+Gazebo Classic の MID-360 は、`LCAS/livox_laser_simulation_ros2` 由来の ODE
+`LivoxOdeMultiRayShape` 方式を本パッケージへ vendoring して使う。CSV の各
+(azimuth, zenith) に実 ray を撃つため、旧自作の「RaySensor 格子 + CSV 最近傍」方式で出た
+上方向欠落・自己近傍偽点を避けられる。
 
-Gazebo Classic の MID-360 実装:
+| 項目 | 内容 |
+|---|---|
+| vendored source | `src/livox_ros2/livox_points_plugin.cpp`, `src/livox_ros2/livox_ode_multiray_shape.cpp`, `include/livox_ros2/*` |
+| library | `liblivox_mid360_sensor.so` |
+| scan pattern | `config/mid360_scan_patterns/mid360.csv` |
+| 主な修正 | 無効 ray の原点出力を skip、QoS を SensorDataQoS、相対 CSV path を package share から解決、sensor 名を `lidar_link` に統一 |
 
-- `libmid360_livox_sensor.so` を追加した。
-- `ctu-mrs/Mid360_simulation_plugin` の `mid360-real-centr.csv` を scan pattern として取り込んだ。
-- PointCloud2 は `x,y,z,intensity,tag,line,timestamp` を持つ形式を既定にした。
-- ROS 1/catkin 版の plugin そのものは ROS 2 Humble へ直接使えないため、ROS 2 sensor plugin として package 内に実装した。
+検証済みの要点:
 
-試行錯誤:
+- `gz sdf -k` と `xacro` は標準/MID-360・VLP-16 退避版とも通る。
+- Gazebo では `/lidar/points` が `frame_id=lidar_link`, `is_dense=true` で出る。
+- 原点偽点は 0、仰角は MID-360 仕様に近い `[-7deg,+50deg]` 程度。
+- `/scan` は pointcloud_to_laserscan で生成され、TF `base_link -> lidar_link` は z=0.20。
+- LCAS 版の PointCloud2 は `x,y,z,intensity,tag,line`。per-point timestamp は無く、GLIM 用 intensity は `pointcloud_intensity_node` で補完する。
 
-1. ctu-mrs / ROS2 Livox 系の ODE MultiRayShape 移植を試した。
-   - `<plugin>` 内に `<ray>` 設定が必要で、最初は `Missing element description for [ray]` で Gazebo spawn が詰まった。
-   - `<plugin>` 内にも `<ray>` を追加して読み込みは通した。
-   - ただし Gazebo 11 の ODE ray 配列/space 管理と噛み合わず、壁ターゲットを置いても `/lidar/points` が `width=0` のままだった。
-2. 最終的に Gazebo 標準 `RaySensor` の range 格子を、MID-360 CSV の角度列で最近傍サンプリングする方式にした。
-   - 完全な ray-level の Livox 非反復衝突判定ではない。
-   - ただし Gazebo Classic 上で安定して動き、MID-360 風の角度列・点密度・PointCloud2 フィールドを downstream に流せる。
+## Webots 側の注意
 
-runtime 確認:
+Webots は標準 `Lidar` による MID-360 近似で、非反復 scan pattern は再現しない。
+`tiltAngle != 0` は Webots の既知バグ
+[cyberbotics/webots #37](https://github.com/cyberbotics/webots/issues/37)
+により点の高さが崩れ、2D SLAM 地図に円形影を作る。全 world で `tiltAngle 0` を使う。
+このため FOV は実機 MID-360 の非対称 FOV から外れるが、2D SLAM/Nav では地面高さが正しくなる利点を優先する。
 
-- `colcon build --packages-select susumu_object_perception --symlink-install` 成功。
-- `gz sdf -k models/turtlebot3_waffle_3d/model.sdf` 成功。
-- `gz sdf -k models/turtlebot3_waffle_vlp16/model.sdf` 成功。
-- `xacro urdf/turtlebot3_waffle_3d.urdf.xacro` 成功。
-- `xacro urdf/turtlebot3_waffle_vlp16.urdf.xacro` 成功。
-- 空 Gazebo world に標準ロボットと壁ターゲットを spawn し、`/lidar/points` を確認。
-  - `frame_id: lidar_link`
-  - `width=18171`
-  - `point_step=32`
-  - fields: `x,y,z,intensity,tag,line,timestamp`
+`mode:=fast` は odom を過大積算しやすい。マッピング/ナビ評価は `mode:=realtime` を使う。
 
-制約:
-
-- Gazebo Classic 版は MID-360 CSV 角度列を使うが、衝突判定は Gazebo 標準 RaySensor の格子 range から最近傍取得している。厳密な Livox ray-level simulation ではない。
-- Webots 版は標準 `Lidar` による MID-360 近似。非反復 scan pattern は Webots 標準機能では再現していない。
-- VLP-16 版は `lidar_model:=vlp16` で選べるが、標準は MID-360 近似。
-
-## 検証と LCAS 版への置き換え
-
-検証日: 2026-06-18
-
-ライブ起動で取得データを検証した結果、上記「自作 RaySensor 格子 + CSV 最近傍」方式に
-致命的な問題が見つかったため、ODE MultiRayShape 方式の LCAS 版へ置き換えた。
-
-### 自作版で見つかった問題（ライブ検証）
-
-`test_robot_empty.launch.py` で空 world にロボットと壁を spawn して `/lidar/points` を実測:
-
-1. 上方向のカバレッジが枯渇。前方の壁（高さ3m）が仰角 +7° までしか取れず上半分が欠落。
-   原因は垂直格子を 360° 全周に薄く張っていたこと（7.35°/本）。垂直を MID-360 の仰角域に
-   絞り 128 本に密化したら全周仰角は [-6°,+52°] に改善したが、次の問題が残った。
-2. 上向き ray が全周でロボット近傍（原点中心、水平 0.1〜0.4m）に偽点の環を作る。
-   front range をデバッグ出力すると、empty world で前方上向き層が 0.26〜1.5m の有限値を
-   返していた。RaySensor 格子の充填順と方向ベクトル生成の規約が噛み合わず、range と方向が
-   ミスマッチした偽点が出る。格子最近傍方式の構造的欠陥で、格子を密にするほど顕在化する。
-
-### 置き換え方針
-
-`LCAS/livox_laser_simulation_ros2`（package 名 `ros2_livox_simulation`、MIT）を採用し、
-プラグイン部分を本パッケージ内へ vendoring した。`stm32f303ret6/livox_laser_simulation_RO2`
-の整備版で、ODE `LivoxOdeMultiRayShape` で CSV の各 (azimuth, zenith) に実 ray を撃つため、
-自作版の「格子に最近傍」由来の歪み・自己遮蔽・上方向欠落が原理的に起きない。
-
-- vendored ソース: `src/livox_ros2/livox_points_plugin.cpp`, `src/livox_ros2/livox_ode_multiray_shape.cpp`,
-  `include/livox_ros2/*`。ライブラリは `liblivox_mid360_sensor.so`。
-- 自作版 `mid360_livox_points_plugin.cpp` / `libmid360_livox_sensor.so` は削除した。
-- CSV は `config/mid360_scan_patterns/mid360.csv`（LCAS 版と同一）。
-- 依存に `livox_ros_driver2` / `std_msgs` を追加（CustomMsg 用）。`livox_ros_driver2` はこの環境に既存。
-
-LCAS 版に加えた本パッケージ向けの修正:
-
-1. 無効 ray（空振り）を (0,0,0) で出力していたのをスキップに変更。元実装は 1 フレーム 2 万点の
-   うち 7 割が原点偽点だった。`is_dense=true` で密点群にした。
-2. publisher の QoS を RELIABLE → `SensorDataQoS`（BEST_EFFORT）に変更。下流（pointcloud_to_laserscan,
-   Autoware crop_box, GLIM）は sensor QoS で購読するため、RELIABLE だと QoS 不一致で受信できなかった。
-3. `csv_file_name` が相対パスのとき本パッケージ share から解決するようにした（SDF に絶対パスを書かないため）。
-4. `libprotobuf.so.9` / `libboost_chrono.so.1.71.0` の直リンクを開発版シンボリックリンク（`protobuf` /
-   `boost_chrono`）に変更。Ubuntu 22.04 では実体が `.so.23` / `1.74` のため。
-5. sensor 名を `lidar_link` にした。LCAS 版は frame_id = sensor 名のため、これで TF と整合する。
-
-注意点:
-
-- LCAS 版の PointCloud2 は `x,y,z,intensity,tag,line`（tag/line はダミー 0、timestamp なし）。
-  自作版にあった per-point timestamp は無い。GLIM の intensity cloud は `pointcloud_intensity_node` で補完する。
-- LCAS 版は static な孤立センサ（world 直書きの非ロボット link）だと `OnNewLaserScans` が発火しない。
-  ロボットモデルに組み込んだ本パッケージの使い方では問題なく発火する。
-
-### 検証結果（LCAS 版 + 上記修正）
-
-Gazebo（`test_robot_empty.launch.py`、本番 `model.sdf`、空 world + 壁）:
-
-- CSV が share から相対解決され spawn 成功、`Caught exception` なし。
-- `/lidar/points`: frame=`lidar_link`、`is_dense=true`、原点偽点 0、仰角 [-7.1°,+50.4°]（MID-360 仕様 [-7,+52] と一致）。
-- 壁が全仰角で x≈一定（平面が正しく再現、自己遮蔽の偽点なし）。
-- BEST_EFFORT で受信成功（約 6.8Hz）。
-- `/scan` も pointcloud_to_laserscan が生成（前方壁を中央距離 2.45m で検出）。
-- TF `base_link → lidar_link` が z=0.20 で出る。
-
-Webots（`webots_simulation.launch.py world:=indoor.wbt`）:
-
-- 標準 `Lidar` の MID-360 近似。`tiltAngle` 未設定だと仰角中心が 0°（[-29.8°,+45.0°]）で MID-360 と
-  ずれていたため、当初 `indoor/outdoor/calibration.wbt` の Lidar に `tiltAngle 0.392699`（+22.5°）を追加
-  し仰角 [-7.3°,+52.2°]（MID-360 仕様 [-7,+52]）に合わせていた。20160 点（720×28）。
-  - Webots の `tiltAngle` は正で上向き。最初 `-0.392699` を入れたら下（[-52.2°,+45.0°]）に向いたため符号を反転した。
-
-- **【重要・2026-06-19】`tiltAngle` を 0 に戻した（全 wbt）**。SLAM 地図の中心に「円形の影」が出る
-  問題を基礎から検証した結果、**Webots Lidar の既知バグ
-  [cyberbotics/webots #37 "Wrong Lidar Point Height when Tilt Angle is Non-Zero"](https://github.com/cyberbotics/webots/issues/37)**
-  （2018 報告・**未修正**）が原因と判明。`tiltAngle≠0` だと点の高さが過大に計算され、平らな地面が
-  **原点中心の同心円状に地上 0.5〜2.5m へ持ち上がって** 2D 地図に焼かれる（円形の影の正体）。
-  - 検証（outdoor 平地、点群を地上高さ=z_lidar+0.2 で解析）: `tiltAngle 0.39` では地上 0.5m 以上の
-    点が **3979 個**（原点中心の同心円。建物・植木は別途正しく見えるので world は正常）。`tiltAngle 0`
-    にすると **340 個**（建物/植木の実物体のみ）に激減し、下向きビームの地上高さが正しく ≈0、上向き
-    ビームは空に抜けて消えた。
-  - 副作用: `tiltAngle 0` で FOV は対称（仰角 ±29〜30° 相当）に戻り MID-360 実機の非対称 FOV [-7,+52]
-    からは外れる。だが 2D SLAM/Nav は水平中心の方がむしろ素直で、円形影が消え地図品質が大幅改善する
-    メリットが勝る。色付き点群（omni camera fusion）が上向き情報を使う場合は別途要検証。
-  - 関連: `mode:=fast` も odom を ~21% 過大積算しドリフトさせる（地図崩れ・「RViz では進むが Webots で
-    衝突」の主因）。マッピング/ナビは `mode:=realtime` を使う。/scan は生点群を高さ帯（lidar 基準
-    z>=0.1=地上約0.3m、地面は z≈-0.2 に正しく乗る）で 2D 化（`webots_simulation.launch.py` の
-    pointcloud_to_laserscan）。詳細は `docs/webots_simulation.md` のマッピング節も参照。
-
-- **【重要・2026-06-20】広い outdoor/city で地図が原点周辺から育たない問題を対処**。Webots の
-  `/scan` で、障害物に当たらない方位を `+inf` のまま出すと `slam_toolbox` / OpenKarto が自由空間を
-  十分に rasterize せず、ロボットが移動しても地図が星形・小面積に留まりやすい。
-  `pointcloud_to_laserscan` を `range_max=16.0`、`use_inf=false`、`inf_epsilon=-0.5` にし、未ヒット ray を
-  15.5m の有限値に変更した。探索用 `slam_toolbox` は `max_laser_range=15.0` なので、この ray は
-  占有端点を作らず 15m まで free として扱われる。
-  - 実測: 変更後の `/scan` は 723 点すべて finite、未ヒット方向は主に 15.5m。
-  - `outdoor.wbt` 180s 検証では、旧 scan が既知面積 81.4m2 / 地図 9.1 x 9.0m 程度だったのに対し、
-    scan 修正 + perimeter sweep で既知面積 649.1m2 / 地図 33.5 x 22.2m / ロボット移動 49.2m まで拡大。
-  - **ただし 2026-06-20 の追検証で重大バグが判明**: `use_inf:False, inf_epsilon:-0.5` の 15.5m 偽 hit を
-    slam_toolbox / Karto は「打ち切って free raytrace」として処理し、本物の建物 occupied を
-    別 ray の free 通過で上書きしてしまい、地図全体が free（occ=0、建物・木・車が完全消失）に
-    なる。`use_inf:True` に戻すと建物 occupied は守られるが scan match に必要な hit 数が
-    足りず自己位置を見失う。両立する scan 仕様が見つからず、**屋外マッピングは未対応**扱い
-    （docs/tasks/mapping_outdoor.md 参照）。屋内向け設定は 065efb3 当時の値
-    （min_height:0.1, max_height:2.0, range_max:40, use_inf:True）に戻している。
-  - あわせて `frontier_explore_node.py` に `perimeter` sweep を実装した（屋外向け実験コード）。
-    屋外が未対応扱いになった現在は、屋内マッピング（webots_indoor_mapping.launch.py）で
-    `sweep_mode:=False` 固定にして無効化している。
-
-### 環境側の別問題（MID-360 とは無関係、ついでに修正）
-
-ワークスペースに dangling な install 残骸（`susumu_object_tracker` / `susumu_gtts` / `susumu_dummy_agi`）が
-あり、`AMENT_PREFIX_PATH` に残った壊れた symlink のせいで本パッケージの全 launch が起動時に
-`package not found` で即クラッシュしていた。`rm -rf install/{...} build/{...}` で削除し、解消した。
+屋外 `/scan` では未ヒット ray を有限値化すると free raytrace が実 occupied を消す問題があった。
+屋内設定は `use_inf:True` 系に戻しており、屋外マッピングは GLIM-first 方針に切り替えている。
+詳細は [`docs/tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md) を参照。

@@ -57,7 +57,7 @@ error を map 推定とは別に出す。空文字にすると odom 評価だけ
 （既定 `/odometry/filtered`）を truth monitor が同時評価する。EKF config は
 既定 `config/ekf_odom_twist_imu_eval.yaml` で `publish_tf:false` にしているため、既存 Nav2 の TF へは入らない。
 この既定 config は `/odom` の x/y pose を使わず、wheel odom の twist と `/imu` の yaw/yaw-rate だけを
-融合する。`config/ekf_odom_eval.yaml` は cycle04 の pose+twist 比較用で、位置改善としては未採用。
+融合する。`config/ekf_odom_eval.yaml` は pose+twist 比較用で、位置改善としては未採用。
 EKF を `odom->base_link` の TF 発行元として切り分ける場合は
 `ekf_odom_params_file:=config/ekf_odom_twist_imu_tf.yaml` と
 `ros2_control_params_file:=config/webots_ros2control_ekf_odom_tf.yaml` を同時に渡す。後者は
@@ -65,7 +65,7 @@ diffdrive controller の `/odom` topic は残し、`enable_odom_tf:false` で TF
 既定は従来どおり diffdrive TF のまま。EKF TF 評価時は `ekf_odom_start_sec:=2.0` で EKF を早めに起動し、
 `nav_start_delay_sec:=2.5` で Webots controller 接続後の Nav2 起動を少し遅らせると、`odom->base_link`
 の初期 TF 待ちを避けやすい。
-`config/webots_ros2control_ekf_odom_tf_radius1046.yaml` は cycle08 の wheel radius scale 切り分け用。
+`config/webots_ros2control_ekf_odom_tf_radius1046.yaml` は wheel radius scale 切り分け用。
 path length 比は改善するが odom aligned と進行性が悪化したため、通常の EKF TF 評価推奨値にはしない。
 認識性能を優先する indoor run の実験では、通常巡回用 `indoor_waypoints.yaml` とは別に
 `indoor_recognition_waypoints.yaml` を渡せる。これは occupied 小〜中サイズ成分を見る追加視点入りの
@@ -118,25 +118,24 @@ path length 比は改善するが odom aligned と進行性が悪化したため
 - 屋内 `indoor.wbt` の合格確認は `slam:=True` で行う。2026-06-20 の認識併走フル巡回では
   `reached=22/22 missed=[]` を確認済み。
 - `slam:=False map_file:=maps/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
-  モードは `reached=22/22 missed=[]` を維持している。自己位置評価 cycle01-08 の要点は次の表に集約する。
+  モードは `reached=22/22 missed=[]` を維持している。自己位置評価の要点は次に集約する。
 
-  | cycle | 採用/未採用 | 代表値 | 判断 |
-  |---|---|---|---|
-  | 01b→01c | 採用: `max_beams=90`, `update_min_d/a=0.10` | 従来 `21/22`, max aligned `1.251m` → 採用値 `22/22`, `0.185m` | AMCL 更新頻度とビーム数は現行値を維持 |
-  | 02-03 | 採用: truth monitor の waypoint context と `odom_frame` 同時計測 | map max `0.220m`、raw odom max `0.500m` | AMCL と odom 系を分けて評価できる診断基盤として維持 |
-  | 04-05 | 採用: `config/ekf_odom_twist_imu_eval.yaml`、未採用: pose+twist EKF | filtered max aligned `0.209m`, max yaw `3.08deg` | `/odom` x/y pose は融合せず、wheel twist + IMU yaw/yaw-rate を評価用既定にする |
-  | 06-07 | 採用: opt-in EKF TF 構成と起動順引数 | `base_link->odom` wait `0`、map max `0.227m`、EKF max `0.191m` | 競合なしだが map 精度改善ではないため通常既定化は保留 |
-  | 08 | 未採用: wheel radius multiplier `1.046` の既定化 | path 比 `0.999`、EKF max aligned `0.291m`、progress failure 1 回 | path length は改善したが位置整合と進行性が悪化。次は `1.02`〜`1.03` 程度で再評価 |
+  | 区分 | 要点 |
+  |---|---|
+  | 採用中 | AMCL は `max_beams=90`, `update_min_d/a=0.10`。静的地図 AMCL で max aligned は概ね `0.2m` 台を維持 |
+  | 診断基盤 | truth monitor は waypoint context、`map->base_footprint`、`odom->base_footprint`、評価用 EKF を同時に記録する |
+  | EKF | 採用 config は `config/ekf_odom_twist_imu_eval.yaml`。`/odom` x/y pose は融合せず、wheel twist + IMU yaw/yaw-rate を使う |
+  | opt-in | EKF が `odom->base_link` TF を出す構成は評価用に残すが、通常既定は diffdrive TF のまま |
+  | 未採用 | wheel radius multiplier `1.046` の既定化。path 比は改善したが odom aligned と進行性が悪化した |
 
-  評価成果物は `maps/indoor_localization_cycle*_nav.*` / `_truth.*`。シミュレータ真値 `/gps` は
-  AMCL / EKF / Nav2 へ入力せず、検証専用に留める。Nav2 パラメータの根拠と履歴は
-  [Nav2 tuning](../nav2_tuning.md) に残す。
+  シミュレータ真値 `/gps` は AMCL / EKF / Nav2 へ入力せず、検証専用に留める。Nav2 パラメータの根拠と
+  採用判断は [Nav2 tuning](../nav2_tuning.md) に残す。
 - 実験用 `indoor_recognition_waypoints.yaml` は 2026-06-21 に `view_clearance=0.6m` で再生成した
   22 点列では `reached=22/22 missed=[]` を確認済み。ただし認識評価は通常巡回より悪化したため、
   ナビ合格・認識採用の基準にはしない。
 - `waypoint_nav_node.py` は `NavigateToPose` を順に送る。`FollowWaypoints` 丸投げではない。
 - ウェイポイント YAML を手で直す場合も、必ず確認用 PNG/RViz で壁・unknown 上にないことを見る。
-- Nav2 パラメータを変えたら [Nav2 tuning](../nav2_tuning.md) の現在値表と調整履歴を更新する。
+- Nav2 パラメータを変えたら [Nav2 tuning](../nav2_tuning.md) の現在値表と調整履歴サマリを更新する。
 
 ## 参考にした一次情報
 

@@ -382,165 +382,57 @@ costmap に焼かない。
 
 ### object_classifier（LiDAR 検出物体の画像分類、`object_classifier_node.py`）
 
-LiDAR は「物体の有無・大きさ・速度」は分かるが「何か」は分からない。各 `tracked_objects` の
-3D 位置をカメラ方向に変換し、全天球画像から透視クロップを切って **YOLOv8(COCO)** で分類、
-最大信頼度のクラスを採って COCO→Autoware `ObjectClassification`（PEDESTRIAN/CAR/BICYCLE/
-ANIMAL...）にマップし classification を上書きする（LiDAR×カメラの late fusion）。Webots 屋内
-既定は `yolov8s-seg.pt` を使い、bbox だけでなく segmentation mask がクロップ中心 ROI に乗る
-候補だけを採る。Webots 系 launch では `object_yolo_weights:=...` で `yolo.weights` を差し替えられるが、
-2026-06-20 の屋内フル巡回で `yolov8m-seg.pt` は false association が増え、採用中の
-`yolov8s-seg.pt` より評価が悪化したため実験用に留める。出力は
-`/perception/tracked_objects_classified` と 3D クラス名 `…/object_classes/markers`、デバッグ用
-`…/object_classes/image_annotated`。`min_accept_conf`(既定 0.3) 未満は採らず元の分類を保つ。
-Webots 系 launch では `object_yolo_imgsz:=...` で Ultralytics 推論の `imgsz`、`object_crop_fovs_deg`
-で複数クロップ画角を渡せる。空文字のときは従来通り単一 `crop_fov_deg` だけを使う。2026-06-21 の
-屋内フル巡回では `object_crop_fovs_deg:=75,55,40 object_yolo_imgsz:=960` が Table/Sofa 除外 F1 を
-`0.727` から `0.167` へ悪化させた。追加改善9で複数FOV時の代表選択は confidence 最大ではなく、
-FOV 間の同一 class 系統 support と center/mask overlap を加点する方式に変更し、同条件の
-Table/Sofa 除外 F1 は map support なし評価で `0.471` まで戻った。ただし採用値 `0.727` には届かず、
-source 側 `maps/indoor.pgm` 欠落で map support / overlay 評価も未再現のため、既定は
-`imgsz=640` + 単一クロップのままにする。
-LiDAR 対象方向がクロップ中心に来る前提なので、`center_tolerance_frac`(既定 0.45) より
-中心から外れた YOLO bbox は背景検出として捨てる。これにより、クロップ端の家具や壁面物体を
-LiDAR 対象へ誤付与して semantic DB に余分な物体が増える問題を抑える。`require_mask_center` は
-segment weight 使用時だけ有効で、`mask_center_window_frac` と `min_mask_center_overlap` で中心 ROI
-上の mask 被覆を確認する。通常の detect weight では mask が無いため無効にする。植物系ラベル
-（`potted plant` / `vase` / `umbrella`）には `plant_color_min_frac` で緑/黄色系画素の最低比率も
-要求でき、壁片や家具の植物誤認をさらに抑える。
-複数FOV時の代表選択には `multi_fov_agreement_bonus`,
-`multi_fov_center_overlap_weight`, `multi_fov_mask_overlap_weight` を使うが、通常は
-`object_crop_fovs_deg` を空にして単一クロップで運用する。
-さらに `min_consistent_hits` 回（既定 1、余分検出をさらに減らす実験では 2 以上）同系統クラスが続くまで
-`/perception/object_fine_classes` へ細クラスを出さない。分類済みトラックの定期再確認は
-`reclassify_interval_sec` を正値にすると有効になるが、屋内フル巡回の実測では一時的な YOLO miss で
-正解記憶の hits が伸びにくくなったため既定は `0.0`（無効）。分類が不安定化した UUID は
-`publish_unknown_fine_class_clears:=True` で副チャネルから明示的に消せるが、屋内認識の既定では
-細クラス TTL による自然失効に任せる。
+LiDAR は物体の位置・大きさ・速度を出し、画像側は「何か」を補う。各 `tracked_objects` の
+3D 位置を全天球画像へ投影し、透視クロップを **YOLOv8(COCO)** で分類して
+COCO→Autoware `ObjectClassification` にマップする。出力は
+`/perception/tracked_objects_classified`、`/perception/object_classes/markers`、デバッグ用
+`/perception/object_classes/image_annotated`。
+
+現行既定は `yolov8s-seg.pt`、`imgsz=640`、単一クロップ、`min_accept_conf=0.3`。
+segmentation mask が使えるときはクロップ中心 ROI の mask overlap を確認し、中心から外れた
+bbox や背景検出を LiDAR 対象へ付けない。植物系ラベルには色ゲートを掛け、壁片や家具の
+植物誤認を抑える。YOLO 初期化失敗時は classic 等へフォールバックせず `[FATAL]` 終了する。
+
+CPU 実用化のため、`max_rate_hz` と track UUID cache で推論を間引く。`max_inferences_per_cycle`
+までの未分類/再分類クロップを YOLO の list 入力にまとめ、1 回の `predict()` で batch 推論する。
+COCO 細クラスは Autoware label では `UNKNOWN` に丸まるため、cache の有効判定は `coco_name` で行う。
+
+未採用の実験は次の扱いにする。
+
+| 実験 | 結論 |
+|---|---|
+| `yolov8m-seg.pt` | false association が増え、屋内巡回評価で悪化したため通常既定にしない |
+| 複数 FOV + `imgsz=960` | 背景物体の高信頼検出を拾いやすく、単一クロップ既定を下回ったため未採用 |
+| DB 検出位置の occupied 成分スナップ | 位置を地図へ寄せても F1 が悪化したため未採用 |
+| `dining table` まで含めた互換クラス統合 | Table/Sofa 周辺で副作用があるため、互換群は `chair,couch` に留める |
+
 `publish_debug_diagnostics:=True`（Webots launch では `object_classifier_debug:=True`）を有効にすると、
-`/perception/object_classifier/debug` に YOLO 候補ごとの採否理由を
-`diagnostic_msgs/DiagnosticArray` で出す。`message` は `accepted` / `box_area` /
-`center_tolerance` / `center_window_overlap` / `mask_center_overlap` / `plant_color` /
-`no_yolo_detection` のいずれかで、values に conf、面積、中心ずれ、mask overlap、植物色比率を入れる。
-これは未検出対象の gate 調整用で、分類結果そのものは変えない。ROS 2 標準の diagnostic_msgs は
-ロボット状態/コンポーネント診断用のメッセージ群で、DiagnosticArray は DiagnosticStatus の配列を
-送る用途のため、独自 msg を増やさない本パッケージの方針と合う。
-参考: <https://docs.ros.org/en/humble/p/diagnostic_msgs/>、
-<https://index.ros.org/p/diagnostic_msgs/>。multi-FOV 合意選択の根拠は、Autoware の
-image projection based fusion / ROI cluster fusion が 2D ROI と LiDAR cluster の対応で分類を
-refine する考え方、および Ultralytics segmentation results が instance ごとに mask / class /
-confidence / box を持つ仕様を踏まえた。参考:
+`/perception/object_classifier/debug` に採否理由を `diagnostic_msgs/DiagnosticArray` で出す。
+主な理由は `accepted` / `box_area` / `center_tolerance` / `center_window_overlap` /
+`mask_center_overlap` / `plant_color` / `no_yolo_detection`。調整用の診断で、分類結果自体は変えない。
+
+方針参考: Autoware Universe の image projection based fusion / ROI cluster fusion と同じく、
+画像ラベルを LiDAR cluster へ付ける前に 2D-3D 対応を確認する。Ultralytics segmentation の
+mask / class / confidence / box は中心 mask gate に使う。
+参考:
 <https://autowarefoundation.github.io/autoware_universe/main/perception/autoware_image_projection_based_fusion/>、
-<https://autowarefoundation.github.io/autoware_universe/main/perception/autoware_image_projection_based_fusion/docs/roi-cluster-fusion/>、
-<https://docs.ultralytics.com/tasks/segment>。
-YOLO 初期化失敗時は classic 等へ勝手に落とさず `[FATAL]` 終了（信号検出ノードと同方針）。
-
-**間引き（CPU 実用化のため）**: tracked_objects は ~10Hz × 物体数ぶん来るが、物体の種類は急に
-変わらないので推論を間引く。①`max_rate_hz`(既定 2.0) で推論レートを上限。②**トラック ID
-(`object_id.uuid`) キャッシュ**で分類を保持する。`reclassify_interval_sec` は実験用で、
-正値にすると分類済みトラックも再確認する。
-キャッシュは `cache_ttl_sec`(既定 10) で失効。
-間引き中もキャッシュ済み classification は当てて素通しするので物体情報は失わない。検証では
-入力 ~190Hz に出力が追従し処理が詰まらないことを確認（キャッシュ無しなら CPU YOLO の数 Hz に
-律速されるはず）。CPU 実測（i7-13700F, 640×480/view）: yolov8n 30ms, s 70ms, m 150ms /view。
-2026-06-20 の屋内巡回改善で、cycle 内の未分類/再分類対象クロップを `max_inferences_per_cycle`
-（Webots 既定 4）まで集め、YOLO の list 入力を `batch` 指定付きで 1 回の `predict()` にまとめる
-batch 推論に変更した。これにより Python 呼び出し回数とモデル前後処理の重複を減らしつつ、1 cycle に
-複数トラックの fine class を更新できる。COCO 細クラスは Autoware label では `UNKNOWN` に丸まるため、
-分類 cache の有効判定は Autoware label ではなく `coco_name` の有無で行う。これを間違えると
-`potted plant` / `chair` / `dining table` が cache に入っても次フレームで副チャネルから落ち、
-object_memory の hits が伸びない。
-
-2026-06-20 の追加改善で、semantic object memory 側に互換クラス統合を入れた。LiDAR の部分クラスタと
-全天球クロップの見え方で、同じ Armchair が `chair` と `couch` に割れる場合があったため、
-`static_compatible_class_groups:='chair,couch'`、`static_cross_class_merge_dist:=0.75` を屋内認識の
-採用値にする。統合は連結成分単位で行い、座標・サイズは hit-weighted average、existence は複数の
-正観測として合成する。`dining table` まで互換群に入れると Table/Sofa 周辺で副作用が出たため採用しない。
-これは semantic mapping で問題になる instance duplication を抑えるための物体メモリ側の改善であり、
-world 真値を使った評価後処理ではない。
-
-同日の未採用実験として、`yolov8m-seg.pt` への重み変更と、DB 検出位置を保存地図の occupied 成分へ
-単純スナップする後処理を試した。前者は屋内通常巡回で throughput は保てたが Table/Sofa 除外 F1 が
-`0.727` から `0.000` まで悪化し、後者も `0.667` または `0.615` へ下がった。したがって現時点では
-「重い重みに替える」「地図へ後処理で寄せる」より、LiDAR クラスタと全天球クロップの対応付け、
-クラス別ゲート、同一物体統合を改善対象にする。
-2026-06-21 には複数クロップ画角（75/55/40deg）と `imgsz=960` も試したが、全対象 F1 `0.118`、
-Table/Sofa 除外 F1 `0.167` で、背景物体の高信頼検出を採る副作用が大きかった。複数FOVは
-信頼度最大選択のまま採用せず、次に使う場合は FOV 間の同一クラス合意や LiDAR クラスタ投影との
-重なりを選択条件に加える。
-
-方針参考: Autoware Universe の image projection based fusion は、画像の 2D 検出と LiDAR の
-点群/クラスタ/box を統合して認識精度を上げる設計で、`roi_cluster_fusion` は 2D ROI と
-LiDAR クラスタを重ね、物体らしくないクラスタのフィルタとラベル上書きを行う。本実装は全天球
-クロップ方式なので完全な ROI 投影ではないが、「画像ラベルを LiDAR クラスタへ付ける前に整合を
-確認する」方針を踏襲する。Ultralytics 公式の instance segmentation は bbox に加えて object mask
-を返すため、屋内の余分な植物誤認を減らす目的で中心 mask gate に使っている。
-参考: <https://autowarefoundation.github.io/autoware_universe/main/perception/autoware_image_projection_based_fusion/>、
 <https://autowarefoundation.github.io/autoware_universe/main/perception/autoware_image_projection_based_fusion/docs/roi-cluster-fusion/>、
 <https://docs.ultralytics.com/tasks/segment/>、
 <https://docs.ultralytics.com/modes/predict/>、
 <https://docs.ultralytics.com/usage/cfg/>、
-<https://arxiv.org/abs/2011.06895>、
-<https://www.mdpi.com/1424-8220/22/14/5308>
+<https://docs.ros.org/en/humble/p/diagnostic_msgs/>。
 
-#### 多数物体での分類性能（2026-06-18 検証）
+#### 分類性能の履歴サマリ
 
-> **注（2026-06-19）**: 検証に使った `kitchen_test.wbt` は、大量のリモート EXTERNPROTO で
-> world ロードが重く `<extern>` コントローラ接続が安定しないため**削除した**。室内検証用 world は
-> 軽量な `webots_worlds/break_room.wbt`（Webots indoor サンプルにロボットを組み込んだもの）に
-> 置き換えている。以下の評価結果は kitchen_test 当時のもの（YOLO 分類の傾向は引き続き参考になる）。
+旧 `kitchen_test.wbt` は削除済みで、現行の室内検証は `webots_worlds/break_room.wbt` を使う。
+過去評価から今も有効な判断だけを残す。
 
-検証用 world `kitchen_test.wbt`（Webots 同梱 `kitchen.wbt` に本パッケージの
-TurtleBot3＝全天球カメラ + MID-360 を組み込んだもの。chair6 / bottle8 / orange8 / apple3 /
-can2 / wineglass / bowl / spoon 等が並ぶ）で評価した。
-
-YOLO 単体（全天球 8 ビュー × 2 仰角で分類）の傾向:
-
-- 検出できた: `chair`(明瞭・多数), `bottle`, `dining table`, `cup` — **大きく輪郭の出る物体**。
-- 誤検出: `book` / `stop sign` / `person` / `tv` を各 1〜4（壁の模様や小物の誤分類）。
-- 未検出: `orange` / `apple` / `can` / `wineglass` / `spoon` — **小さい物体は拾えない**。
-- 同一物体が視野の重なるビューに重複して出る。
-
-LiDAR 検出 → クロップ → 分類のパイプライン（kitchen 物体方向に置いた 9 物体で評価）:
-
-- **7/9 を分類**: `chair`×4（conf 0.36〜0.82）, `bottle`×3（conf 0.84〜0.86）。方位を変えても安定。
-- 2/9 は `unknown`（明瞭な物体が画角に無い／小物で未検出）。
-
-YOLO 重みによる精度比較（同じ kitchen 全天球画像、全周 8 ビュー × 2 仰角、conf 0.25）:
-
-| クラス | yolov8n | yolov8s | yolov8m | 実物体数 |
-|---|---:|---:|---:|---:|
-| chair | 15 | 17 | 18 | 6 |
-| dining table | 4 | 5 | 11 | 2 |
-| bottle | 4 | 5 | 4 | 8 |
-| cup | 2 | 8 | 8 | 有 |
-| refrigerator | 0 | 1 | **8** | 1 |
-| oven | 0 | 0 | **3** | 1 |
-| bowl | 0 | 1 | 0 | 2 |
-| **総検出** | **32** | **55** | **82** | |
-| ユニーククラス | 8 | 12 | 10 | |
-
-- **重みを上げると検出力が上がる**。n では見えなかった `cup`(2→8)、`refrigerator`、`oven`、`bowl`、
-  `vase` を s/m が拾う。特に m はキッチン家電（冷蔵庫・オーブン）を確実に検出。
-- ただし**重複・誤検出も増える**（同一の椅子が視野の重なるビューで多重計上され実 6 → 15〜18、
-  `book` の誤検出が n4 → m26）。重みを上げるほど「拾うが重複も増える」ので、後段で
-  方位・距離による重複統合（NMS 相当）を入れると実用性が上がる。
-- `orange`/`apple`/`can`/`wineglass`/`spoon` などの**極小物体は m でも拾えない**。全天球カメラが
-  ロボット上部 0.75m にあり、画像の大半が床・天井で、机上の小物は遠く小さく映るのが主因
-  （重みでなくセンサ配置・解像度・距離の限界）。
-
-結論と限界:
-
-- **椅子・ボトル・机・キッチン家電など大きめの物体は分類できる。重みを n→s→m と上げると
-  カバレッジ（拾えるクラス）が広がる**。果物・食器・カトラリーなどの小物は重みを上げても
-  全天球の歪み + 距離で**ほぼ拾えない**（重みより配置・解像度の制約）。
-- 精度を上げるには ① 物体・world ごとに YOLO 重みを controlled comparison する、② クロップ解像度・
-  画角を物体サイズに合わせる（`crop_fov_deg` を小物では狭める）、③ COCO に無い品物は専用学習重みを
-  `yolo.weights` で差し替える、が要る。重みを大きくするだけでは屋内フル巡回の誤対応が増えることが
-  あるため、採用可否は recognition task の world 評価で決める。
-- なお kitchen のような密な室内では euclidean_cluster の `max_cluster_size:2000` /
-  `tolerance:0.4` が屋外 cafe 向けのままだと壁・床・家具が 1 つの巨大クラスタに繋がり
-  `tracked_objects` が 0 になる。室内で LiDAR 検出を出すにはクラスタ param の調整が要る
-  （この検証では classifier 経路自体は方向指定の物体で確認した）。
+| 対象 | 傾向 |
+|---|---|
+| 椅子・ボトル・机・家電など大きめの物体 | 全天球クロップ + YOLO で分類しやすい |
+| 果物・缶・グラス・カトラリーなど小物 | 距離、全天球歪み、机上での画素サイズ不足により拾いにくい |
+| 重い YOLO weight | 単体検出数は増えるが、重複・誤対応も増えるため巡回評価で採用判断する |
+| 密な室内 LiDAR cluster | 壁・床・家具が巨大クラスタ化すると `tracked_objects` が出ないため、cluster param の調整が必要 |
 
 ## パラメータ（`config/`）
 
@@ -615,13 +507,13 @@ ros2 topic echo /perception/tracked_objects --once    # ID・速度付き追跡
 - map<-lidar_link の TF が要る（map->odom は AMCL/Nav2 提供）。Nav2 無し起動時は
   TF 不在で**素通し**にして perception を止めない。
 
-## 試行錯誤・落とし穴の記録
+## 落とし穴サマリ
 
 | 症状 | 原因 | 対策 |
 |---|---|---|
 | **【最重要・ライブ起動で判明】地面除去以降が一切流れない**（静的検証・component ロード確認では気付けず、実点群を流して初めて出る） | `autoware_ground_filter` は ring/channel を持つ Autoware 独自型 `PointXYZIRC` / `PointXYZIRCAEDT` を要求するが、Gazebo の生 `/lidar/points` は古典的 `PointXYZI`(point_step=16, x/y/z/intensity 全て float)。下記ログを出す（後述） | 自作 `pointcloud_to_autoware_node.py` をパイプライン先頭に入れ `PointXYZIRC` へ変換（後述） |
 | plugin 名の誤り | `ground_filter.launch.py` のコメントや別資料の `ScanGroundFilterComponent` は誤り | `ros2 component types` で実登録名を確認。ground_filter=`GroundFilterComponent`、crop_box=`CropBoxFilterNode`、cluster=`EuclideanClusterNode` |
-| **【2026-06-18 調査・解決済み】component がロードされず perception 全体が無出力に見える**。`ros2 component list` に container だけで中身が無く、`/perception/cropped/pointcloud` 以降が出ない。手動 `ros2 component load`（param 無し）だと `statically typed parameter 'min_x' must be initialized` | **コードのバグではなく、検証時に前回起動の古いノードが残っていた汚染が原因**だった。確認手順:①`autoware_perception.launch.py` 単体起動 → crop_box/ground/cluster とも正常 `Loaded node`、`min_x=-13.0` 適用済み。②最小 launch で param file 渡し → 正常ロード。③Webots 経由でも、**全プロセスを完全 kill → `ros2 daemon stop/start` → 単一起動**すると Publisher 1 個・Subscription 1 個で crop_box 17Hz、no_ground 3110 点、detected/tracked 4 個まで正常に流れた。汚染時は `points_autoware` の Publisher が 5 個（pointcloud_to_autoware 多重起動）で discovery/QoS が混乱していた | **再検証の作法**: perception を起動し直すときは、`ps` で `component_container`/`pointcloud_to_autoware`/`webots-bin` 等を**完全に kill** してから単一起動する（古いノードが残ると無出力・多重 Publisher で誤った「不具合」に見える）。`ros2 topic info -v <topic>` の Publisher count が想定より多ければ残骸を疑う |
+| component がロードされず perception 全体が無出力に見える | 以前の `component_container` / `pointcloud_to_autoware` / `webots-bin` が残り、Publisher 多重化や discovery/QoS 汚染が起きていることがある | 全プロセスを完全 kill し、必要なら `ros2 daemon stop/start` 後に単一起動する。`ros2 topic info -v <topic>` の Publisher count が想定より多ければ残骸を疑う |
 | crop_box の frame がパラメータファイルで渡せない | param file は範囲と `negative` のみ | `input_frame` / `output_frame` / `input_pointcloud_frame` を launch でノードパラメータとして個別に渡す。入力は lidar_link なので 3 つとも lidar_link で無変換処理 |
 | euclidean_cluster 出力が固定フレームでない | EuclideanClusterNode（非 voxel 版）は `input_frame` を持たず、出力 DetectedObjects は入力点群の frame(lidar_link)を引き継ぐ | 追跡は固定フレームが要るので tracker 側で `odom ← lidar_link` を TF 変換してから追跡 |
 | TurtleBot3 周辺の人の点まで消える恐れ | vehicle_info が乗用車デフォルト（wheel_base 2.74m など）だと ground_filter 等が自車サイズで足元点を除外 | vehicle_info を waffle の極小値にする |
