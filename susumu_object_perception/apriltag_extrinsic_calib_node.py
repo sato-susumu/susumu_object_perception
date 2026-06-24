@@ -172,6 +172,11 @@ class AprilTagExtrinsicCalibNode(Node):
         self.declare_parameter('plane_ransac_thresh', 0.03)
         self.declare_parameter('lidar_z_min', -0.3)
         self.declare_parameter('lidar_z_max', 1.2)
+        # 板厚補正[m]。LiDAR は板の手前面で反射するため平面フィット中心は板物理中心より
+        # 板厚/2 だけ LiDAR 側に寄る。重心を「LiDAR→板の視線方向」に board_thickness/2 押し戻して
+        # 物理中心（カメラ PnP が見るタグ面中心と同じ）に合わせ、x 方向の系統オフセットを消す。
+        # calibration.wbt のパネル Box 厚 0.04m → 補正 0.02m。0.0 で無効。
+        self.declare_parameter('board_thickness', 0.04)
         self.declare_parameter('output_json', os.path.expanduser(
             '~/ros2_ws/apriltag_calib/calib.json'))
         # 既知初期 TF（lidar_link -> omni_camera_link、検証時の参照）。
@@ -197,6 +202,7 @@ class AprilTagExtrinsicCalibNode(Node):
         self.plane_thresh = float(self.get_parameter('plane_ransac_thresh').value)
         self.z_min = float(self.get_parameter('lidar_z_min').value)
         self.z_max = float(self.get_parameter('lidar_z_max').value)
+        self.board_thickness = float(self.get_parameter('board_thickness').value)
         self.output_json = self.get_parameter('output_json').value
         self.ref_translation = [float(v)
                                 for v in self.get_parameter('ref_translation').value]
@@ -300,8 +306,14 @@ class AprilTagExtrinsicCalibNode(Node):
             if seg.shape[0] < 20:
                 continue
             center = self._plane_center(seg)
-            if center is not None:
-                out[tid] = center
+            if center is None:
+                continue
+            # 板厚補正: LiDAR は板手前面で反射するので重心は物理中心より LiDAR 側に寄る。
+            # LiDAR 原点 → 重心の視線方向（板へ向かう向き）に board_thickness/2 押し戻す。
+            if self.board_thickness > 0.0:
+                los = center / max(np.linalg.norm(center), 1e-9)
+                center = center + los * (self.board_thickness / 2.0)
+            out[tid] = center
         return out
 
     def _plane_center(self, seg):

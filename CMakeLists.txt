@@ -123,6 +123,7 @@ install(PROGRAMS
   scripts/record_omni_calibration_bag.sh
   scripts/run_direct_visual_lidar_calibration_docker.sh
   scripts/generate_apriltag_textures.py
+  scripts/check_colorized_cloud.py
   scripts/direct_calib_to_tf.py
   scripts/validate_colorized_pointcloud_quality.py
   scripts/generate_waypoints.py

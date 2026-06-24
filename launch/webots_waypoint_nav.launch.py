@@ -66,6 +66,8 @@ def generate_launch_description():
     indoor_objects = LaunchConfiguration('indoor_objects')
     use_slam = LaunchConfiguration('slam')
     map_file = LaunchConfiguration('map_file')
+    use_colored_slam = LaunchConfiguration('colored_slam')
+    omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     nav_params_file = LaunchConfiguration('nav_params_file')
     ros2_control_params_file = LaunchConfiguration('ros2_control_params_file')
     nav_start_delay_sec = LaunchConfiguration('nav_start_delay_sec')
@@ -134,6 +136,8 @@ def generate_launch_description():
             ('nav_params_file', nav_params_file),
             ('ros2_control_params_file', ros2_control_params_file),
             ('nav_start_delay_sec', nav_start_delay_sec),
+            ('colored_slam', use_colored_slam),
+            ('omni_calibration_json', omni_calibration_json),
         ],
     )
 
@@ -324,6 +328,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'map_file', default_value='',
             description='slam:=False で Nav2/AMCL に読ませる地図 yaml'),
+        DeclareLaunchArgument(
+            'colored_slam', default_value='False',
+            description='色付き点群SLAMマップを /slam/colorized_points_map に出す（カラー点群出力タスク）'),
+        DeclareLaunchArgument(
+            'omni_calibration_json', default_value='',
+            description='LiDAR-camera 外部キャリブ calib.json。空なら初期TF'),
         DeclareLaunchArgument(
             'nav_params_file', default_value='',
             description='Nav2 params 差し替え。保存地図AMCL評価では config/nav2_params.yaml を指定'),

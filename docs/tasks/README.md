@@ -14,6 +14,7 @@
 | 巡回ナビ | 屋内採用済み | `indoor.wbt` + `indoor_waypoints.yaml` は `reached=22/22 missed=[]`。AMCL は `max_beams=90`, `update_min_d/a=0.10`。評価用 EKF は `config/ekf_odom_twist_imu_eval.yaml`、EKF TF 構成は opt-in。wheel radius multiplier `1.046` は既定未採用 | 次は wheel radius multiplier を `1.02`〜`1.03` 程度へ下げ、path length と odom aligned / progress failure のトレードオフを詰める。真値 `/gps` は評価専用 | [waypoint_navigation.md](waypoint_navigation.md) |
 | 認識 | 改善継続中 | 屋内採用値は `yolov8s-seg.pt` + mask/色ゲート + 座席統合 + class別 map support。通常巡回の採用目安は Table/Sofa 除外 F1 `0.727`。debug recorder / crop 保存 / stage-tracker / track-id association / crop geometry 診断は採用済み。multi-FOV、`yolov8m-seg.pt`、言語系 fallback、物体検索/追従は既定未採用または削除済み | 次は通常巡回 Fridge positive crop が `cabinet` / `dining table` / `chair` 相当に寄る原因を、hard positive/negative crop と固定クラスの軽量 custom classifier で切り分ける | [recognition.md](recognition.md) |
 | カラー点群出力 | 基本機能あり、精密較正は課題 | `/perception/colorized_points`、`/slam/*colorized_points_map`、PLY 保存 | 投影誤差 1deg 未満を断言できない。realtime 4方向 validation と較正入力の整備 | [colorized_pointcloud.md](colorized_pointcloud.md) |
+| 外部キャリブレーション | 基本機能あり、並進精密化は課題 | AprilTag 方式（`apriltag_extrinsic_calib_node.py`、回転 0.32°/RMS 9.6mm）と targetless（`direct_visual_lidar_calibration`）。出力 `calib.json` を TF 置換に使う | 並進絶対誤差 24mm（x -23mm）が残る。1cm 未満にはパネルを LiDAR 水平面中心へ下げる等が要る | [extrinsic_calibration.md](extrinsic_calibration.md) |
 
 ## 読む順
 
@@ -24,6 +25,7 @@
 3. [waypoint_navigation.md](waypoint_navigation.md): Nav2 で一周完走させる。
 4. [recognition.md](recognition.md): 巡回しながら物体・信号を認識し、地図重畳と world 評価を残す。
 5. [colorized_pointcloud.md](colorized_pointcloud.md): 全天球画像で LiDAR 点群に色を付け、必要なら地図として保存する。
+6. [extrinsic_calibration.md](extrinsic_calibration.md): AprilTag で全天球カメラと LiDAR の外部 TF を較正し、色付けに使う。
 
 ## 成果物の扱い
 
@@ -35,6 +37,7 @@
 | `maps/<world>_recognition_overlay.png` | 認識 | 認識レビュー |
 | `maps/<world>_recognition_eval.{md,json,csv,png}` | 認識 | 採用/未採用判断 |
 | `maps/colorized/*.ply` | カラー点群出力 | 点群レビュー、外部可視化 |
+| `apriltag_calib/calib.json` | 外部キャリブレーション | `omni_calibration_json:=` で TF 置換（色付き点群・物体クロップ） |
 
 `*.pgm` はすべて commit 対象にする。保存地図は YAML だけでは後段が再現できないため、`.yaml` と `.pgm`
 をペアで扱う。確認用 PNG / overlay PNG は再生成可能なので引き続き追跡しない。

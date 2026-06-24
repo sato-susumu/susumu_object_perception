@@ -54,6 +54,17 @@ class ColorizedPointCloudNode(Node):
         self.calibration_rot = euler_xyz_to_matrix(
             math.radians(rpy[0]), math.radians(rpy[1]), math.radians(rpy[2]))
         self.latest_image = None
+        # 【時刻同期色付け】移動中は点群時刻と画像時刻がズレると、ロボットが動いた分だけ
+        # 色付け位置がズレて点群がブレる（OmniColor 等が指摘する ghosting の一因）。画像を
+        # 1 枚でなく時刻付きバッファで保持し、点群スタンプに最も近い画像で色付けする。
+        # image_sync_max_dt 秒を超えてズレる画像しか無い場合は色付けをスキップする。
+        from collections import deque
+        self.declare_parameter('image_buffer_len', 15)
+        self.declare_parameter('image_sync_max_dt', 0.2)
+        self.image_buffer = deque(maxlen=int(
+            self.get_parameter('image_buffer_len').value))
+        self.image_sync_max_dt = float(
+            self.get_parameter('image_sync_max_dt').value)
 
         self.pub = self.create_publisher(
             PointCloud2, self.get_parameter('output_cloud').value,
@@ -68,11 +79,26 @@ class ColorizedPointCloudNode(Node):
 
     def on_image(self, msg):
         try:
-            self.latest_image = (
-                self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8'),
-                msg.header.stamp)
+            img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+            self.image_buffer.append((t, img))
+            self.latest_image = (img, msg.header.stamp)
         except Exception as exc:
             self.get_logger().warning(f'failed to decode omni image: {exc}')
+
+    def _image_at(self, cloud_stamp):
+        """点群スタンプに最も近い画像を返す。許容差を超えるなら (None, dt)。"""
+        if not self.image_buffer:
+            return None, None
+        ct = cloud_stamp.sec + cloud_stamp.nanosec * 1e-9
+        best_img, best_dt = None, None
+        for t, img in self.image_buffer:
+            dt = abs(t - ct)
+            if best_dt is None or dt < best_dt:
+                best_dt, best_img = dt, img
+        if best_dt is not None and best_dt <= self.image_sync_max_dt:
+            return best_img, best_dt
+        return None, best_dt
 
     def _project(self, pts_cam, width, height):
         u, v, valid = equirect_uv(
@@ -81,9 +107,15 @@ class ColorizedPointCloudNode(Node):
         return u.astype(np.int32), v.astype(np.int32), valid
 
     def on_cloud(self, msg):
-        if self.latest_image is None:
+        # 点群スタンプに最も近い画像を選ぶ（最新画像でなく時刻同期）。移動中の色付けズレ
+        # （ghosting/blur）を抑える。許容差を超える画像しか無ければスキップ。
+        image, dt = self._image_at(msg.header.stamp)
+        if image is None:
+            self.get_logger().warning(
+                f'no time-synced image within {self.image_sync_max_dt}s '
+                f'(closest dt={dt})' if dt is not None else 'no image yet',
+                throttle_duration_sec=5.0)
             return
-        image, _ = self.latest_image
         h, w = image.shape[:2]
 
         pts = pc2.read_points_numpy(

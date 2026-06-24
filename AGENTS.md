@@ -64,6 +64,7 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 | 巡回ナビ | [`docs/tasks/waypoint_navigation.md`](docs/tasks/waypoint_navigation.md) |
 | 認識 | [`docs/tasks/recognition.md`](docs/tasks/recognition.md) |
 | カラー点群出力 | [`docs/tasks/colorized_pointcloud.md`](docs/tasks/colorized_pointcloud.md) |
+| 外部キャリブレーション | [`docs/tasks/extrinsic_calibration.md`](docs/tasks/extrinsic_calibration.md) |
 
 **マッピングは屋内と屋外を完全に別タスクとして扱う**。屋内向け設定（p2l の min/max_height、
 range_max、use_inf、slam_toolbox の max_laser_range など）を屋外向けに改変することは禁止。

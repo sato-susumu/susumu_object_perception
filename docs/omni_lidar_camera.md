@@ -350,13 +350,42 @@ ros2 launch susumu_object_perception webots_calibration.launch.py \
 
 ### ライブ検証結果（2026-06-24、calibration.wbt, MID-360）
 
-- 4 方位パネル（tag id 0/1/2/3）を全て検出し、`T_lidar_camera` を推定できた（20 フレーム平均）。
-- 推定値: translation `[-0.0230, 0.0072, 0.5442] m`、quat(xyzw) `[-0.0007, -0.0023, 0.0013, 1.0000]`（ほぼ無回転）。
-- 真値 `lidar_link->omni_camera_link = z 0.55 / 無回転` に対し **並進誤差 24.8mm・回転ほぼ 0**、
-  対応点 RMS 20.6mm。z 単独では 0.5442（誤差 5.8mm）。x の -23mm は板厚 0.04m と LiDAR が板手前面に
-  点を返す系統オフセットによるもの（cm 級で実用十分）。
+4 方位パネル（tag id 0/1/2/3）を全て検出し、`T_lidar_camera` を推定できた（20 フレーム平均）。
+
+検証時の全天球画像と各方位の透視ビューは `docs/images/apriltag_calib_*.png`
+（`omni_pano` = 元の正距円筒画像、`view_{front,left,back,right}_id{0,1,2,3}` = タグ検出に使った透視ビュー）。
+FRONT/BACK パネルの `rotation` を外す前はこの front/back ビューでタグが白飛びして未検出だった（後述の落とし穴）。
+
+**精度（板厚補正 `board_thickness=0.04` 適用後）:**
+- 推定値: translation `[-0.0230, 0.0072, 0.5477] m`、quat(xyzw) `[-0.0007, -0.0023, 0.0013, 1.0000]`（ほぼ無回転）。
+- 真値 `lidar_link->omni_camera_link = z 0.55 / 無回転` に対し **回転 0.32°・対応点 RMS 9.6mm**
+  （板厚補正前は RMS 20.6mm。補正で半減した）。z 単独は 0.5477（誤差 2.3mm）。
+- ただし **並進絶対誤差は 24mm 残る**。主因は x の -23mm 系統オフセット。これは板厚では説明できず
+  （補正量を 0〜±20mm 変えても -23mm 不変と実測で確認）、**LiDAR がタグ板の下半分にしか点を返さず
+  点群重心が板物理中心より下に偏る**こと（cam が見るタグ中心 z≈-0.15 に対し LiDAR 板中心 z≈+0.39。
+  本来は両者の z 差が 0.55 になるべきだが、LiDAR 側が板中心を捉えきれていない）に由来する。
+  これは MID-360 の上向き FOV とパネル高さ（中心 0.75m）の組み合わせによるシミュ固有の幾何で、
+  探索アルゴリズムやキャリブ式の誤りではない。**回転 0.32°・RMS 9.6mm は色付け用途には十分**だが、
+  「並進 1cm 未満」の精密目標には未達。1cm 未満を狙うならパネルを LiDAR 水平面（z0.20）中心へ下げるか、
+  LiDAR 点群の z 分布上端を板上端とみなす重心補正が要る（今回は未実施）。
+
+**活用実証（得た TF を色付けに適用、初期 TF と比較）:**
+- calib.json を `omni_calibration_json:=...` で渡すと、`omni_sensor_tf_node` が
+  `lidar_link->omni_camera_link` を **初期値 `[0,0,0.55]` からキャリブ実測値 `[-0.023,0.007,0.548]` に置換**
+  し（`tf2_echo` で確認）、`colorized_pointcloud_node` がそのキャリブ TF で `/perception/colorized_points`
+  を色付けすることを確認した。
+- 色付け品質（カラー物体の点に正しい色が乗るかのスコア、1.0 が完全一致）:
+
+  | ターゲット | 初期 TF | キャリブ TF |
+  |---|---|---|
+  | green box | 0.970 | 0.976 |
+  | magenta cylinder | 0.985 | 0.982 |
+
+  **キャリブ TF で色付け品質は初期 TF と同等（差 ±0.6%）= 劣化させない**。シミュ真値が
+  ほぼ z0.55/無回転なので両 TF とも良好になるのは想定どおりで、ここでの実証点は「キャリブ結果が
+  TF として系に正しく注入され、実際に色付けへ使われ、品質を壊さない」こと。
 - 出力 calib.json は `scripts/direct_calib_to_tf.py` / `omni_sensor_tf_node.py` がそのまま読め、
-  `direct_visual_lidar_calibration` と同じ TF 置換導線（`omni_calibration_json:=...`）に乗ることを確認。
+  `direct_visual_lidar_calibration` と同じ TF 置換導線（`omni_calibration_json:=...`）に乗る。
 
 ### 実装上の落とし穴（再現する人向け）
 

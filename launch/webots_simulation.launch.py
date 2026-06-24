@@ -142,6 +142,9 @@ def generate_launch_description():
     colored_slam_source_frame_override = LaunchConfiguration(
         'colored_slam_source_frame_override')
     colored_slam_output_cloud = LaunchConfiguration('colored_slam_output_cloud')
+    colored_slam_max_range = LaunchConfiguration('colored_slam_max_range')
+    colored_slam_min_z = LaunchConfiguration('colored_slam_min_z')
+    colored_slam_max_z = LaunchConfiguration('colored_slam_max_z')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
     lidar_frame = 'lidar_link'
@@ -547,8 +550,14 @@ def generate_launch_description():
             'target_frame': colored_slam_target_frame,
             'fallback_frame': colored_slam_fallback_frame,
             'source_frame_override': colored_slam_source_frame_override,
-            'voxel_size': 0.08,
-            'max_voxels': 250000,
+            'voxel_size': 0.05,
+            'max_voxels': 400000,
+            # 屋内向けブレ低減フィルタ。LiDAR 遠距離点は SLAM 姿勢の小さな回転誤差が
+            # 増幅されて放射状の筋（ブレ）になるため近距離だけ採る。床下/天井の散乱も切る。
+            # 値は LiDAR(lidar_link)座標基準。屋内 5x10m なので max_range 7m で全域に届く。
+            'max_range': colored_slam_max_range,
+            'min_z': colored_slam_min_z,
+            'max_z': colored_slam_max_z,
             # 色付き点群 PLY をプロジェクト内 maps/colorized/ に保存（.gitignore で無視）。
             # install/share でなくソースの maps/colorized を指す（再生成物を手元に残すため）。
             'save_dir': os.path.join(
@@ -690,6 +699,15 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'colored_slam_output_cloud', default_value='/slam/colorized_points_map',
             description='蓄積した色付き点群マップの出力トピック'),
+        DeclareLaunchArgument(
+            'colored_slam_max_range', default_value='7.0',
+            description='色付き点群蓄積の LiDAR 最大距離[m]。屋内はブレ低減のため近距離だけ採る'),
+        DeclareLaunchArgument(
+            'colored_slam_min_z', default_value='-0.1',
+            description='色付き点群蓄積の最小 z[m]（LiDAR 座標）。床下散乱を切る'),
+        DeclareLaunchArgument(
+            'colored_slam_max_z', default_value='2.0',
+            description='色付き点群蓄積の最大 z[m]（LiDAR 座標）。天井外れを切る'),
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='direct_visual_lidar_calibration の calib.json。空なら初期TFを使う'),
