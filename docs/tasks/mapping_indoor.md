@@ -161,6 +161,144 @@ ros2 run susumu_object_perception check_map_vs_world.py \
 
 次は地図品質が崩れた場合に、衝突ログ・`/scan`・SLAM 設定のどこで占有が欠けたかを切り分ける。
 
+## Roadmap-Explorer 比較検証（2026-06-24）
+
+ROSCon 2025 で発表された **[Roadmap-Explorer](https://github.com/suchetanrs/roadmap-explorer)**
+（`suchetanrs/roadmap-explorer` v1.0.0, Apache-2.0）で地図品質を改善できるか、自作
+`frontier_explore_node` と同一の slam_toolbox / Nav2 基盤の上で比較した。**検証で結論が出たため、
+Roadmap-Explorer 本体（別 workspace `~/exploration_ws`）と本リポの検証一式
+（`experiments/roadmap_explorer/` の launch / params / 計測ノード）は削除済み**。本ページが結論の
+正本で、再現手順の要点は下記「統合で必須だった調整・リスク」「実測比較」に残してある。
+再検証する場合は `git clone https://github.com/suchetanrs/roadmap-explorer.git` から始める。
+
+**Roadmap-Explorer とは**: frontier クラスタからナビゲーション・ロードマップ（グラフ）を構築し、
+時間制限付き TSP で「globally coherent な探索順序」を解く frontier 探索。Nav2 lifecycle + BT
+プラグイン構成で `navigate_to_pose` を使う。著者主張は greedy な frontier 系より 25–45% 速い。
+入力は `/map`(OccupancyGrid)・フレーム `map`/`base_link` で本リポの slam_toolbox 構成と整合。
+
+### 結果（自作 frontier との比較、いずれも `mode:=realtime` / CycloneDDS）
+
+| world | 手法 | 寸法[m] | 壁率 | 最大連結成分 | 連結片 | unknown | world照合(wall / obstacle) |
+|---|---|---|---|---|---|---|---|
+| indoor | 自作 frontier | 5.0x10.1 | 2.6% | 99% | 2 | 0 | —（既存基準） |
+| indoor | **Roadmap-Explorer** | 5.0x10.0 | 0.9% | 99% | 2 | 0 | wall 0.833 / obstacle 0.75 |
+| break_room | 自作 frontier | 9.4x7.0 | 2.3% | 100% | 1 | 0 | wall 0.848 / obstacle 0.750 |
+| break_room | **Roadmap-Explorer** | 12.9x7.9 | 4.4% | 97% | 2 | 0 | wall 0.782 / obstacle 0.875 |
+| outdoor(参考) | **Roadmap-Explorer** | 7.8x6.4 | 0.6% | 100% | 1 | 0 | obstacle 1.0（地図化できた範囲のみ） |
+
+- **屋内では自作 frontier と同等品質の地図が作れた**。indoor は壁が単一線で二重化せず（壁率 0.9%）、
+  寸法も実 world 一致。break_room はむしろ自作より**広く開拓**できた（自作 9.4x7.0m に対し
+  12.9x7.9m で実寸 12.86m に近い）し、**家具をより多く検出**（obstacle 0.875 > 自作 0.750）。
+- 自作 frontier も既に屋内で合格水準（壁率 2–3%・連結 99–100%）に達しているため、
+  **屋内で「地図品質が劇的に改善する」ほどの差は出なかった**（探索効率＝速さの差は別途）。
+
+### 統合で必須だった調整・リスク
+
+1. **内部 costmap の `inflation_radius` を 0.10 → 0.55 にするのが必須**。上流既定 0.10 は
+   waffle 内接半径 0.225 より小さく、狭い屋内でフロンティアゴールが壁際に置かれ
+   `Could not compute path from <現在地>` が多発→スタック→その場旋回で slam match が乱れ
+   壁が二重化（indoor 壁率 2.6%→**8.3%**、連結片 2→4 に劣化）。0.55 で経路失敗 0 件・壁率 0.9% に回復。
+2. **`robot_radius` を実行時に 0.10 へ強制上書きされる**。Roadmap-Explorer は探索開始時に
+   `/global_costmap` の `robot_radius` を 0.10、`/planner_server` の `GridBased.allow_unknown` を
+   true に**動的書換**する（`ExplorationBT.cpp` の "workaround" コメント）。本リポの安全設計
+   （`robot_radius: 0.22` で壁から離す）を上書きするので、人のいる環境や狭所では衝突リスクが
+   上がりうる。導入するならここの評価が前提。
+3. **CycloneDDS 必須**（上流既知問題: FastDDS で costmap2D ノードが segfault。本リポの SHM 破損の罠とも整合）。
+4. **アクション起動が必要**（lifecycle active 後に `Explore` アクションを叩く）。本 launch は自動化済み。
+
+### チューニングで現行 frontier より良くなるか（2026-06-24 追加分析）
+
+「Roadmap-Explorer をチューニングすれば屋内で現行 frontier より良くなるか」を、追加の実機検証は
+せず今回のログ + コード読解で見極めた。**まず前提の切り分けが重要**:
+
+- **地図の幾何品質（壁の鮮明さ・寸法精度・連結性）を決めているのは slam_toolbox であって探索
+  アルゴリズムではない**。自作 frontier と Roadmap-Explorer は**同じ slam_toolbox の `/map` を共有**
+  する（`config/nav2_params_webots_explore.yaml` の slam_toolbox 設定が地図生成の本体）。探索側が
+  品質に効くのは間接経路だけ: ①動きの滑らかさ（急旋回→scan match 悪化）②カバレッジ（回り尽くすか）
+  ③完走時間（短いほど odom ドリフト累積が少ない）。
+
+軸ごとの伸びしろ:
+
+| 軸 | 現状の余地 | 根拠 |
+|---|---|---|
+| ①動きの滑らかさ | **ほぼ無し** | ログ解析で Roadmap-Explorer は controller へ 4Hz 一定供給・1 秒以上の停止 0・nav2 recovery(spin/backup) 0・スタックは indoor で 3 回だけ（各 0.3–0.5s で自己回復）。既に「品質を下げる動き」をしていない |
+| ②カバレッジ完全性 | **少し有り** | break_room で右側に unknown が残った。Roadmap-Explorer は `increment_search_distance_by`(35m)で探索半径を段階拡大し、`FullPathOptimizer` がローカル枯渇時に "Global repositioning" で取り残しを系統的に潰す機構を持つ。`goal_hysteresis_threshold`(0.15)・`min_frontier_cluster_size`(1.0)・`information_gain` 系の調整で「取り残しゼロ」を詰める余地はある |
+| ③完走時間 | **未計測（本来の売り）** | 著者主張は greedy frontier 比 25–45% 速い。TSP ロードマップで往復を減らす。今回は完走時間を測っていないので**速度で勝てるかは本検証では未確定** |
+
+**見立て**: 屋内の**幾何品質**は slam_toolbox が上限を決めており、現行 frontier も Roadmap-Explorer
+も既にその上限近く（壁率 2–3%・連結 99–100%）。**探索側をチューニングしても品質は頭打ちが先に来る**
+ので、「品質を上げる」目的での Roadmap-Explorer チューニングは費用対効果が低い。伸ばせるのは
+**カバレッジ完全性（取り残しゼロ）と完走速度**で、これは Roadmap-Explorer の設計上の強みと一致する。
+逆に**品質上限そのものを上げたいなら slam_toolbox 側（loop closure / scan match / resolution）を
+触るのが本筋**で、これは探索アルゴリズムとは独立な軸。
+
+### カバレッジ完全性・完走時間の実測比較（2026-06-24、indoor.wbt）
+
+前節で「未計測」としていた**完走速度とカバレッジ完全性を実測**した。公平を期すため、
+`/map` の unknown 率を一定間隔で記録する計測ノードを launch と同時起動し、**両手法とも
+「計測ノードが最初に `/map` を受けた時刻」を共通の `elapsed=0`** にして unknown 率の時系列を
+取った（同じ slam_toolbox/Nav2 基盤、同じ起点）。
+カバレッジ調整版 params（`min_frontier_cluster_size` 0.5・`closeness_rejection_threshold` 0.25・
+local 密度↑、`..._coverage.yaml`）も測った。
+
+| 手法 | 開拓開始→飽和の**正味探索時間** | 飽和時 unknown率※ | occ(壁セル) | path 計画失敗 | 飽和時 幾何(壁率/連結/片) |
+|---|---|---|---|---|---|
+| 自作 frontier | **60.0s**(23.5→83.5s) | 14.72% | 1446 | — | 7.2% / 93% / 6 |
+| Roadmap-Explorer baseline | 65.0s(33.4→98.4s) | 12.14%（最終） | 1588 | 110 | 7.8% / 94% / 5 |
+| Roadmap-Explorer coverage版 | 70.0s(33.5→103.5s) | 12.76%（最終） | 1485 | **847** | 7.3% / 92% / 5 |
+
+※ unknown 率は地図 bounding box 基準（外周の到達不能セルを含む参考値）。**室内の実カバレッジは
+3 手法とも完全**: `check_map_vs_world.py` で家具 obstacle ratio=1.0（4/4 検出）、wall ratio は
+自作 1.0 / RE baseline 1.0 / RE coverage **0.875**（coverage 版だけ壁照合が低下）。目視でも
+3 手法とも外周壁・什器・家具が正しく、室内 unknown はほぼ無い。
+
+**実測で分かったこと（事前の見立てと違った点）:**
+
+- **完走速度は Roadmap-Explorer が速くなかった。むしろ自作 frontier が最速（正味 60s）**。
+  著者主張「greedy frontier 比 25–45% 速い」は、この小規模屋内（5x10m）では再現しなかった。
+  TSP ロードマップの利点は広い環境で往復を減らす点にあり、狭い indoor では探索が短く、
+  自作のシンプルな nearest+情報利得法と差がつかない（むしろ機敏な分わずかに速い）。
+- **カバレッジ完全性は Roadmap-Explorer がわずかに上**（bounding box unknown 12.1% < 14.7%、
+  壁セル occ も 1588 > 1446）。ただし**室内の実カバレッジは 3 手法とも完全**で、差は外周の
+  到達不能セルの扱いの違い。実用上の優劣はほぼ無い。
+- **カバレッジ調整版は逆効果だった**。`min_cluster`/`closeness` を下げて細かい取り残しを拾わせたら、
+  到達不能な微小フロンティアへの無駄打ちが激増（path 計画失敗 110→**847**）し、最終カバレッジは
+  改善せず（12.76% ≧ baseline 12.14%）、壁照合はむしろ悪化（wall 1.0→0.875）。
+  **indoor は baseline params が既にカバレッジ最適に近く、調整の余地は小さい**。
+- **自作 frontier は「厳密な完走判定」が機能しない**。到達不能な縁フロンティア（130 セル級）が残ると
+  `done_after_empty` がリセットされ続けて `exploration complete` に至らず、別ランでは 400s 走っても
+  完了しなかった。さらに**長く走らせると品質が劣化**（再試行でその場旋回が増え、壁率 2.6%→9.2%・
+  連結片 2→6 に悪化）。これは「カバレッジは早期に飽和するが完了を宣言できない」設計上の弱点。
+
+**結論（カバレッジ完全性と完走時間について）:**
+- **カバレッジ完全性**: 室内実カバレッジは元から 3 手法とも完全。今回のパラメータ調整での「向上」は
+  確認できず、むしろ無駄打ちが増えた。**indoor で取り残しを減らす余地はほぼ無い**（残る unknown は
+  外周や家具裏の物理的到達不能領域）。カバレッジを実質的に上げるには探索 params ではなく、
+  到達不能領域を許容する完了判定や、別経路から覗ける視点計画が要る（費用対効果は低い）。
+- **完走時間**: indoor では自作 frontier が最速（60s）。Roadmap-Explorer は遅くはないが速くもない
+  （65–70s）。**「Roadmap-Explorer に変えれば速くなる」は小規模屋内では成り立たない**。
+  ただし自作 frontier の完了判定の弱点（完走宣言できず・長走で劣化）は実運用で問題になりうるので、
+  自作側を直すなら「到達不能フロンティアの早期確定」と「カバレッジ飽和での自動停止」が要点。
+
+### 判断
+
+- **屋内マッピングの「地図品質」改善目的では、Roadmap-Explorer に乗り換える積極的な理由は薄い**。
+  自作 frontier が既に屋内で合格水準に達しており、品質は同等。むしろ `robot_radius` 強制上書き
+  （安全設計の上書き）と、別 workspace の C++ 依存（pcl_ros/nav2_behavior_tree 等）・実行時
+  パラメータ書換という運用コスト／リスクが増える。
+- ただし **探索効率（完走時間）・大規模屋内**では TSP ロードマップの利点が出る可能性がある。
+- **屋外（`outdoor.wbt`, 床 20x20m）は参考検証した結果、Roadmap-Explorer でも SLAM の限界が支配的**
+  だった。探索アルゴリズム自体は破綻せず動いた（経路失敗 0・TF ドリフト 0）が、開放空間で LiDAR が
+  捉える壁面特徴が乏しく、**20x20m のうち 7.8x6.4m しか地図化できず**（ロボットも原点付近から
+  ほぼ出られない）、`SimpleBuilding` 2 棟は地図に現れなかった。これは Roadmap-Explorer 固有の問題
+  ではなく、frontier+SLAM という枠組み全体の原理的限界（自作 frontier も同じ場所で同じ限界に当たる）。
+  → 屋外は [`mapping_outdoor.md`](mapping_outdoor.md)（現状未対応）。**探索アルゴリズムの差し替えでは
+  屋外マッピングは解決しない**（SLAM／センサ側の手当てが先）。
+- 結論: **屋内品質改善のための導入は見送り**。実測でも完走時間は自作 frontier が最速で、品質・
+  カバレッジも同等だった（上記「実測比較」）。**検証で結論が出たため Roadmap-Explorer 本体と検証一式は
+  削除済み**で、本ページに数値・結論・再現の要点を記録として残す。将来「広域屋内の効率探索」が課題に
+  なったら、本ページの記録を起点に再 clone して再検証する。
+
 ## 終了処理
 
 Webots/RViz/Nav2 が残ると次回検証に混ざる。検証後は落とす。
