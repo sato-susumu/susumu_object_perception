@@ -118,9 +118,11 @@ install(PROGRAMS
   susumu_object_perception/omni_sensor_tf_node.py
   susumu_object_perception/colorized_pointcloud_mapper_node.py
   susumu_object_perception/pose_stamped_tf_bridge_node.py
+  susumu_object_perception/apriltag_extrinsic_calib_node.py
   scripts/validate_omni_colorization.py
   scripts/record_omni_calibration_bag.sh
   scripts/run_direct_visual_lidar_calibration_docker.sh
+  scripts/generate_apriltag_textures.py
   scripts/direct_calib_to_tf.py
   scripts/validate_colorized_pointcloud_quality.py
   scripts/generate_waypoints.py

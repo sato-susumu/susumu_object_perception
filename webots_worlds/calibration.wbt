@@ -71,31 +71,19 @@ TurtleBot3Burger {
 
 # Four vertical panels at different bearings. They give clear image edges and
 # LiDAR planes for extrinsic calibration.
+# 方位パネルは AprilTag 36h11 テクスチャ板にする。板は 1.0m 角・厚さ 0.04m の Box で、
+# テクスチャのタグ占有率 0.6667 なので物理タグエッジ長 = 0.6667m（calib ノードの tag_size と一致）。
+# Box の全 6 面に同テクスチャが乗るが、原点向きの正面が見えればよい。boundingObject により
+# LiDAR が板の平面点を返す。
 DEF PANEL_FRONT Solid {
   translation 2.2 0 0.75
-  rotation 0 0 1 1.5708
   children [
     Shape {
-      appearance PBRAppearance { baseColor 1 1 1 roughness 0.4 metalness 0 }
+      appearance PBRAppearance {
+        baseColorMap ImageTexture { url [ "apriltag_textures/tag36h11_0.png" ] }
+        roughness 0.4 metalness 0
+      }
       geometry Box { size 0.04 1.0 1.0 }
-    }
-    Pose {
-      translation -0.03 -0.26 0.26
-      children [
-        Shape {
-          appearance PBRAppearance { baseColor 0 0 0 roughness 0.4 metalness 0 }
-          geometry Box { size 0.02 0.22 0.22 }
-        }
-      ]
-    }
-    Pose {
-      translation -0.03 0.26 -0.26
-      children [
-        Shape {
-          appearance PBRAppearance { baseColor 0 0 0 roughness 0.4 metalness 0 }
-          geometry Box { size 0.02 0.22 0.22 }
-        }
-      ]
     }
   ]
   name "calibration panel front"
@@ -105,7 +93,10 @@ DEF PANEL_LEFT Solid {
   translation 0 2.2 0.75
   children [
     Shape {
-      appearance PBRAppearance { baseColor 1 0.95 0.1 roughness 0.4 metalness 0 }
+      appearance PBRAppearance {
+        baseColorMap ImageTexture { url [ "apriltag_textures/tag36h11_1.png" ] }
+        roughness 0.4 metalness 0
+      }
       geometry Box { size 1.0 0.04 1.0 }
     }
   ]
@@ -114,10 +105,12 @@ DEF PANEL_LEFT Solid {
 }
 DEF PANEL_BACK Solid {
   translation -2.2 0 0.75
-  rotation 0 0 1 1.5708
   children [
     Shape {
-      appearance PBRAppearance { baseColor 0.1 0.5 1 roughness 0.4 metalness 0 }
+      appearance PBRAppearance {
+        baseColorMap ImageTexture { url [ "apriltag_textures/tag36h11_2.png" ] }
+        roughness 0.4 metalness 0
+      }
       geometry Box { size 0.04 1.0 1.0 }
     }
   ]
@@ -128,7 +121,10 @@ DEF PANEL_RIGHT Solid {
   translation 0 -2.2 0.75
   children [
     Shape {
-      appearance PBRAppearance { baseColor 1 0.1 0.1 roughness 0.4 metalness 0 }
+      appearance PBRAppearance {
+        baseColorMap ImageTexture { url [ "apriltag_textures/tag36h11_3.png" ] }
+        roughness 0.4 metalness 0
+      }
       geometry Box { size 1.0 0.04 1.0 }
     }
   ]

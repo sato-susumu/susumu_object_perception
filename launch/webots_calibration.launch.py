@@ -8,9 +8,12 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
+                            TimerAction)
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -26,6 +29,8 @@ def generate_launch_description():
     lidar_model = LaunchConfiguration('lidar_model')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    use_apriltag_calib = LaunchConfiguration('apriltag_calib')
+    apriltag_calib_json = LaunchConfiguration('apriltag_calib_json')
 
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -43,6 +48,28 @@ def generate_launch_description():
             ('lidar_model', lidar_model),
             ('omni_calibration_json', omni_calibration_json),
             ('use_sim_time', use_sim_time),
+        ],
+    )
+
+    # AprilTag 外部キャリブノード（opt-in）。Webots / perception 起動が落ち着いてから遅延起動。
+    # 全天球画像と LiDAR からタグを検出し T_lidar_camera を calib.json に書く。
+    apriltag_calib = TimerAction(
+        period=20.0,
+        condition=IfCondition(use_apriltag_calib),
+        actions=[
+            Node(
+                package='susumu_object_perception',
+                executable='apriltag_extrinsic_calib_node.py',
+                name='apriltag_extrinsic_calib',
+                output='screen',
+                parameters=[{
+                    'use_sim_time': True,
+                    'output_json': apriltag_calib_json,
+                    # Webots driver の実 LiDAR トピックは /lidar/points/point_cloud
+                    # （webots_simulation.launch.py と同じ）。
+                    'input_cloud': '/lidar/points/point_cloud',
+                }],
+            ),
         ],
     )
 
@@ -67,5 +94,13 @@ def generate_launch_description():
                               description='direct_visual_lidar_calibration の calib.json。空なら初期TF'),
         DeclareLaunchArgument('use_sim_time', default_value='True',
                               description='Webots はシミュレーション時刻のため True'),
+        DeclareLaunchArgument('apriltag_calib', default_value='False',
+                              description='AprilTag で全天球+LiDAR 外部キャリブを実行する'),
+        DeclareLaunchArgument(
+            'apriltag_calib_json',
+            default_value=os.path.expanduser(
+                '~/ros2_ws/apriltag_calib/calib.json'),
+            description='AprilTag キャリブ結果 calib.json の出力先'),
         sim,
+        apriltag_calib,
     ])
