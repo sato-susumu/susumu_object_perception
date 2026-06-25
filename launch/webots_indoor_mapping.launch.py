@@ -92,6 +92,15 @@ def generate_launch_description():
     # フロンティア探索（自作 frontier_explore_node）。屋内 world では純 frontier で十分。
     # sweep_mode は False（屋外用の perimeter sweep は使わない）、forward_step は屋内向けの
     # 控えめな値で固定する。Nav2 のアクションサーバが立つのを待って遅延起動する。
+    #
+    # 【粘り強い探索（屋内向け）】 break_room (7.7×12.86m) のような細長い世界で「曲がり角の
+    # 先の半分が未探索のまま完了する」のを防ぐため、done 条件を厳しく・stall も粘り強く設定:
+    #   - done_frontier_cells=5 (既定 15)：少しでも未踏縁が残っていれば走り続ける
+    #   - done_after_empty=20 (旧 12)：empty 連続判定を長く取って早期完了を避ける
+    #   - stall_timeout_sec=180 (既定 120)：恐ろしく狭い通路でも諦めない
+    #   - approach_setback=1.0 (既定 1.3)：曲がり角の先のフロンティアにも届かせる
+    # これらは launch 引数 done_frontier_cells / done_after_empty / stall_timeout_sec /
+    # approach_setback で上書き可能。
     frontier = TimerAction(
         period=22.0,
         actions=[
@@ -111,7 +120,10 @@ def generate_launch_description():
                     'map_save_path': save_path,
                     'world_file': world_file_path,
                     'start_delay_sec': 8.0,
-                    'done_after_empty': 12,
+                    'done_after_empty': LaunchConfiguration('done_after_empty'),
+                    'done_frontier_cells': LaunchConfiguration('done_frontier_cells'),
+                    'stall_timeout_sec': LaunchConfiguration('stall_timeout_sec'),
+                    'approach_setback': LaunchConfiguration('approach_setback'),
                     'goal_timeout_sec': goal_timeout,
                     'forward_step': 2.0,
                     # 屋外専用の sweep_mode は明示的に無効化する。屋内では純 frontier で
@@ -184,9 +196,25 @@ def generate_launch_description():
             'gain', default_value='0.30',
             description='フロンティア選択の利得（大きいほど広い未踏領域を優先）'),
         DeclareLaunchArgument(
-            'min_frontier_cells', default_value='4',
+            'min_frontier_cells', default_value='2',
             description='フロンティアクラスタの最小セル数（小さいと細かい未踏も追い'
                         'ワールド全体を探索しきる。大きいと早期完了で地図が狭くなる）'),
+        DeclareLaunchArgument(
+            'done_frontier_cells', default_value='5',
+            description='完了判定の閾値[セル数]。フロンティア総セル数がこれ未満のとき '
+                        '「未踏縁ほぼ無し」と見なす。小さいほど粘る (旧既定 15)'),
+        DeclareLaunchArgument(
+            'done_after_empty', default_value='20',
+            description='done 連続検知回数。フロンティアがほぼ無い状態が連続でこの回数 '
+                        '続けば完了。大きいほど早期完了を防ぐ (旧既定 12)'),
+        DeclareLaunchArgument(
+            'stall_timeout_sec', default_value='180.0',
+            description='既知面積の伸びが stall_min_growth_cells に満たない時間がこの '
+                        '秒数超えたら強制終了。大きいほど粘る (旧既定 120)'),
+        DeclareLaunchArgument(
+            'approach_setback', default_value='1.0',
+            description='フロンティア代表点の手前 setback[m] にゴールを置く。小さいほど '
+                        '曲がり角の先のフロンティアにも届かせやすい (旧既定 1.3)'),
         robot_nav,
         frontier,
         collision_diag,

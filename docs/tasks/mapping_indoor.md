@@ -158,9 +158,12 @@ ros2 run susumu_object_perception check_map_vs_world.py \
 | 日付 | world / map | 条件 | 結果 |
 |---|---|---|---|
 | 2026-06-21 | `indoor.wbt` → `outputs/mapping_indoor/indoor.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `99x201`, `5.0x10.1m`, 壁率 `2.6%`, 最大連結成分 `99%`, 判定 `OK(微小片あり)` |
-| 2026-06-21 | `break_room.wbt` → `outputs/mapping_indoor/break_room.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `188x140`, `9.4x7.0m`, 壁率 `2.3%`, 最大連結成分 `100%`, 判定 `OK`。`check_map_vs_world.py`: wall `near_ratio_inside=0.848`, obstacle `0.750` |
+| 2026-06-21 | `break_room.wbt` → `outputs/mapping_indoor/break_room.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `188x140`, `9.4x7.0m`, 壁率 `2.3%`, 最大連結成分 `100%`, 判定 `OK`。`check_map_vs_world.py`: wall `near_ratio_inside=0.848`, obstacle `0.750`。**ただし unknown 55% で world 7.7x12.86m の半分しか地図化できておらず、6/25 に再マッピングで置換** |
+| 2026-06-25 | `break_room.wbt` → `outputs/mapping_indoor/break_room.yaml/.pgm` | `mode:=realtime`, 改善 launch (`done_frontier_cells=5`, `done_after_empty=20`, `min_frontier_cells=2`, `approach_setback=1.0`, `stall_timeout_sec=180`) | `eval_map_quality.py`: `259x157`, `13.0x7.9m`, 壁率 `11.1%`, 最大連結成分 `100%`, **unknown 22% (旧 55% から大幅改善)**, 判定 `OK`。`check_map_vs_world.py`: wall `inside=17/17`, obstacle `inside=8/8` (旧 10/17, 4/8 から全数到達)。waypoint 13→38 個、カバー領域 17→44 m² |
 
 次は地図品質が崩れた場合に、衝突ログ・`/scan`・SLAM 設定のどこで占有が欠けたかを切り分ける。
+また、`break_room` の改善 launch 既定値 (上記 2026-06-25 条件) は `indoor.wbt` でも同じ
+値を使えば「より粘り強い探索」が効くため、屋内 launch の既定値として採用済み。
 
 ## Roadmap-Explorer 比較検証（2026-06-24）
 
