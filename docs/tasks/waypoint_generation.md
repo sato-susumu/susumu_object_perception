@@ -87,6 +87,23 @@ ros2 run susumu_object_perception check_waypoints.py \
   --map outputs/mapping_indoor/indoor.yaml --waypoints outputs/waypoint_generation/indoor_sparse_waypoints.yaml --clearance 0.6
 ```
 
+### sparse_graph vs grid+NMS の比較 (iter14、 2026-06-26)
+
+iter5 で grid モードに Adaptive NMS を追加した後、 sparse_graph (SWAGGER-lite) と
+直接比較した:
+
+| モード | 点数 | 最大ジャンプ | カバレッジ | 巡回完走実証 |
+|---|---|---|---|---|
+| sparse_graph (既定) | 5 | 5.6m | 北側未踏 | 未検証 |
+| **grid + NMS (iter5 既定)** | **8** | **5.0m** | **全域** | **8/8 missed=[] (iter8)** |
+
+sparse_graph はノード数を最小化するため **狭い indoor では北側の小部屋が
+未踏 になる** ことを確認。 **grid + NMS は 8 点で全域カバー + 巡回完走実証済み**。
+
+**推奨**:
+- 屋内 (5×10m〜13×8m): `--candidate-mode grid` (既定) + `--grid-nms-separation-ratio 0.4` (既定)
+- 屋外 (50×100m 以上): `--candidate-mode sparse_graph` で点数を絞る
+
 ### 巡回状況の後追い確認（Nav2 feedback + 可視化）
 
 「その通り巡回できているか」を `reached=N/N` だけで判断せず、後から客観確認できるようにした。
