@@ -57,6 +57,53 @@ ros2 run susumu_object_perception generate_waypoints.py \
 過去評価では 2.0m 版で path tracking error は改善したが、危険 corridor を忠実に辿って
 `pose_global_lethal_static_free` が増えたため、候補生成・診断用に留め、屋外本線 waypoint には採用しない。
 
+## SWAGGER-lite 疎ウェイポイント生成（2026-06-25）
+
+巡回ルールをシンプルにしつつ確実に巡回するため、SWAGGER（Sparse WAypoint Graph Generation for
+Efficient Routing）の「自由空間の local maxima に疎なノードを置く」考えを取り入れた
+`--candidate-mode sparse_graph` を追加した。**アイデアの出典は SWAGGER だが、SWAGGER 本体のコード・
+cuCIM・CUDA・scikit-image には依存せず、scipy.ndimage + numpy だけで考え方のみ移植**している
+（詳細・出典は `generate_waypoints.py` の `_sparse_graph_candidates` docstring）。
+
+- `--candidate-mode grid|sparse_graph`: grid は従来（spacing 格子代表点、地図面積に比例して点が増える）。
+  sparse_graph は距離変換の局所最大 + NMS で疎ノードを作り、点数が通路・部屋・分岐の複雑さに近づく
+  （indoor で grid 27 点 → sparse の骨格 5〜6 点）。
+- `--graph-cover-radius`: 局所最大だけだと部屋の壁際が手薄になるので、既存ノードからこの距離を超えて
+  手薄な place 領域に点を足す（SWAGGER の free-space sampling 相当）。indoor で coverage max 2.44m→1.60m。
+- `--relink-long-jumps`: NN+2-opt の順序で什器を大迂回する長い区間を、既存ウェイポイントを経由して
+  短いジャンプの連続に置き換える（重複を許す）。indoor で最大測地ジャンプ 6.1m→2.0m。
+- 検査ツール `scripts/check_waypoints.py`: 各点の clearance と placeable 自由空間のカバレッジ偏りを
+  数値判定（壁に近い点 0 か、3m 超手薄 0 か）。`reached=N/N` だけでは見えない配置品質を客観確認する。
+
+採用生成例（indoor）:
+
+```bash
+ros2 run susumu_object_perception generate_waypoints.py \
+  --map maps/indoor.yaml --out maps/indoor_sparse_waypoints.yaml \
+  --candidate-mode sparse_graph --spacing 1.5 --graph-cover-radius 2.0 \
+  --clearance 0.6 --connect-clearance 0.30 --relink-long-jumps 3.0 --max-segment-length 2.0
+ros2 run susumu_object_perception check_waypoints.py \
+  --map maps/indoor.yaml --waypoints maps/indoor_sparse_waypoints.yaml --clearance 0.6
+```
+
+### 巡回状況の後追い確認（Nav2 feedback + 可視化）
+
+「その通り巡回できているか」を `reached=N/N` だけで判断せず、後から客観確認できるようにした。
+
+- `waypoint_nav_node.py` が Nav2 の feedback（`number_of_recoveries`・`distance_remaining`）を各
+  ウェイポイント記録に残す（`nav_recoveries` / `nav_distance_remaining_m`）。スキップ時も「なぜ
+  詰まったか（recovery 多発・ABORTED）」が JSON/CSV に残る。`report_prefix:=...` で出力。
+- `scripts/visualize_patrol_result.py`: 巡回結果 JSON と地図から、各点を緑（reached）/黄（reached だが
+  recovery 多発で苦戦）/赤（missed）で色分けした PNG を作る。巡回後 1 枚で「どこで苦戦・スキップしたか」
+  が分かる。
+
+この可視化で「reached=16/18 でも実は 9 点が recovery 多発で苦戦」という、点数だけでは見えない問題を
+検出できた。さらに **苦戦の真因が waypoint 配置でなく SLAM の `map→odom` TF 遅延**
+（`Transform data too old`×908 回 → controller が姿勢変換失敗 → recovery → ABORTED）だと切り分けられた。
+巡回専用 `config/nav2_params_webots_patrol.yaml` で local_costmap の `transform_tolerance` を
+0.2→0.5 に緩めたところ、`Transform data too old` 908→249 回、**reached 16/18→18/18・苦戦 9→6 点**に改善
+（完走）。`transform_tolerance` を変えたら [`nav2_tuning.md`](../nav2_tuning.md) も更新する。
+
 ## 合格基準
 
 1. **入力地図がマッピングタスク合格済み**

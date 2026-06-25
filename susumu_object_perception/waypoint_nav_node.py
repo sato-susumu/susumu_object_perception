@@ -166,6 +166,10 @@ class WaypointNavNode(Node):
         self._reached = 0
         self._missed = []
         self._results = []
+        # Nav2 feedback リアルタイム表示の状態（間引き用 + 苦戦記録用）。
+        self._fb_last_pub_wall = 0.0
+        self._fb_recoveries = 0
+        self._fb_distance = None
         self._lap = 0
         self._run_started_wall = time.monotonic()
         self._goal_started_wall = None
@@ -298,9 +302,36 @@ class WaypointNavNode(Node):
         # 到達猶予タイマ（周期タイマだが、発火時に自分のトークンを確認して1回だけ動く）。
         self._goal_timer = self.create_timer(
             self.goal_timeout, lambda: self._on_timeout(my_token))
-        fut = self._client.send_goal_async(goal)
+        # Nav2 feedback をリアルタイムに見える化する（残距離・recovery 回数・経過）。
+        # 「今どの点へ向かい、どれだけ進んだか、苦戦(recovery 多発)していないか」を
+        # /waypoint_nav/status に流すことで、巡回状況がリアルタイムで分かる。
+        self._fb_recoveries = 0
+        self._fb_distance = None
+        fut = self._client.send_goal_async(
+            goal, feedback_callback=lambda fb: self._on_feedback(fb, my_token))
         fut.add_done_callback(
             lambda f: self._on_goal_response(f, my_token))
+
+    def _on_feedback(self, feedback_msg, token):
+        if self._finished or token != self._token:
+            return
+        fb = feedback_msg.feedback
+        self._fb_distance = float(getattr(fb, 'distance_remaining', 0.0) or 0.0)
+        prev_rec = self._fb_recoveries
+        self._fb_recoveries = int(getattr(fb, 'number_of_recoveries', 0) or 0)
+        nav_t = getattr(fb, 'navigation_time', None)
+        nav_sec = (nav_t.sec + nav_t.nanosec * 1e-9) if nav_t is not None else 0.0
+        # 毎フレーム出すと多すぎるので 1s 間隔に間引く。ただし recovery が増えた瞬間は
+        # 即出す（苦戦の始まりを取りこぼさない）。
+        now = time.monotonic()
+        recovery_jumped = self._fb_recoveries > prev_rec
+        if not recovery_jumped and now - self._fb_last_pub_wall < 1.0:
+            return
+        self._fb_last_pub_wall = now
+        struggling = '  ⚠苦戦(recovery多発)' if self._fb_recoveries >= 2 else ''
+        self._status(
+            f'  -> #{self._idx} 進捗: 残り{self._fb_distance:.2f}m '
+            f'recovery={self._fb_recoveries} 経過{nav_sec:.0f}s{struggling}')
 
     def _on_goal_response(self, future, token):
         if self._finished:
@@ -417,6 +448,11 @@ class WaypointNavNode(Node):
             'duration_sec': round(elapsed, 3) if elapsed is not None else None,
             'wall_elapsed_sec': round(
                 time.monotonic() - self._run_started_wall, 3),
+            # Nav2 feedback 由来。後から「どの点で苦戦/スキップしたか」を JSON/CSV で確認できる。
+            # recoveries が多い＝spin/backup を繰り返した＝その点へ向かう経路が難しかった。
+            'nav_recoveries': self._fb_recoveries,
+            'nav_distance_remaining_m': (round(self._fb_distance, 3)
+                                         if self._fb_distance is not None else None),
         })
 
     def _cancel_goal_timer(self):
@@ -774,6 +810,7 @@ class WaypointNavNode(Node):
                 fieldnames=[
                     'lap', 'index', 'x', 'y', 'yaw', 'result', 'reason',
                     'action_status', 'duration_sec', 'wall_elapsed_sec',
+                    'nav_recoveries', 'nav_distance_remaining_m',
                 ])
             writer.writeheader()
             for row in self._results:

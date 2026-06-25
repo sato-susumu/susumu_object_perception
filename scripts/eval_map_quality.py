@@ -54,9 +54,12 @@ def evaluate(map_yaml, connect_clearance):
     pgm = os.path.join(os.path.dirname(map_yaml), meta['image'])
     img = load_pgm(pgm)
     h, w = img.shape
+    # map_server trinary: unknown(205) は p=0.196 で free_thresh(0.25)未満になり free に
+    # 誤分類される。この誤分類があると未探索だらけの地図でも「unknown 0」と誤報告し、不良地図を
+    # 見逃す。map_server 規約どおり「205 は unknown」を厳守するため free は「明確に白(>=250)」に限定。
     p = (255.0 - img.astype(np.float32)) / 255.0
-    free = p <= float(meta.get('free_thresh', 0.25))
     occ = p >= float(meta.get('occupied_thresh', 0.65))
+    free = (img >= 250) & ~occ
     unknown = ~free & ~occ
 
     n_free = int(free.sum())
@@ -105,10 +108,16 @@ def main():
         except Exception as e:
             print(f'{mp}: 評価失敗 {e}')
             continue
-        # 判定: 意味ある連結領域が 1 個（=主要空間が分断されていない）かつ最大成分が
-        # その大半(>=90%)なら OK。意味ある成分が複数＝壁/ノイズで部屋が分断されている。
-        if r['n_components'] <= 1:
-            verdict = 'OK'
+        # unknown 比率 = 地図全体（free+occ+unknown）に占める unknown の割合。屋内は閉じた
+        # 空間なので探索しきれば unknown は小さくなる。大きい＝未探索だらけの不良地図。
+        total = r['free'] + r['occ'] + r['unk']
+        unk_ratio = r['unk'] / total if total else 0.0
+        # 判定: まず unknown が多すぎる地図を NG にする（未探索＝不良）。次に連結領域が
+        # 1 個（=主要空間が分断されていない）かつ最大成分が大半(>=90%)なら OK。
+        if unk_ratio >= 0.30:
+            verdict = f'未探索多い(unknown {unk_ratio*100:.0f}%)'
+        elif r['n_components'] <= 1:
+            verdict = 'OK' if unk_ratio < 0.10 else f'OK(unknown {unk_ratio*100:.0f}%)'
         elif r['main_rate'] >= 90:
             verdict = 'OK(微小片あり)'
         else:

@@ -124,6 +124,8 @@ install(PROGRAMS
   scripts/run_direct_visual_lidar_calibration_docker.sh
   scripts/generate_apriltag_textures.py
   scripts/check_colorized_cloud.py
+  scripts/check_waypoints.py
+  scripts/visualize_patrol_result.py
   scripts/direct_calib_to_tf.py
   scripts/validate_colorized_pointcloud_quality.py
   scripts/generate_waypoints.py
