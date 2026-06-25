@@ -72,7 +72,7 @@ experiments/                                # 中間成果物（汚れ場・giti
 | `outputs/recognition/indoor_recognition_overlay.png` | 認識 | 認識レビュー |
 | `outputs/recognition/indoor_recognition_eval.{md,json,csv}`、`outputs/recognition/indoor_recognition_eval_ignore_table_sofa.{md,json,csv}` | 認識 | 採用/未採用判断 |
 | `outputs/colorized_pointcloud/*.ply`<br/>（タイムスタンプ無し・名前固定のもの。`colorized_pointcloud_<world>_apriltag_calib_final.ply` 等） | カラー点群出力 | 点群レビュー、外部可視化 |
-| `apriltag_calib/calib.json` | 外部キャリブレーション | `omni_calibration_json:=` で TF 置換（色付き点群・物体クロップ） |
+| `outputs/extrinsic_calibration/calib.json` | 外部キャリブレーション | `omni_calibration_json:=` で TF 置換（色付き点群・物体クロップ） |
 
 `*.pgm` はすべて commit 対象にする。保存地図は YAML だけでは後段が再現できないため、`.yaml` と `.pgm`
 をペアで扱う。確認用 PNG / overlay PNG は再生成可能なので追跡しない（`.gitignore` で `outputs/**/*.png` を除外。

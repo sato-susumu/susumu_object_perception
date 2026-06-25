@@ -99,7 +99,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'apriltag_calib_json',
             default_value=os.path.expanduser(
-                '~/ros2_ws/apriltag_calib/calib.json'),
+                '~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json'),
             description='AprilTag キャリブ結果 calib.json の出力先'),
         sim,
         apriltag_calib,

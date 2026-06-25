@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "method": "apriltag_36h11_omni_lidar",
+    "data_path": "webots_calibration_apriltag",
+    "camera_model": "equirectangular"
+  },
+  "results": {
+    "T_lidar_camera": [
+      -0.02297546509085835,
+      0.007198098347493873,
+      0.5477136002189039,
+      -0.0007296063981699393,
+      -0.0023380001735089106,
+      0.0012839805868180747,
+      0.9999961764044626
+    ]
+  },
+  "apriltag_calib": {
+    "used_tag_ids": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "correspondence_rms_m": 0.009604308675148799,
+    "tag_size_m": 0.6667
+  }
+}

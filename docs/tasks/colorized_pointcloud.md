@@ -77,14 +77,14 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 ### キャリブ成果を使った実行（2026-06-24）
 
 本タスク（カラー点群出力）を、[外部キャリブタスク](extrinsic_calibration.md)で得た
-`apriltag_calib/calib.json` を `omni_calibration_json:=` で渡して実行し、全合格基準を満たすことを確認した
+`outputs/extrinsic_calibration/calib.json` を `omni_calibration_json:=` で渡して実行し、全合格基準を満たすことを確認した
 （合格基準 5「厳密検証ではキャリブ入力を入れる」を AprilTag 較正結果で満たす実行例）。
 
 ```bash
 ros2 launch susumu_object_perception webots_colored_slam.launch.py \
   world:=calibration.wbt mode:=realtime rviz:=False \
   perception:=False image_recognition:=False \
-  omni_calibration_json:=~/ros2_ws/apriltag_calib/calib.json
+  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
 # calibration.wbt は静止 world のため、その場回転で全周を蓄積する
 ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist "{angular: {z: 0.4}}"   # 約18-20秒で1周強
 ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
@@ -117,7 +117,7 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
   mode:=realtime rviz:=False loop:=False \
   perception:=False omni_perception:=True image_recognition:=False \
   colored_slam:=True \
-  omni_calibration_json:=~/ros2_ws/apriltag_calib/calib.json
+  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
 # 巡回完走後
 ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 python3 scripts/check_colorized_cloud.py outputs/colorized_pointcloud/<name>.ply --true-x 5 --true-y 10

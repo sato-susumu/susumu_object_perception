@@ -13,7 +13,7 @@
 |---|---|
 | 入力 | `webots_worlds/calibration.wbt`（4 方位に AprilTag 36h11 パネル）、`/omni_camera/image_raw/image_color`（equirect）、`/lidar/points/point_cloud` |
 | 実行 | `launch/webots_calibration.launch.py apriltag_calib:=True` |
-| 出力（最終） | `~/ros2_ws/apriltag_calib/calib.json`（`results.T_lidar_camera` = `[x,y,z,qx,qy,qz,qw]`、`p_lidar = T * p_camera`） |
+| 出力（最終） | `~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json`（`results.T_lidar_camera` = `[x,y,z,qx,qy,qz,qw]`、`p_lidar = T * p_camera`） |
 | 出力（中間） | `experiments/extrinsic_calibration/<YYYY-MM-DD>_<label>/`（試行版 calib、PnP/平面フィットの中間ログ、複数回測定。gitignore） |
 | 利用 | calib.json を `omni_calibration_json:=...` で渡すと `omni_sensor_tf_node` が `lidar_link -> omni_camera_link` TF を置換。色付き点群 / 物体クロップ / 色付き SLAM 地図が同じ TF を使う |
 
@@ -47,7 +47,7 @@ ros2 launch susumu_object_perception webots_calibration.launch.py \
 # 得た TF で色付け（活用。omni_sensor_tf_node が calib.json を読む）
 ros2 launch susumu_object_perception webots_calibration.launch.py \
   colored_slam:=True \
-  omni_calibration_json:=~/ros2_ws/apriltag_calib/calib.json
+  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
 # 色付き点群を PLY 保存
 ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 ```

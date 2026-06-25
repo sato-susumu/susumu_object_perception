@@ -178,7 +178,7 @@ class AprilTagExtrinsicCalibNode(Node):
         # calibration.wbt のパネル Box 厚 0.04m → 補正 0.02m。0.0 で無効。
         self.declare_parameter('board_thickness', 0.04)
         self.declare_parameter('output_json', os.path.expanduser(
-            '~/ros2_ws/apriltag_calib/calib.json'))
+            '~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json'))
         # 既知初期 TF（lidar_link -> omni_camera_link、検証時の参照）。
         self.declare_parameter('ref_translation', [0.0, 0.0, 0.55])
 

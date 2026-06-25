@@ -345,7 +345,7 @@ ros2 launch susumu_object_perception webots_calibration.launch.py \
 
 # 得た TF で色付け（既存導線。omni_sensor_tf_node が calib.json を読む）
 ros2 launch susumu_object_perception webots_calibration.launch.py \
-  omni_calibration_json:=~/ros2_ws/apriltag_calib/calib.json
+  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
 ```
 
 ### ライブ検証結果（2026-06-24、calibration.wbt, MID-360）
