@@ -463,8 +463,12 @@ class FrontierExploreNode(Node):
                 self._reschedule(2.0)
             return
 
-        # まだ未開拓の縁(フロンティア)が十分ある＝完了でない。empty_count をリセット。
-        self._empty_count = 0
+        # 候補があるかどうかだけでは reset しない。 _try_candidates 経由で実際に
+        # NavigateToPose を発行できたとき (= 進捗の見込みがあるとき) だけ
+        # _try_candidates 側で reset する。 lethal pose 等で全候補が unreachable に
+        # なる状況でも empty_count が積み上がって done_after_empty に到達できるようにする。
+        # （以前は無条件にここでリセットしていたが、 _try_candidates の +1 が次 step
+        # 冒頭で毎回打ち消され、 done_after_empty に届かない無限ループになっていた。）
         self._publish_markers(frontiers)
         cands = self._rank_goals(frontiers)
         if not cands:
@@ -1088,6 +1092,10 @@ class FrontierExploreNode(Node):
             self._publish_status('navigate_to_pose server unavailable')
             self._reschedule(3.0)
             return
+        # 進捗 (= 到達可能 goal を送れる) があったので empty_count をリセット。
+        # frontier / sweep / forward push のどれであっても、何かを navigate に投げる
+        # ということは「探索可能領域に進む」進捗とみなしてよい。
+        self._empty_count = 0
         wx, wy = goal_xy
         self._last_goal = repr_xy
         self._active_goal_kind = goal_kind
