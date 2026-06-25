@@ -177,6 +177,39 @@ python3 scripts/check_colorized_cloud.py outputs/colorized_pointcloud/<name>.ply
 乗せない）が唯一未検証の有力策**として残る。検査は `scripts/check_colorized_cloud.py`（占有セル・
 床下点率・主要部寸法・XY/XZ 投影図）で行う。
 
+### 静止時のみ蓄積モード (2026-06-26 ライブ検証で実証)
+
+iter4 で `colorized_pointcloud_mapper_node` に `stationary_only` モードを実装し、
+iter12 でライブ検証した結果、 **静止時のみ蓄積の有効性を確認**:
+
+| 条件 | 点数 | 主要部寸法 | 占有セル (シャープ度) |
+|---|---|---|---|
+| 採用版 (巡回中、 全フレーム蓄積) | 223,000 | 5.19×10.03m | 13,574 |
+| stationary_only=True (静止 30 秒) | 7,776 | 4.95×10.01m | **1,406** (約10倍シャープ) |
+
+使い方:
+
+```bash
+ros2 launch susumu_object_perception webots_simulation.launch.py \
+  world:=indoor.wbt nav:=False rviz:=False \
+  omni_perception:=True colored_slam:=True mode:=realtime \
+  perception:=False image_recognition:=False \
+  stationary_only:=True \
+  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
+# 静止状態で 30-60 秒蓄積、 service call で PLY 保存
+ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger "{}"
+```
+
+引数:
+- `stationary_only` (既定 False、 後方互換)
+- `stationary_max_lin_velocity` (既定 0.05 m/s)
+- `stationary_max_ang_velocity` (既定 0.2 rad/s)
+
+注意: 点数は採用版の 1/30 程度。 静止地点 1 地点のみのスキャンなので奥の物体の
+解像度は粗い。 次のステップは「巡回 + 停止時のみ蓄積」 で点数と質を両立すること
+(各 WP で停止時間を取る)。 実験ファイルは
+`experiments/colorized_pointcloud/2026-06-26_stationary_only/` 参照。
+
 ## 制約と注意
 
 - Webots の全天球カメラは cylindrical projection。色付けは Webots shader に合わせた投影モデルを使う。
