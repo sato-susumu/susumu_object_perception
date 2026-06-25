@@ -21,6 +21,7 @@
        /frontier_explore/status (std_msgs/String)。完了時 outputs/mapping_*/<map_name> を保存。
 """
 
+import json
 import math
 import os
 import subprocess
@@ -190,6 +191,15 @@ class FrontierExploreNode(Node):
         self.declare_parameter('yaw_watchdog_max_error_deg', 8.0)
         self.declare_parameter('yaw_watchdog_blacklist_radius', 1.2)
         self.declare_parameter('yaw_watchdog_cooldown_sec', 5.0)
+        # step_detector 連携。 /step_detector/event を購読し、 ENTER step / stuck
+        # 時のロボット位置周辺を hazard としてブラックリスト化する。 屋外の段差・
+        # 縁石・植え込み縁で同じ goal を繰り返し試行するのを防ぐ。
+        self.declare_parameter('step_detector_avoid', False)
+        self.declare_parameter('step_detector_event_topic', '/step_detector/event')
+        # 段差 hazard の半径 [m]。 yaw 用と分けて屋外向けにやや広め (1.5m) 既定。
+        self.declare_parameter('step_detector_blacklist_radius', 1.5)
+        # 同種イベント連発時の最小間隔 [s]。 1 回の段差通過で多数追加されないように。
+        self.declare_parameter('step_detector_cooldown_sec', 3.0)
 
         self.map_frame = self.get_parameter('map_frame').value
         self.robot_frame = self.get_parameter('robot_frame').value
@@ -217,6 +227,13 @@ class FrontierExploreNode(Node):
             self.get_parameter('yaw_watchdog_blacklist_radius').value)
         self.yaw_watchdog_cooldown_sec = float(
             self.get_parameter('yaw_watchdog_cooldown_sec').value)
+        self.step_detector_avoid = self._bool_param('step_detector_avoid')
+        self.step_detector_event_topic = str(
+            self.get_parameter('step_detector_event_topic').value)
+        self.step_detector_blacklist_radius = float(
+            self.get_parameter('step_detector_blacklist_radius').value)
+        self.step_detector_cooldown_sec = float(
+            self.get_parameter('step_detector_cooldown_sec').value)
         self._sweep_idx = 0           # 次に向かう sweep 方向のインデックス
         self._sweep_origin = None     # sweep 起点（ロボット初期位置）
         self._sweep_goals = []        # sweep 起点基準で生成した遠征ゴール列
@@ -289,6 +306,9 @@ class FrontierExploreNode(Node):
         self._yaw_offset = None
         self._last_yaw_watchdog_t = None
         self._yaw_hazards = []
+        # 段差検知ノードからのイベントで blacklist 化した hazard 一覧。
+        self._step_hazards = []
+        self._last_step_event_t = None
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -312,6 +332,14 @@ class FrontierExploreNode(Node):
             self.create_subscription(
                 Imu, self.yaw_watchdog_imu_topic, self._on_imu, imu_qos)
             self.create_timer(0.5, self._check_yaw_watchdog)
+        if self.step_detector_avoid:
+            self.create_subscription(
+                String, self.step_detector_event_topic,
+                self._on_step_event, 10)
+            self.get_logger().info(
+                f'step_detector_avoid enabled: subscribe '
+                f'{self.step_detector_event_topic} '
+                f'radius={self.step_detector_blacklist_radius:.2f}m')
 
         self._nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self._spin_client = ActionClient(self, Spin, 'spin')
@@ -720,7 +748,60 @@ class FrontierExploreNode(Node):
         for hx, hy, radius in self._yaw_hazards:
             if math.hypot(x - hx, y - hy) <= radius:
                 return True
+        for hx, hy, radius in self._step_hazards:
+            if math.hypot(x - hx, y - hy) <= radius:
+                return True
         return False
+
+    def _on_step_event(self, msg):
+        """step_detector からのイベントで現在位置周辺を hazard 化する。
+
+        ENTER step (tilt) や stuck で発火。 ロボット現在位置 (map 座標) を中心に
+        半径 step_detector_blacklist_radius の hazard を追加し、 同じ場所を
+        繰り返し goal にしないようにする。
+        """
+        if not self.step_detector_avoid:
+            return
+        try:
+            payload = json.loads(msg.data)
+        except (ValueError, TypeError):
+            return
+        event_type = payload.get('type', '')
+        # tilt_recover / accel_jolt は無視 (検出だけで blacklist 不要)
+        if event_type not in ('tilt', 'stuck'):
+            return
+        now = self._now_sec()
+        if (self._last_step_event_t is not None and
+                now - self._last_step_event_t < self.step_detector_cooldown_sec):
+            return
+        self._last_step_event_t = now
+        # ロボット現在位置を取得 (map -> robot_frame)
+        try:
+            tf = self.tf_buffer.lookup_transform(
+                self.map_frame, self.robot_frame, rclpy.time.Time())
+        except TransformException:
+            return
+        x = tf.transform.translation.x
+        y = tf.transform.translation.y
+        radius = max(0.3, self.step_detector_blacklist_radius)
+        self._step_hazards.append((x, y, radius))
+        # 上限制御 (古い hazard は捨てる)
+        self._step_hazards = self._step_hazards[-40:]
+        # 進行中の goal もキャンセル
+        if self._last_goal is not None:
+            self._blacklist.add(self._blkey(*self._last_goal))
+        if self._active_goal_xy is not None:
+            self._blacklist.add(self._blkey(*self._active_goal_xy))
+        self._publish_status(
+            f'step_detector event={event_type} '
+            f'(tilt_deg={payload.get("tilt_deg", "?")}); '
+            f'blacklist around ({x:.2f}, {y:.2f}) r={radius:.2f}m '
+            f'and cancel current goal')
+        try:
+            self._cancel_active_nav_for_watchdog()
+        except Exception as exc:  # 既存実装と互換、 yaw_watchdog 関連が落ちても続行
+            self.get_logger().warning(
+                f'failed to cancel nav after step event: {exc}')
 
     def _robot_xy(self):
         try:

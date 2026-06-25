@@ -141,6 +141,37 @@ def generate_launch_description():
                     'sweep_mode': False,
                     'spin_after_goal': False,
                     'explore_radius': explore_radius,
+                    # step_detector からの段差イベントを購読し、 屋外で「段差ハマり」
+                    # の位置を blacklist 化して同じ場所への goal を抑止する。
+                    'step_detector_avoid': True,
+                    'step_detector_event_topic': '/step_detector/event',
+                    'step_detector_blacklist_radius': 1.5,
+                    'step_detector_cooldown_sec': 3.0,
+                }],
+            ),
+        ],
+    )
+
+    # 屋外専用: 段差検知ノード (iter16 で追加)。 IMU 傾き + 加速度 z ジョルト +
+    # cmd_vel-odom 進行率で段差・縁石・スタックを検知する。 frontier_explore は
+    # /step_detector/event を購読して問題箇所を blacklist 化する。
+    step_detector = TimerAction(
+        period=18.0,
+        actions=[
+            Node(
+                package='susumu_object_perception',
+                executable='step_detector_node.py',
+                name='step_detector',
+                output='screen',
+                parameters=[{
+                    'use_sim_time': True,
+                    'imu_topic': '/imu',
+                    'odom_topic': '/odom',
+                    'cmd_vel_topic': '/cmd_vel',
+                    # 屋外向け既定: 段差候補は 5°、 クリティカル 15°。 ハードコード
+                    # を避け launch から上書き可能。
+                    'tilt_warn_deg': 5.0,
+                    'tilt_critical_deg': 15.0,
                 }],
             ),
         ],
@@ -285,6 +316,7 @@ def generate_launch_description():
             description='フロンティアクラスタの最小セル数'),
         robot_nav,
         frontier,
+        step_detector,
         collision_diag,
         truth_monitor,
     ])
