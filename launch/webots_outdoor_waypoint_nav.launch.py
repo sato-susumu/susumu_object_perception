@@ -66,6 +66,30 @@ def generate_launch_description():
             ('safe_pose_safe_threshold', safe_pose_safe_threshold),
             ('safe_pose_hold_sec', safe_pose_hold_sec),
             ('safe_pose_recovery_timeout_sec', safe_pose_recovery_timeout),
+            # 屋外巡回では既定で段差検知連携を ON にする (iter19)。
+            ('step_detector_avoid', 'True'),
+        ],
+    )
+
+    # 屋外専用: step_detector_node を起動 (iter16 で追加、 mapping と同じノード)。
+    # waypoint_nav は /step_detector/event を購読し、 段差時に現在 WP を skip する。
+    step_detector = TimerAction(
+        period=22.0,
+        actions=[
+            Node(
+                package='susumu_object_perception',
+                executable='step_detector_node.py',
+                name='step_detector',
+                output='screen',
+                parameters=[{
+                    'use_sim_time': True,
+                    'imu_topic': '/imu',
+                    'odom_topic': '/odom',
+                    'cmd_vel_topic': '/cmd_vel',
+                    'tilt_warn_deg': 5.0,
+                    'tilt_critical_deg': 15.0,
+                }],
+            ),
         ],
     )
 
@@ -155,5 +179,6 @@ def generate_launch_description():
             default_value='25.0',
             description='Timeout for safe-pose NavigateToPose recovery'),
         nav,
+        step_detector,
         monitor,
     ])

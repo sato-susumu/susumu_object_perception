@@ -110,6 +110,13 @@ class WaypointNavNode(Node):
         self.declare_parameter('safe_pose_sample_period', 0.5)
         self.declare_parameter('safe_pose_min_goal_elapsed_sec', 1.0)
         self.declare_parameter('safe_pose_recovery_timeout_sec', 25.0)
+        # step_detector との連携 (屋外の段差・縁石・スタックで現在 WP を諦め次へ)。
+        # 既定 OFF (屋内・既存評価には影響させない)。 屋外 waypoint_nav launch でのみ ON。
+        self.declare_parameter('step_detector_avoid', False)
+        self.declare_parameter(
+            'step_detector_event_topic', '/step_detector/event')
+        # 同種イベントの最小間隔。 1 つの段差で連発しないため。
+        self.declare_parameter('step_detector_cooldown_sec', 5.0)
 
         path = os.path.expanduser(
             self.get_parameter('waypoints_file').value)
@@ -145,6 +152,13 @@ class WaypointNavNode(Node):
             self.get_parameter('safe_pose_min_goal_elapsed_sec').value)
         self.safe_pose_recovery_timeout_sec = float(
             self.get_parameter('safe_pose_recovery_timeout_sec').value)
+        self.step_detector_avoid = _as_bool(
+            self.get_parameter('step_detector_avoid').value)
+        self.step_detector_event_topic = str(
+            self.get_parameter('step_detector_event_topic').value)
+        self.step_detector_cooldown_sec = float(
+            self.get_parameter('step_detector_cooldown_sec').value)
+        self._last_step_event_wall = 0.0
 
         self.waypoints = []
         if path and os.path.exists(path):
@@ -161,6 +175,15 @@ class WaypointNavNode(Node):
         self._status_pub = self.create_publisher(
             String, '/waypoint_nav/status', 10)
         self._client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+
+        if self.step_detector_avoid:
+            self.create_subscription(
+                String, self.step_detector_event_topic,
+                self._on_step_event, 10)
+            self.get_logger().info(
+                f'step_detector_avoid enabled: subscribe '
+                f'{self.step_detector_event_topic} '
+                f'cooldown={self.step_detector_cooldown_sec:.1f}s')
 
         self._idx = 0
         self._reached = 0
@@ -409,6 +432,42 @@ class WaypointNavNode(Node):
         if self._start_safe_pose_recovery(reason='goal_timeout'):
             return
         self._advance(reached=False, reason='goal_timeout')
+
+    def _on_step_event(self, msg):
+        """step_detector からのイベントで現在 WP を諦め次へ進む。
+
+        屋外で段差にハマる/縁石でスタックするとそれ以上前進できない。 タイマー
+        満了 (`goal_timeout_sec` 既定 60s) を待つより、 即座に missed として
+        次の WP へ移った方が一巡完走率が高い。
+        """
+        if not self.step_detector_avoid or self._finished:
+            return
+        try:
+            payload = json.loads(msg.data)
+        except (ValueError, TypeError):
+            return
+        event_type = payload.get('type', '')
+        if event_type not in ('tilt', 'stuck'):
+            return
+        now = time.monotonic()
+        if now - self._last_step_event_wall < self.step_detector_cooldown_sec:
+            return
+        self._last_step_event_wall = now
+        # 現在の goal をキャンセル + 次の WP へ
+        self._token += 1
+        self._cancel_goal_timer()
+        gh = self._goal_handle
+        self._goal_handle = None
+        if gh is not None:
+            try:
+                gh.cancel_goal_async()
+            except Exception:
+                pass
+        reason = f'step_detector_{event_type}'
+        self._status(
+            f'waypoint #{self._idx}: {event_type} '
+            f'(tilt_deg={payload.get("tilt_deg", "?")}); skip and advance')
+        self._advance(reached=False, reason=reason)
 
     def _advance(self, reached, reason='', action_status=None):
         """現在のウェイポイントを到達/スキップとして確定し、次へ進む。"""

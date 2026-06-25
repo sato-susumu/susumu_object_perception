@@ -84,6 +84,7 @@ def generate_launch_description():
     safe_pose_hold_sec = LaunchConfiguration('safe_pose_hold_sec')
     safe_pose_recovery_timeout = LaunchConfiguration(
         'safe_pose_recovery_timeout_sec')
+    step_detector_avoid = LaunchConfiguration('step_detector_avoid')
     use_truth_monitor = LaunchConfiguration('truth_monitor')
     truth_report_prefix = LaunchConfiguration('truth_report_prefix')
     truth_max_aligned_error = LaunchConfiguration('truth_max_aligned_error')
@@ -188,6 +189,7 @@ def generate_launch_description():
                     'safe_pose_hold_sec': safe_pose_hold_sec,
                     'safe_pose_recovery_timeout_sec':
                         safe_pose_recovery_timeout,
+                    'step_detector_avoid': step_detector_avoid,
                 }],
             ),
         ],
@@ -389,6 +391,14 @@ def generate_launch_description():
             'safe_pose_recovery_timeout_sec',
             default_value='25.0',
             description='最後の安全姿勢へ戻る NavigateToPose の timeout[s]'),
+        DeclareLaunchArgument(
+            'step_detector_avoid',
+            default_value='False',
+            description=(
+                'True で waypoint_nav が /step_detector/event を購読し、 '
+                '段差/縁石/スタック検知時に現在 WP を諦め次へ進む。 '
+                '屋外巡回で goal_timeout_sec 満了を待たず即座に skip する。 '
+                '既定 False (屋内・既存評価には影響させない)。')),
         DeclareLaunchArgument(
             'truth_monitor',
             default_value='False',

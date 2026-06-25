@@ -137,6 +137,11 @@ path length 比は改善するが odom aligned と進行性が悪化したため
   22 点列では `reached=22/22 missed=[]` を確認済み。ただし認識評価は通常巡回より悪化したため、
   ナビ合格・認識採用の基準にはしない。
 - `waypoint_nav_node.py` は `NavigateToPose` を順に送る。`FollowWaypoints` 丸投げではない。
+- 屋外巡回では `webots_outdoor_waypoint_nav.launch.py` が既定で `step_detector_avoid:=True`
+  を渡し、 同 launch が `step_detector_node` も起動する (iter19 で統合)。 巡回中に
+  段差/縁石/スタックを検知したら `goal_timeout_sec` (既定 120s) 満了を待たず即座に
+  current WP を missed として次の WP へ進む。 屋内 (`webots_waypoint_nav.launch.py`
+  単独) は既定 False のまま (段差が無い world では不要)。
 - ウェイポイント YAML を手で直す場合も、必ず確認用 PNG/RViz で壁・unknown 上にないことを見る。
 - Nav2 パラメータを変えたら [Nav2 tuning](../nav2_tuning.md) の現在値表と調整履歴サマリを更新する。
 
