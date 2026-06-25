@@ -153,6 +153,20 @@ Export Points と `traj_lidar.txt` を評価入力に追加する。
    lethal/near-lethal event 数で行う。
 4. GLIM map の loop closure 後 trajectory と topic pose trajectory の差を、同一 PLY で比較し続ける。
 
+### 次に試すべき新規ツール候補 (2026-06-26 調査)
+
+過去の cycle 改善で reached が頭打ちの場合、Nav2 / GLIM の既存パッケージで未活用のものを評価する。
+**いずれも実機ライブ評価が要るので、屋外 cycle 専用 launch で opt-in 起動する形にしてから採用判断を行う。**
+
+| 候補 | 入手元 | 期待効果 | 評価方法 |
+|---|---|---|---|
+| **Nav2 Collision Monitor** | nav2 公式パッケージ `nav2_collision_monitor` | cmd_vel への emergency-stop filter で lethal pose 進入を防ぐ。「lethal 前のブラックリスト化」と相補的 | 屋外 cycle で `slowdown_polygon` を設定して reached 数 / collision event 数の変化を見る |
+| **Nav2 Route Server** | nav2 公式パッケージ `nav2_route` (新規) | outdoor lanes/corridors の graph-based 経路計画。SLAM 地図 + 注釈グラフで通行可能な corridor だけを使った route 生成が可能 | 屋外 cycle で `nav2_route` を planner_server と並走させ、reached/path_length を比較 |
+| **GLIM v1.2.0 (2026/01)** | github.com/koide3/glim | GTSAM 4.3 / CUDA 13.1 対応の最新版。 MID360 公式サポート | 既存 GLIM (cycle19 で評価済み) を v1.2 にアップグレードし、loop closure 性能の差を比較 |
+| **LiDAR scan matching aided INS** | 一般的な fusion 手法 | sparse outdoor の GPS denied で位置精度を保つ。 sparse outdoor 系の課題に直接効く | sparse outdoor 試験 world で EKF に LiDAR scan match 由来 odom を追加して reached を測る |
+
+優先度: **Collision Monitor (1)** が最も軽量 (Nav2 既存 / 設定ファイルだけで効く)。 次に **Route Server (2)**。
+
 ## 屋内と屋外は完全に別物として扱う
 
 屋内マッピングとは設定もコードもタスクも完全に分離する。屋外を動かすために屋内設定を改変しない。
