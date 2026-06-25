@@ -469,6 +469,8 @@ def generate_launch_description():
             'yolo.conf': ParameterValue(object_yolo_conf, value_type=float),
             'min_accept_conf': ParameterValue(
                 object_min_accept_conf, value_type=float),
+            'min_accept_conf_overrides': LaunchConfiguration(
+                'object_min_accept_conf_overrides'),
             'crop_fov_deg': 75.0,
             'crop_fovs_deg': ParameterValue(
                 object_crop_fovs_deg, value_type=str),
@@ -652,6 +654,11 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'object_min_accept_conf', default_value='0.15',
             description='object_classifier_node.py の分類採用conf。既定 0.15'),
+        DeclareLaunchArgument(
+            'object_min_accept_conf_overrides', default_value='',
+            description='クラス別 min_accept_conf。"class1=0.10,class2=0.30" 形式。'
+                        '例: "refrigerator=0.10,fridge=0.10,dining table=0.30,table=0.30" で '
+                        '冷蔵庫を取りやすく / ダイニングテーブルを厳しくして FP を減らす'),
         DeclareLaunchArgument(
             'object_crop_fovs_deg', default_value='',
             description='object_classifier_node.py の複数FOVクロップ（例: 75,55,40）。空なら crop_fov_deg のみ'),

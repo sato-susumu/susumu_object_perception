@@ -419,6 +419,20 @@ class ObjectClassifierNode(Node):
         # 信頼度がこれ未満の分類は採用せず、元の classification を保つ。
         self.min_accept_conf = float(
             self.declare_parameter('min_accept_conf', 0.3).value)
+        # 【クラス別 confidence threshold】COCO の似たクラス間 (refrigerator vs cabinet vs
+        # dining table 等) で誤分類が起きやすい。クラスごとに採用閾値を上げ下げできる。
+        # フォーマット: "class1=0.10,class2=0.30,..." (COCO 元クラス名で指定)。
+        # 既定空。 採用例 (FP 多い dining table を厳しく / FN 多い refrigerator を緩めに):
+        #   min_accept_conf_overrides:='refrigerator=0.10,fridge=0.10,dining table=0.30,table=0.30'
+        # 参考: ultralytics discussion #5983「class-specific confidence threshold」
+        self._min_accept_conf_overrides_raw = str(self.declare_parameter(
+            'min_accept_conf_overrides', '').value or '')
+        self.min_accept_conf_overrides = self._parse_class_conf_overrides(
+            self._min_accept_conf_overrides_raw)
+        if self.min_accept_conf_overrides:
+            self.get_logger().info(
+                f'class-specific min_accept_conf: '
+                f'{self.min_accept_conf_overrides}')
         # 複数 crop FOV を使う実験時の代表選択。単一 FOV の既定挙動には影響しない。
         # 同じ class 系統が複数 FOV で出る候補を優先し、中心 ROI / mask の整合も加点する。
         self.multi_fov_agreement_bonus = float(self.declare_parameter(
@@ -567,6 +581,44 @@ class ObjectClassifierNode(Node):
                           tf.transform.translation.z], dtype=np.float32)
         p = np.array(xyz, dtype=np.float32)
         return self.calibration_rot @ (rot @ p + trans)
+
+    @staticmethod
+    def _parse_class_conf_overrides(value):
+        """Parse "class1=0.10,class2=0.30" into {class: float}.
+
+        Class names are COCO original names (e.g. 'refrigerator', 'dining table').
+        Whitespace around names is stripped. Invalid pairs are skipped silently.
+        """
+        result = {}
+        if value is None or value == '':
+            return result
+        if isinstance(value, dict):
+            return {str(k).strip(): float(v) for k, v in value.items()}
+        text = str(value)
+        for token in text.split(','):
+            token = token.strip()
+            if not token or '=' not in token:
+                continue
+            name, _, num = token.partition('=')
+            name = name.strip()
+            try:
+                f = float(num.strip())
+            except (TypeError, ValueError):
+                continue
+            if name:
+                result[name] = f
+        return result
+
+    def _accept_conf_for(self, coco_name):
+        """Return per-class min_accept_conf (falls back to the global default).
+
+        Looks up the COCO original class name. If not found, returns the global
+        ``self.min_accept_conf``.
+        """
+        if not self.min_accept_conf_overrides or not coco_name:
+            return self.min_accept_conf
+        return self.min_accept_conf_overrides.get(
+            coco_name, self.min_accept_conf)
 
     @staticmethod
     def _parse_crop_fovs(value, fallback_rad):
@@ -983,7 +1035,7 @@ class ObjectClassifierNode(Node):
                     if cached.get('coco_name') is not None:
                         coco_name, conf = cached.get('coco_name'), cached.get('conf', 0.0)
 
-                if coco_name is not None and conf >= self.min_accept_conf:
+                if coco_name is not None and conf >= self._accept_conf_for(coco_name):
                     label = COCO_TO_AUTOWARE.get(
                         coco_name, ObjectClassification.UNKNOWN)
                     cls = ObjectClassification()
@@ -1086,7 +1138,7 @@ class ObjectClassifierNode(Node):
                     continue
                 name = str(cand.get('name') or '').strip().lower()
                 conf = float(cand.get('conf') or 0.0)
-                if not name or conf < self.min_accept_conf:
+                if not name or conf < self._accept_conf_for(name):
                     continue
                 center_overlap = float(cand.get('center_overlap') or 0.0)
                 mask_overlap = cand.get('mask_overlap')
@@ -1138,7 +1190,7 @@ class ObjectClassifierNode(Node):
 
     def _update_class_cache(self, tid, detected_name, detected_conf, now):
         cached = self._class_cache.get(tid, {})
-        if detected_name is None or detected_conf < self.min_accept_conf:
+        if detected_name is None or detected_conf < self._accept_conf_for(detected_name):
             misses = int(cached.get('misses', 0)) + 1
             if cached.get('coco_name') is not None and \
                     misses < self.max_class_misses:

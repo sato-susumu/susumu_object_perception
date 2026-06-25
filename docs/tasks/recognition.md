@@ -44,6 +44,7 @@ perception は残る。Webots 系 launch では `object_yolo_weights:=...` で
 | segmentation gate | `require_mask_center:=True` |
 | 植物色 gate | `plant_color_min_frac` を併用 |
 | YOLO しきい値 | `object_yolo_conf:=0.15`、`object_min_accept_conf:=0.15` |
+| クラス別しきい値 | `object_min_accept_conf_overrides` で `"class=conf,..."` 形式に対応 (空既定)。 推奨実験値: `"refrigerator=0.10,fridge=0.10,dining table=0.30,table=0.30"` で Fridge を取りやすく / dining table の FP を抑える (採用版 F1 0.727 からの改善候補) |
 | tracker wall margin | 既定 static margin は維持。Fridge 診断では controlled comparison 用に launch 引数で切替 |
 | semantic DB | `require_fine_class:=True`、`require_map_support:=True`、`static_class_geometry_filter:=True` |
 | map support | 既定 `0.45m`、class 別 `plant=0.55,table=0.55` |
