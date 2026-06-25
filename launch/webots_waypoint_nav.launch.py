@@ -69,6 +69,7 @@ def generate_launch_description():
     use_slam = LaunchConfiguration('slam')
     map_file = LaunchConfiguration('map_file')
     use_colored_slam = LaunchConfiguration('colored_slam')
+    use_stationary_only = LaunchConfiguration('stationary_only')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
     nav_params_file = LaunchConfiguration('nav_params_file')
     ros2_control_params_file = LaunchConfiguration('ros2_control_params_file')
@@ -141,6 +142,7 @@ def generate_launch_description():
             ('ros2_control_params_file', ros2_control_params_file),
             ('nav_start_delay_sec', nav_start_delay_sec),
             ('colored_slam', use_colored_slam),
+            ('stationary_only', use_stationary_only),
             ('omni_calibration_json', omni_calibration_json),
         ],
     )
@@ -338,6 +340,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'colored_slam', default_value='False',
             description='色付き点群SLAMマップを /slam/colorized_points_map に出す（カラー点群出力タスク）'),
+        DeclareLaunchArgument(
+            'stationary_only', default_value='False',
+            description='色付き点群を静止時のみ蓄積する (iter12 で実証、 約 10 倍シャープ)。 '
+                        '巡回 + 停止時のみ蓄積で点数と質を両立する用途'),
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='LiDAR-camera 外部キャリブ calib.json。空なら初期TF'),

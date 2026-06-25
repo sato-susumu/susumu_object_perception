@@ -62,6 +62,7 @@ def generate_launch_description():
     use_slam = LaunchConfiguration('slam')
     map_file = LaunchConfiguration('map_file')
     use_colored_slam = LaunchConfiguration('colored_slam')
+    use_stationary_only = LaunchConfiguration('stationary_only')
     lidar_model = LaunchConfiguration('lidar_model')
     scan_min_height = LaunchConfiguration('scan_min_height')
     scan_max_height = LaunchConfiguration('scan_max_height')
@@ -115,6 +116,7 @@ def generate_launch_description():
              object_tracker_wall_margin_static_cells),
             ('indoor_objects', indoor_objects),
             ('colored_slam', use_colored_slam),
+            ('stationary_only', use_stationary_only),
             ('lidar_model', lidar_model),
             ('scan_min_height', scan_min_height),
             ('scan_max_height', scan_max_height),
@@ -214,6 +216,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'colored_slam', default_value='True',
             description='色付き点群SLAMマップを /slam/colorized_points_map に出す'),
+        DeclareLaunchArgument(
+            'stationary_only', default_value='False',
+            description='色付き点群を静止時のみ蓄積する (iter12 で実証、 約 10 倍シャープ)'),
         DeclareLaunchArgument(
             'lidar_model', default_value='mid360',
             description='3D LiDAR model metadata: mid360 / vlp16'),

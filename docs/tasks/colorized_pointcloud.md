@@ -210,6 +210,35 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger "{}"
 (各 WP で停止時間を取る)。 実験ファイルは
 `experiments/colorized_pointcloud/2026-06-26_stationary_only/` 参照。
 
+### 巡回 + 停止時のみ蓄積 (iter13、 2026-06-26 ライブ検証)
+
+webots_waypoint_nav.launch.py / webots_nav.launch.py にも stationary_only 引数を
+pass-through 追加 (iter13)。 これで **巡回中も静止フレームだけ蓄積** できる。
+
+| 条件 | 点数 | 主要部寸法 | 占有セル | 巡回 |
+|---|---|---|---|---|
+| 採用版 (巡回中、全フレーム) | 223,000 | 5.19×10.03m | 13,574 | - |
+| iter12 (静止 30 秒のみ) | 7,776 | 4.95×10.01m | 1,406 | - |
+| **iter13 (巡回 + stationary_only)** | **69,682** | **5.01×9.97m** | **5,922** | **8/8 missed=[]** |
+
+iter13 は **巡回完走 + 占有セル 57% 減 + 点数 1/3** でバランスが良い。 巡回完走と
+シャープさを両立する有力策で、 次の採用候補。 使い方:
+
+```bash
+ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
+  world:=indoor.wbt waypoints:=indoor_waypoints.yaml mode:=realtime \
+  slam:=False map_file:=outputs/mapping_indoor/indoor.yaml \
+  nav_params_file:=config/nav2_params.yaml \
+  rviz:=False loop:=False \
+  perception:=False omni_perception:=True image_recognition:=False \
+  colored_slam:=True \
+  stationary_only:=True \
+  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
+ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger "{}"
+```
+
+実験ファイル: `experiments/colorized_pointcloud/2026-06-26_stationary_with_patrol/`
+
 ## 制約と注意
 
 - Webots の全天球カメラは cylindrical projection。色付けは Webots shader に合わせた投影モデルを使う。
