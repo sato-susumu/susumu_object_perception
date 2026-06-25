@@ -81,7 +81,6 @@ flowchart LR
 | 構成 | [launch 一覧](docs/launch.md) | 各 launch が起動するものと引数 |
 | 設計 | [software_design.md](docs/software_design.md) | 全体構造、状態遷移、シーケンス |
 | 設計 | [node_topology.md](docs/node_topology.md) | ノード接続図、トピック I/O |
-| 作業運用 | [continuous_improvement.md](docs/continuous_improvement.md) | Codex hook / supervisor で改善サイクルを継続する仕組み |
 | 認識 | [autoware_perception.md](docs/autoware_perception.md) | LiDAR perception と prediction costmap |
 | 認識 | [traffic_light_recognition.md](docs/traffic_light_recognition.md) | 全天球信号認識 |
 | センサ | [omni_lidar_camera.md](docs/omni_lidar_camera.md) | 全天球カメラ、色付き点群、キャリブレーション |

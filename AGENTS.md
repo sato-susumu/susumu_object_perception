@@ -45,15 +45,6 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 | Nav2 変更時は docs 更新 | `config/nav2_params.yaml` を調整したら、必ず [`docs/nav2_tuning.md`](docs/nav2_tuning.md) の「現在値」表と「調整履歴」を更新する（理由が失われ次の調整で振り出しに戻る） |
 | タスク別制約はタスクページへ | マッピング、ウェイポイント生成、巡回ナビ、認識、カラー点群出力の合格基準・制約は [`docs/tasks/`](docs/tasks/) を更新する。AGENTS.md に同じ内容を再定義しない |
 
-## 継続改善ループ
-
-改善サイクルを1回で止めずに回し続ける仕組みは [`docs/continuous_improvement.md`](docs/continuous_improvement.md) が正本。
-
-- 対話 Codex: `.codex/hooks.json` の `UserPromptSubmit` / `Stop` hook が「改善サイクル」系の依頼でそのセッションだけ arm され、同じ `session_id` の turn 停止時に次サイクル prompt を返す。次セッションへは勝手に持ち越さない。初回は Codex の `/hooks` で trust する必要がある。
-- 非対話: `python3 scripts/run_codex_improvement_loop.py --cycles 0 --search` で `codex exec` を繰り返す。ログは `.codex/auto_improve_runs/`。
-- 停止: 「改善ループを止めて」と指示するか、`.codex/auto_improve.stop` を作る。
-- 各サイクルは `docs/tasks/README.md` の低成績箇所を起点に、調査→実装→評価→docs更新→検証まで行い、次の低成績箇所を docs に残す。
-
 ## タスク別の正本
 
 | タスク | 制約・合格基準の正本 |
