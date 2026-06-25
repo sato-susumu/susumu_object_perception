@@ -592,6 +592,13 @@ def generate_launch_description():
             'max_range': colored_slam_max_range,
             'min_z': colored_slam_min_z,
             'max_z': colored_slam_max_z,
+            # 静止時のみ蓄積モード (iter4 で実装)。 巡回中の SLAM 2D 姿勢誤差が
+            # 色付き点群の壁ブレの真因なので、 動いている間のフレームを除外する。
+            'stationary_only': LaunchConfiguration('stationary_only'),
+            'stationary_max_lin_velocity': LaunchConfiguration(
+                'stationary_max_lin_velocity'),
+            'stationary_max_ang_velocity': LaunchConfiguration(
+                'stationary_max_ang_velocity'),
             # 色付き点群 PLY をプロジェクト内 outputs/colorized_pointcloud/ に保存。
             # install/share でなくソースを指す（再生成物を手元に残すため）。
             'save_dir': os.path.join(
@@ -747,6 +754,16 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'colored_slam_max_z', default_value='2.0',
             description='色付き点群蓄積の最大 z[m]（LiDAR 座標）。天井外れを切る'),
+        DeclareLaunchArgument(
+            'stationary_only', default_value='False',
+            description='色付き点群を静止時のみ蓄積する (iter4 実装)。 巡回中の '
+                        'SLAM 2D 姿勢誤差で生じる壁ブレ低減の有力策'),
+        DeclareLaunchArgument(
+            'stationary_max_lin_velocity', default_value='0.05',
+            description='静止判定の最大並進速度 [m/s]。 既定 0.05 m/s'),
+        DeclareLaunchArgument(
+            'stationary_max_ang_velocity', default_value='0.2',
+            description='静止判定の最大回転速度 [rad/s]。 既定 0.2 rad/s'),
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='direct_visual_lidar_calibration の calib.json。空なら初期TFを使う'),
