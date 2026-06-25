@@ -111,6 +111,14 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 10% 平均) を試す際の足場として活用可能。
 実験ファイル: `experiments/extrinsic_calibration/2026-06-26_iter25_board_height_assumption/`
 
+**iter26 (board_top_quantile 追試)**: iter25 の max() を上位分位平均に置き換えた
+ロバスト推定を試す。 q=0.1/0.3/0.5 で z translation err = 294/190/91mm。 quantile を
+上げると採用版 (mean) に収束するだけで、 **採用版を超えるロバスト推定値は存在しない**
+ことが実機実証で判明。 真因は「下半分点群の偏り」 vs 「上端の外れ値」 のトレードオフ
+で、 数値補正では超えられない。 1cm 未満達成には LiDAR 物理モデルの解析的補正が
+必要。 → **不採用**、 機能はパラメータとして残す (既定 0.0 で OFF、 既存と完全互換)。
+実験ファイル: `experiments/extrinsic_calibration/2026-06-26_iter26_top_quantile/`
+
 ## 関連
 
 - [全天球カメラ + LiDAR 色付き点群メモ](../omni_lidar_camera.md)（手法・実測・落とし穴の正本）

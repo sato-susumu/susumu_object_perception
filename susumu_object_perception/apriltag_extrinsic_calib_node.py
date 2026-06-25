@@ -189,6 +189,11 @@ class AprilTagExtrinsicCalibNode(Node):
         # 異なり、 「下半分しか点が無くても上端だけ取れれば中心が出る」 想定。
         # 板高は world ごとに異なるので明示的にパラメータで渡す。 0.0 で無効。
         self.declare_parameter('board_height_assumption', 0.0)
+        # 【iter26 ロバスト推定】 board_height_assumption の z_top 推定で max()
+        # の代わりに上位分位平均を使う。 0.0-0.5 の範囲、 既定 0.0 で max() のまま。
+        # 0.1 なら上位 10% の点の平均で z_top を決める (外れ値に強い)。
+        # iter25 で max() が天井反射等の外れ値に支配されたため追加。
+        self.declare_parameter('board_top_quantile', 0.0)
         self.declare_parameter('output_json', os.path.expanduser(
             '~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json'))
         # 既知初期 TF（lidar_link -> omni_camera_link、検証時の参照）。
@@ -219,6 +224,8 @@ class AprilTagExtrinsicCalibNode(Node):
             self.get_parameter('lidar_z_use_range_mid').value)
         self.board_height_assumption = float(
             self.get_parameter('board_height_assumption').value)
+        self.board_top_quantile = float(
+            self.get_parameter('board_top_quantile').value)
         self.output_json = self.get_parameter('output_json').value
         self.ref_translation = [float(v)
                                 for v in self.get_parameter('ref_translation').value]
@@ -359,8 +366,20 @@ class AprilTagExtrinsicCalibNode(Node):
         # z 補正は排他的に選ぶ。 同時に True ならば board_height_assumption を優先。
         if self.board_height_assumption > 0.0:
             # 板上端の z (max) は LiDAR が下半分しか取れなくても捉えやすい。
-            # 物理中心 = z_max - board_height / 2 と仮定し x,y は重心を維持。
-            z_top = float(inliers[:, 2].max())
+            # 物理中心 = z_top - board_height / 2 と仮定し x,y は重心を維持。
+            # z_top の推定: 既定は max()。 board_top_quantile が正なら上位分位平均
+            # (例 0.1 = 上位 10% の点の平均) でロバスト推定する。 iter25 で max()
+            # が天井反射等の外れ値に弱いと判明したため。
+            z_vals = inliers[:, 2]
+            if 0.0 < self.board_top_quantile < 1.0:
+                q_thresh = float(np.quantile(z_vals, 1.0 - self.board_top_quantile))
+                top_mask = z_vals >= q_thresh
+                if top_mask.sum() > 0:
+                    z_top = float(z_vals[top_mask].mean())
+                else:
+                    z_top = float(z_vals.max())
+            else:
+                z_top = float(z_vals.max())
             z_center = z_top - self.board_height_assumption / 2.0
             center = np.array([center[0], center[1], z_center])
         elif self.lidar_z_use_range_mid:

@@ -72,6 +72,8 @@ def generate_launch_description():
                         'lidar_z_use_range_mid'),
                     'board_height_assumption': LaunchConfiguration(
                         'board_height_assumption'),
+                    'board_top_quantile': LaunchConfiguration(
+                        'board_top_quantile'),
                 }],
             ),
         ],
@@ -117,6 +119,12 @@ def generate_launch_description():
                         'iter25 で実装した代替補正案 (上端 z は LiDAR 上向き FOV でも '
                         '捉えやすい想定)。 0.0 で無効 (既定)。 既知の calibration.wbt '
                         'では 0.3 推奨。'),
+        DeclareLaunchArgument(
+            'board_top_quantile', default_value='0.0',
+            description='board_height_assumption の z_top 推定で max() の代わりに '
+                        '上位分位平均を使う (0.0-0.5)。 0.1 なら上位 10% の点の平均で '
+                        'z_top を決める (外れ値に強い)。 0.0 で max() (既定)。 iter26 '
+                        '追加。'),
         sim,
         apriltag_calib,
     ])
