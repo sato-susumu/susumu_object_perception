@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """保存済み占有格子地図から巡回ウェイポイントを生成する（オフライン）。
 
-frontier 探索で作った maps/<world>.pgm/.yaml を読み、自由空間のうち壁から十分
+frontier 探索で作った outputs/mapping_*/<world>.pgm/.yaml を読み、自由空間のうち壁から十分
 離れた点を、地図全体をカバーするように間引いて巡回順に並べ、YAML に保存する。
 生成した YAML は waypoint_nav_node.py（NavigateToPose 巡回）と
 waypoint_viz_node.py（RViz 可視化）が読む。併せて、地図にウェイポイント・巡回経路・
@@ -41,8 +41,8 @@ spacing で漏れなく拾い、完走は測地巡回順で連続点間の大ジ
 
 使い方:
   ros2 run susumu_object_perception generate_waypoints.py \
-    --map ~/ros2_ws/src/susumu_object_perception/maps/city.yaml \
-    --out ~/ros2_ws/src/susumu_object_perception/maps/city_waypoints.yaml \
+    --map ~/ros2_ws/src/susumu_object_perception/outputs/mapping_outdoor/city.yaml \
+    --out ~/ros2_ws/src/susumu_object_perception/outputs/waypoint_generation/city_waypoints.yaml \
     --spacing 1.5 --clearance 0.4
 """
 

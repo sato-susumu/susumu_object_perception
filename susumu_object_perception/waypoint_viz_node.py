@@ -8,7 +8,7 @@ nav2 の map_server が /map に出すので、RViz で Map Display と MarkerAr
 
 使い方:
   ros2 run susumu_object_perception waypoint_viz_node.py --ros-args \
-    -p waypoints_file:=~/ros2_ws/src/susumu_object_perception/maps/city_waypoints.yaml
+    -p waypoints_file:=~/ros2_ws/src/susumu_object_perception/outputs/waypoint_generation/city_waypoints.yaml
 """
 
 import os

@@ -159,7 +159,7 @@ install(PROGRAMS
 )
 
 install(
-  DIRECTORY launch config urdf maps rviz models webots_worlds resource behavior_trees
+  DIRECTORY launch config urdf outputs rviz models webots_worlds resource behavior_trees
   DESTINATION share/${PROJECT_NAME}
 )
 

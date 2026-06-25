@@ -41,6 +41,7 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 | メッセージ型は自作せず既存を使う | **独自 `.msg` を定義しない**。標準型（`Twist` / `PoseWithCovarianceStamped` / `nav2_msgs/NavigateToPose` 等）や、エコシステムの既存型（`autoware_perception_msgs` / `visualization_msgs` 等、用途に合う型が既にあるもの）を使う。「無いから作る」のではなく、まず既存型で表現できないか探す |
 | 方針決定・詰まり時はネット調査 | 実装方針を決めるとき、またはローカルのコード/ドキュメントだけでは問題を解決できないと判断したときは、**必ずネットで一次情報・公式ドキュメント・上流 issue 等を調べる**。調査した場合は、判断根拠と参照先を作業メモ・関連 docs・最終報告のいずれかに残す。ネットが使えない場合も、その制約を明記してから判断する |
 | 並列化できる作業は並列で進める | 読み取り・検索・静的検証・成果物確認など、依存関係がなく並列実行できる作業は積極的に並列化する。時間のかかるライブ検証中も、ログ監視・DB確認・ドキュメント確認など安全に並行できる作業を止めない |
+| 最終/中間で置き場を分ける | **最終成果物は `outputs/<task>/` にタスク別フォルダで置く**（`mapping_indoor` / `mapping_outdoor` / `waypoint_generation` / `waypoint_navigation` / `recognition` / `colorized_pointcloud` / `extrinsic_calibration`）。後段ノードが読みに来る契約パス。実験中・検証中のファイル（cycle ログ、評価 CSV、比較版 PGM、タイムスタンプ付き PLY 等）は **`experiments/<task>/<YYYY-MM-DD>_<label>/` に置く**。`experiments/` は `.gitignore` で追跡対象外。最終に昇格させるときは契約名にコピー＋該当タスクページの「採用中」を更新。詳細は [`docs/tasks/README.md`](docs/tasks/README.md#成果物の扱い最終--中間の二段構成) |
 | source は `local_setup.bash` | `install/setup.bash` は古いスナップショットを指す prefix-chain で、新規パッケージが見えず `package not found` になる（既知の罠。SETUP.md「Phase B」） |
 | Nav2 変更時は docs 更新 | `config/nav2_params.yaml` を調整したら、必ず [`docs/nav2_tuning.md`](docs/nav2_tuning.md) の「現在値」表と「調整履歴」を更新する（理由が失われ次の調整で振り出しに戻る） |
 | タスク別制約はタスクページへ | マッピング、ウェイポイント生成、巡回ナビ、認識、カラー点群出力の合格基準・制約は [`docs/tasks/`](docs/tasks/) を更新する。AGENTS.md に同じ内容を再定義しない |

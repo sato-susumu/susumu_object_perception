@@ -8,7 +8,7 @@
 #
 # 最終目標は地図を作ること。frontier-based exploration（Yamauchi 1997 / explore_lite と
 # 同系）でロボットが未知領域へ向かい続け、slam_toolbox が /map を育てる。フロンティアが
-# 尽きたら探索完了として maps/<map_name>.{pgm,yaml} に保存する。
+# 尽きたら探索完了として outputs/mapping_indoor/<map_name>.{pgm,yaml} に保存する。
 #
 #   - webots_nav.launch.py を world:=<屋内wbt> で include
 #     （robot + Webots + Nav2 + slam_toolbox。slam_toolbox が地図を作る本体）。
@@ -18,8 +18,8 @@
 #   ros2 launch susumu_object_perception webots_indoor_mapping.launch.py world:=indoor.wbt map_name:=indoor
 #   ros2 launch susumu_object_perception webots_indoor_mapping.launch.py world:=break_room.wbt map_name:=break_room
 #
-# 完了後の地図は maps/<map_name>.pgm / .yaml。SLAM 中の手動保存も可能:
-#   ros2 run nav2_map_server map_saver_cli -f ~/ros2_ws/src/susumu_object_perception/maps/<map_name>
+# 完了後の地図は outputs/mapping_indoor/<map_name>.pgm / .yaml。SLAM 中の手動保存も可能:
+#   ros2 run nav2_map_server map_saver_cli -f ~/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/<map_name>
 #
 # 罠:
 #   - Webots は GUI(X) を要求。ヘッドレスなら DISPLAY を環境側で設定する。
@@ -77,10 +77,10 @@ def generate_launch_description():
         ],
     )
 
-    # 保存先（maps/<map_name>。map_saver は拡張子を自動付与する）。
+    # 保存先（outputs/mapping_indoor/<map_name>。map_saver は拡張子を自動付与する）。
     save_path = PythonExpression([
         "'", os.path.expanduser(
-            '~/ros2_ws/src/susumu_object_perception/maps/'), "' + '",
+            '~/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/'), "' + '",
         map_name, "'"])
 
     # フロンティア探索（自作 frontier_explore_node）。屋内 world では純 frontier で十分。
@@ -169,10 +169,10 @@ def generate_launch_description():
                         'ブラックリスト化が多発し探索が縮こまる'),
         DeclareLaunchArgument(
             'map_name', default_value='indoor',
-            description='保存する地図名（maps/<map_name>.pgm/.yaml）'),
+            description='保存する地図名（outputs/mapping_indoor/<map_name>.pgm/.yaml）'),
         DeclareLaunchArgument(
             'save_map', default_value='True',
-            description='探索完了時に地図を maps/ に保存する'),
+            description='探索完了時に地図を outputs/mapping_indoor/ に保存する'),
         DeclareLaunchArgument(
             'gain', default_value='0.30',
             description='フロンティア選択の利得（大きいほど広い未踏領域を優先）'),

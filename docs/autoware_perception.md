@@ -213,8 +213,8 @@ Fridge など壁近傍の静止家具を診断するときは
 ただし `wall_margin_static_cells=22` は壁際静止ゴースト抑制の採用値なので、通常巡回 F1 / extra を
 再評価するまでは既定値を下げない。
 
-加えて、SLAM 地図 `maps/cafe.pgm` には机も薄く占有セルとして焼き込まれているため、
-margin を広げると机検出まで壁判定で消えてしまう。そこで **`maps/clear_tables.py` で机
+加えて、SLAM 地図 `outputs/mapping_indoor/cafe.pgm` には机も薄く占有セルとして焼き込まれているため、
+margin を広げると机検出まで壁判定で消えてしまう。そこで **`scripts/clear_tables.py` で机
 5卓の周辺 0.5m を free 化した地図**を使う（机は 2D `/scan` の obstacle_layer で障害物化
 されるので static から消しても Nav2 の衝突回避は効く。※ かつては 3D LiDAR → STVL 層で
 障害物化していたが STVL は廃止した）。

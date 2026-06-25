@@ -8,7 +8,7 @@ translation・size をパースし、地図 PNG に **真の壁(赤線)・床範
 ズレ・歪み・星形（実構造を成さない）なら不合格。
 
 使い方:
-  python3 check_map_vs_world.py --wbt webots_worlds/indoor.wbt --map maps/indoor.yaml \
+  python3 check_map_vs_world.py --wbt webots_worlds/indoor.wbt --map outputs/mapping_indoor/indoor.yaml \
     --out /tmp/indoor_check.png
 
 注意: Webots は y-up でなく z-up、地図(map)は SLAM 起点が原点。wbt の world 座標と

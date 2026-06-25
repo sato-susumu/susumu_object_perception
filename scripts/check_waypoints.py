@@ -12,7 +12,7 @@
 
 使い方:
   ros2 run susumu_object_perception check_waypoints.py \
-      --map maps/indoor.yaml --waypoints maps/indoor_sparse_waypoints.yaml \
+      --map outputs/mapping_indoor/indoor.yaml --waypoints outputs/waypoint_generation/indoor_sparse_waypoints.yaml \
       --clearance 0.6
 """
 

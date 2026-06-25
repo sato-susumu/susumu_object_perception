@@ -96,10 +96,10 @@ def generate_launch_description():
             description='Outdoor trimmed world to patrol'),
         DeclareLaunchArgument(
             'map_file', default_value='village_square_trimmed.yaml',
-            description='Saved map YAML in maps/ or an absolute path'),
+            description='Saved map YAML in outputs/mapping_outdoor/ or an absolute path'),
         DeclareLaunchArgument(
             'waypoints', default_value='village_square_trimmed_waypoints.yaml',
-            description='Outdoor waypoint YAML in maps/ or an absolute path'),
+            description='Outdoor waypoint YAML in outputs/waypoint_generation/ or an absolute path'),
         DeclareLaunchArgument('mode', default_value='realtime'),
         DeclareLaunchArgument('rviz', default_value='True'),
         DeclareLaunchArgument('loop', default_value='False'),

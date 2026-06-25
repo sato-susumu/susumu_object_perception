@@ -12,7 +12,7 @@ perception の 2D 地図照合（object_tracker_node の wall_margin）は「地
 各卓中心から半径 CLEAR_RADIUS_M を free(254) に塗る。外周壁からは十分離れている
 ので壁は無傷（実測: 占有 3102->3069px、机周辺 33px のみ除去）。
 
-使い方:  python3 maps/clear_tables.py
+使い方:  python3 scripts/clear_tables.py
   cafe.pgm.bak（机ありの元地図）から机を消して cafe.pgm を再生成する。
   cafe.pgm.bak が無ければ現 cafe.pgm をバックアップしてから処理する。
 """
@@ -22,8 +22,10 @@ import shutil
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PGM = os.path.join(HERE, 'cafe.pgm')
-BAK = os.path.join(HERE, 'cafe.pgm.bak')
+PKG = os.path.dirname(HERE)
+CAFE_DIR = os.path.join(PKG, 'outputs', 'mapping_indoor')
+PGM = os.path.join(CAFE_DIR, 'cafe.pgm')
+BAK = os.path.join(CAFE_DIR, 'cafe.pgm.bak')
 
 # cafe.yaml と一致させる。
 RES = 0.05

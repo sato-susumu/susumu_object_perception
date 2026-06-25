@@ -8,9 +8,9 @@
 
 | タスク | 状態 | 採用中の主成果物 / 条件 | 次に見る低成績箇所 | 詳細 |
 |---|---|---|---|---|
-| マッピング（屋内） | 運用対象 | `maps/indoor.yaml`、`maps/break_room.yaml`。評価実行は `mode:=realtime` | 地図品質が崩れた場合は衝突・`/scan`・SLAM 設定を切り分ける | [mapping_indoor.md](mapping_indoor.md) |
+| マッピング（屋内） | 運用対象 | `outputs/mapping_indoor/indoor.yaml`、`outputs/mapping_indoor/break_room.yaml`。評価実行は `mode:=realtime` | 地図品質が崩れた場合は衝突・`/scan`・SLAM 設定を切り分ける | [mapping_indoor.md](mapping_indoor.md) |
 | マッピング（屋外） | 方針転換中 | 屋外本線は **GLIMで3D点群を作る → trajectory条件を比較 → Nav2用2D地図化 → waypoint生成**。plan / actual corridor 監視と `expand_waypoint_route.py` は診断用に採用。safe-pose guard や局所的な waypoint/costmap 対策は live 悪化のため既定未採用。world 由来 `*_gt.yaml` は評価専用 | 次は lethal pose に入る前の経路ブラックリスト化、または短時間の直接制御 escape を屋外専用に評価する | [mapping_outdoor.md](mapping_outdoor.md) |
-| ウェイポイント生成 | 屋内採用済み | `maps/indoor_waypoints.yaml`。確認 PNG も同時生成 | 認識用追加視点はナビ完走しても認識が悪化したため未採用 | [waypoint_generation.md](waypoint_generation.md) |
+| ウェイポイント生成 | 屋内採用済み | `outputs/waypoint_generation/indoor_waypoints.yaml`。確認 PNG も同時生成 | 認識用追加視点はナビ完走しても認識が悪化したため未採用 | [waypoint_generation.md](waypoint_generation.md) |
 | 巡回ナビ | 屋内採用済み | `indoor.wbt` + `indoor_waypoints.yaml` は `reached=22/22 missed=[]`。AMCL は `max_beams=90`, `update_min_d/a=0.10`。評価用 EKF は `config/ekf_odom_twist_imu_eval.yaml`、EKF TF 構成は opt-in。wheel radius multiplier `1.046` は既定未採用 | 次は wheel radius multiplier を `1.02`〜`1.03` 程度へ下げ、path length と odom aligned / progress failure のトレードオフを詰める。真値 `/gps` は評価専用 | [waypoint_navigation.md](waypoint_navigation.md) |
 | 認識 | 改善継続中 | 屋内採用値は `yolov8s-seg.pt` + mask/色ゲート + 座席統合 + class別 map support。通常巡回の採用目安は Table/Sofa 除外 F1 `0.727`。debug recorder / crop 保存 / stage-tracker / track-id association / crop geometry 診断は採用済み。multi-FOV、`yolov8m-seg.pt`、言語系 fallback、物体検索/追従は既定未採用または削除済み | 次は通常巡回 Fridge positive crop が `cabinet` / `dining table` / `chair` 相当に寄る原因を、hard positive/negative crop と固定クラスの軽量 custom classifier で切り分ける | [recognition.md](recognition.md) |
 | カラー点群出力 | 基本機能あり、精密較正は課題 | `/perception/colorized_points`、`/slam/*colorized_points_map`、PLY 保存 | 投影誤差 1deg 未満を断言できない。realtime 4方向 validation と較正入力の整備 | [colorized_pointcloud.md](colorized_pointcloud.md) |
@@ -27,20 +27,74 @@
 5. [colorized_pointcloud.md](colorized_pointcloud.md): 全天球画像で LiDAR 点群に色を付け、必要なら地図として保存する。
 6. [extrinsic_calibration.md](extrinsic_calibration.md): AprilTag で全天球カメラと LiDAR の外部 TF を較正し、色付けに使う。
 
-## 成果物の扱い
+## 成果物の扱い（最終 / 中間の二段構成）
 
-| 成果物 | 作るタスク | 使うタスク |
+最終成果物（後段タスクが「この名前で読む」契約パス）は `outputs/<task>/` にタスク別フォルダで置く。
+実験や検証で出た中間ファイル（cycle ログ、評価 CSV、検証中の地図など）は
+`experiments/<task>/<YYYY-MM-DD>_<label>/` に置き、`experiments/` 配下はすべて gitignore する。
+
+```
+outputs/                                    # 最終成果物（タスク別・契約名・git追跡）
+  mapping_indoor/
+    indoor.yaml / .pgm                      # mapping_indoor 採用版
+    break_room.yaml / .pgm
+    cafe.yaml / .pgm
+    house.yaml
+  mapping_outdoor/
+    outdoor.yaml
+    village_square_trimmed_glim2d.yaml / .pgm
+    village_square_trimmed_gt.yaml          # 評価専用
+  waypoint_generation/
+    indoor_waypoints.yaml
+    outdoor_waypoints.yaml
+    city_waypoints.yaml
+  recognition/
+    indoor_recognition_eval.{csv,json,md}
+    indoor_recognition_overlay.png
+  colorized_pointcloud/
+    colorized_pointcloud_indoor_apriltag_calib_final.ply
+experiments/                                # 中間成果物（汚れ場・gitignore）
+  mapping_indoor/2026-06-19_break_room_waypoints/...
+  mapping_outdoor/2026-06-21_cycle27/...
+  recognition/2026-06-22_cycle31_multifov/...
+  waypoint_navigation/2026-06-22_cycle08b_radius1025/...
+  colorized_pointcloud/intermediate/...
+```
+
+### 最終成果物（契約名）
+
+| 契約パス | 作るタスク | 使うタスク |
 |---|---|---|
-| `maps/<world>.yaml` / `.pgm` または `maps/<world>_glim2d.yaml` / `.pgm` | マッピング | ウェイポイント生成、Nav2、認識評価、カラー点群レビュー |
-| `maps/<world>_gt.yaml` / `.pgm` | 屋外マッピング評価 | SLAM 地図の評価のみ。Nav2 や waypoint 生成には使わない |
-| `maps/<world>_waypoints.yaml` / `.png` | ウェイポイント生成 | 巡回ナビ、認識、カラー点群記録 |
-| `maps/<world>_recognition_overlay.png` | 認識 | 認識レビュー |
-| `maps/<world>_recognition_eval.{md,json,csv,png}` | 認識 | 採用/未採用判断 |
-| `maps/colorized/*.ply` | カラー点群出力 | 点群レビュー、外部可視化 |
+| `outputs/mapping_*/<world>.yaml` / `.pgm`<br/>（`indoor` / `break_room` / `cafe` / `city` / `house` / `outdoor` / `village_center`） | マッピング | Nav2、waypoint_generation、認識評価、カラー点群レビュー |
+| `outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml` / `.pgm` | mapping_outdoor (GLIM→2D) | waypoint_generation、Nav2 |
+| `outputs/mapping_outdoor/<world>_gt.yaml` / `.pgm`<br/>（`village_square_trimmed_gt` / `village_park_trimmed_gt`） | 屋外マッピング評価 | SLAM 地図の評価のみ。Nav2 や waypoint 生成には使わない |
+| `outputs/waypoint_generation/<world>_waypoints.yaml` / `.png`<br/>（`indoor_waypoints` / `indoor_sparse_waypoints` / `indoor_recognition_waypoints` / `outdoor_waypoints` / `outdoor_gps_*_waypoints` / `city_waypoints` / `village_square_trimmed_glim2d_waypoints`） | ウェイポイント生成 | 巡回ナビ、認識、カラー点群記録 |
+| `outputs/recognition/indoor_recognition_overlay.png` | 認識 | 認識レビュー |
+| `outputs/recognition/indoor_recognition_eval.{md,json,csv}`、`outputs/recognition/indoor_recognition_eval_ignore_table_sofa.{md,json,csv}` | 認識 | 採用/未採用判断 |
+| `outputs/colorized_pointcloud/*.ply`<br/>（タイムスタンプ無し・名前固定のもの。`colorized_pointcloud_<world>_apriltag_calib_final.ply` 等） | カラー点群出力 | 点群レビュー、外部可視化 |
 | `apriltag_calib/calib.json` | 外部キャリブレーション | `omni_calibration_json:=` で TF 置換（色付き点群・物体クロップ） |
 
 `*.pgm` はすべて commit 対象にする。保存地図は YAML だけでは後段が再現できないため、`.yaml` と `.pgm`
-をペアで扱う。確認用 PNG / overlay PNG は再生成可能なので引き続き追跡しない。
+をペアで扱う。確認用 PNG / overlay PNG は再生成可能なので追跡しない（`.gitignore` で `outputs/**/*.png` を除外。
+ただし `outputs/recognition/indoor_recognition_overlay.png` 等の契約 PNG は個別に追跡する）。
+
+### 中間成果物（experiments/）
+
+- ディレクトリ規約: `experiments/<task>/<YYYY-MM-DD>_<label>/`
+  - `<task>` は `docs/tasks/` のページ名と揃える（`mapping_indoor` / `mapping_outdoor` / `waypoint_generation` / `waypoint_navigation` / `recognition` / `colorized_pointcloud` / `extrinsic_calibration`）。
+  - `<YYYY-MM-DD>` は実験日。git にコミットしないので mtime で識別できる。
+  - `<label>` は cycle 名や検証テーマ（`cycle27_safe_guard_2m`、`fridge_offset` など）。
+- 1実験につき1ディレクトリ。同実験の nav/truth/recorder/eval/crops/yolo_compare 等はまとめて入れる。
+- `experiments/` 全体を `.gitignore` で追跡対象外にする。リポジトリは肥大化しない。
+- 「最終に昇格させる」場合は `experiments/.../<file>` を `outputs/<task>/<契約名>` に **コピーして** rename する（元は残す）。同時に該当タスクページの「採用中」を更新する。
+
+### 既存ファイルの場所（移行履歴）
+
+過去の `maps/` 直下にあった `maps/<world>.{yaml,pgm}` / `*_waypoints.yaml` / `*_recognition_eval*` /
+`colorized/*.ply` は 2026-06-25 に `outputs/<task>/` へ移送した。
+`maps/*_cycle*` / `indoor_localization_cycle*` / `indoor_recognition_cycle*` / `village_square_trimmed_cycle*` /
+`maps/glim/*_cycle*` / `maps/colorized/colorized_map_*.ply` 等は同日 `experiments/<task>/` 配下へ移送した
+（`git log --follow` で旧パスを辿れる）。
 
 ## 更新ルール
 

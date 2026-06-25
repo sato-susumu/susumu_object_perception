@@ -14,8 +14,8 @@ PGM/YAML から測れる範囲で定量化する。目視に頼らず「どの w
   - 寸法: 地図の実寸（A④ 実環境と照合する材料）。
 
 使い方:
-  python3 eval_map_quality.py maps/indoor.yaml [maps/break_room.yaml ...]
-  python3 eval_map_quality.py --connect-clearance 0.3 maps/*.yaml
+  python3 eval_map_quality.py outputs/mapping_indoor/indoor.yaml [outputs/mapping_indoor/break_room.yaml ...]
+  python3 eval_map_quality.py --connect-clearance 0.3 outputs/mapping_indoor/*.yaml
 """
 
 import argparse

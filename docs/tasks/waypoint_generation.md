@@ -7,9 +7,10 @@
 
 | 項目 | 内容 |
 |---|---|
-| 入力 | `maps/<world>.yaml` と対応する PGM |
+| 入力 | `outputs/mapping_*/<world>.yaml` と対応する PGM |
 | 実行 | `scripts/generate_waypoints.py`（`ros2 run susumu_object_perception generate_waypoints.py`） |
-| 出力 | `maps/<world>_waypoints.yaml`、`maps/<world>_waypoints.png` |
+| 出力（最終） | `outputs/waypoint_generation/<world>_waypoints.yaml`、`outputs/waypoint_generation/<world>_waypoints.png`（契約名・git 追跡） |
+| 出力（中間） | `experiments/waypoint_generation/<YYYY-MM-DD>_<label>/`（候補点の試行版・テンプレート比較・clearance バリエーション。gitignore） |
 | 次タスク | [巡回ナビ](waypoint_navigation.md) |
 
 ## 実行
@@ -20,8 +21,8 @@ source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/local_setup.bash
 
 ros2 run susumu_object_perception generate_waypoints.py \
-  --map maps/city.yaml \
-  --out maps/city_waypoints.yaml \
+  --map outputs/mapping_outdoor/city.yaml \
+  --out outputs/waypoint_generation/city_waypoints.yaml \
   --spacing 1.5 \
   --clearance 0.4 \
   --connect-clearance 0.30
@@ -79,11 +80,11 @@ cuCIM・CUDA・scikit-image には依存せず、scipy.ndimage + numpy だけで
 
 ```bash
 ros2 run susumu_object_perception generate_waypoints.py \
-  --map maps/indoor.yaml --out maps/indoor_sparse_waypoints.yaml \
+  --map outputs/mapping_indoor/indoor.yaml --out outputs/waypoint_generation/indoor_sparse_waypoints.yaml \
   --candidate-mode sparse_graph --spacing 1.5 --graph-cover-radius 2.0 \
   --clearance 0.6 --connect-clearance 0.30 --relink-long-jumps 3.0 --max-segment-length 2.0
 ros2 run susumu_object_perception check_waypoints.py \
-  --map maps/indoor.yaml --waypoints maps/indoor_sparse_waypoints.yaml --clearance 0.6
+  --map outputs/mapping_indoor/indoor.yaml --waypoints outputs/waypoint_generation/indoor_sparse_waypoints.yaml --clearance 0.6
 ```
 
 ### 巡回状況の後追い確認（Nav2 feedback + 可視化）
@@ -161,15 +162,15 @@ Inflation Layer <https://docs.nav2.org/configuration/packages/costmap-plugins/in
 
 ```bash
 ros2 run susumu_object_perception expand_waypoint_route.py \
-  --map maps/village_square_trimmed_glim2d.yaml \
-  --waypoints maps/village_square_trimmed_glim2d_waypoints.yaml \
-  --out maps/village_square_trimmed_glim2d_expanded_2m_waypoints.yaml \
+  --map outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml \
+  --waypoints outputs/waypoint_generation/village_square_trimmed_glim2d_waypoints.yaml \
+  --out experiments/waypoint_generation/village_square_trimmed_glim2d_expanded_2m_waypoints.yaml \
   --max-segment-length 2.0 \
   --connect-clearance 0.35 \
   --route-clearance 0.35 \
   --clearance 0.75 \
   --limit-radius 14.0 \
-  --report-prefix maps/village_square_trimmed_glim2d_expanded_2m_report
+  --report-prefix experiments/waypoint_generation/village_square_trimmed_glim2d_expanded_2m_report
 ```
 
 履歴サマリ: 2.0m 展開は path tracking error を改善したが、保存地図上の geodesic path が
@@ -196,8 +197,8 @@ Tuning Guide の Robot Footprint vs Radius
 
 ```bash
 ros2 run susumu_object_perception generate_waypoints.py \
-  --map maps/indoor.yaml \
-  --out maps/indoor_recognition_waypoints.yaml \
+  --map outputs/mapping_indoor/indoor.yaml \
+  --out outputs/waypoint_generation/indoor_recognition_waypoints.yaml \
   --spacing 1.5 \
   --clearance 0.6 \
   --connect-clearance 0.30 \

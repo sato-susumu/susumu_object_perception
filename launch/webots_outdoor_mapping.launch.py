@@ -91,14 +91,15 @@ def generate_launch_description():
         ],
     )
 
-    # 保存先（maps/<map_name>。map_saver は拡張子を自動付与する）。
+    # 保存先（outputs/mapping_outdoor/<map_name>。map_saver は拡張子を自動付与する）。
     save_path = PythonExpression([
         "'", os.path.expanduser(
-            '~/ros2_ws/src/susumu_object_perception/maps/'), "' + '",
+            '~/ros2_ws/src/susumu_object_perception/outputs/mapping_outdoor/'), "' + '",
         map_name, "'"])
+    # truth monitor のログは中間成果物 (experiments/mapping_outdoor/) に出す。
     truth_report_prefix = PythonExpression([
         "'", os.path.expanduser(
-            '~/ros2_ws/src/susumu_object_perception/maps/'), "' + '",
+            '~/ros2_ws/src/susumu_object_perception/experiments/mapping_outdoor/'), "' + '",
         map_name, "' + '_truth_monitor'"])
 
     # フロンティア探索。屋外実験では explore_radius でロボット初期位置からの半径を制限する。
@@ -156,7 +157,7 @@ def generate_launch_description():
 
     # Webots GPS truth と SLAM/Nav2 の map->base_footprint をリアルタイム比較する監視。
     # 監視専用で、正解データを SLAM / Nav2 へ戻さない。大きなズレをイベントとして
-    # maps/<map_name>_truth_monitor.{json,csv,md} に残す。
+    # experiments/mapping_outdoor/<map_name>_truth_monitor.{json,csv,md} に残す。
     truth_monitor = TimerAction(
         period=22.0,
         condition=IfCondition(use_truth_monitor),
@@ -266,10 +267,10 @@ def generate_launch_description():
                         '（狭めにマッピングするための制限。0 以下なら無制限）'),
         DeclareLaunchArgument(
             'map_name', default_value='village_square_trimmed',
-            description='保存する地図名（maps/<map_name>.pgm/.yaml）'),
+            description='保存する地図名（outputs/mapping_outdoor/<map_name>.pgm/.yaml）'),
         DeclareLaunchArgument(
             'save_map', default_value='True',
-            description='探索完了時に地図を maps/ に保存する'),
+            description='探索完了時に地図を outputs/mapping_outdoor/ に保存する'),
         DeclareLaunchArgument(
             'gain', default_value='0.30',
             description='フロンティア選択の利得'),

@@ -18,7 +18,7 @@
 
 入力 : /map (nav_msgs/OccupancyGrid)、TF map->robot_frame
 出力 : NavigateToPose / Spin アクション、/frontier_explore/markers 可視化、
-       /frontier_explore/status (std_msgs/String)。完了時 maps/<map_name> を保存。
+       /frontier_explore/status (std_msgs/String)。完了時 outputs/mapping_*/<map_name> を保存。
 """
 
 import math
@@ -153,7 +153,7 @@ class FrontierExploreNode(Node):
         self.declare_parameter('save_map', True)
         self.declare_parameter(
             'map_save_path',
-            os.path.expanduser('~/ros2_ws/src/susumu_object_perception/maps/city'))
+            os.path.expanduser('~/ros2_ws/src/susumu_object_perception/outputs/mapping_outdoor/city'))
         self.declare_parameter('map_saver_timeout_sec', 20.0)
         self.declare_parameter('map_saver_transient_local', True)
         # 【非frontier的な特殊探索: sweep モード】屋外の特徴が乏しい開放空間では frontier が

@@ -7,9 +7,10 @@
 
 | 項目 | 内容 |
 |---|---|
-| 入力 | `webots_worlds/<world>.wbt`、`maps/<world>_waypoints.yaml` |
+| 入力 | `webots_worlds/<world>.wbt`、`outputs/waypoint_generation/<world>_waypoints.yaml` |
 | 実行 | `launch/webots_waypoint_nav.launch.py` |
-| 出力 | `/waypoint_nav/status`、`/waypoints/markers`、任意の `report_prefix.{json,csv,md}`、Nav2 の走行結果 |
+| 出力（ライブ） | `/waypoint_nav/status`、`/waypoints/markers`、Nav2 の走行結果 |
+| 出力（中間） | `experiments/waypoint_navigation/<YYYY-MM-DD>_<label>/`（`report_prefix.{json,csv,md}` / localization cycle / EKF/odom 比較 / radius multiplier 評価。gitignore） |
 | 併用 | `perception:=True omni_perception:=True image_recognition:=True` で巡回しながら認識も実行可能 |
 
 ## 実行
@@ -34,7 +35,7 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
   perception:=True omni_perception:=True image_recognition:=True
 ```
 
-`waypoints` は `maps/` 配下のファイル名で渡す。絶対パスではなく `city_waypoints.yaml` のように指定する。
+`waypoints` は `outputs/waypoint_generation/` 配下のファイル名で渡す。絶対パスではなく `city_waypoints.yaml` のように指定する。
 既定は `slam:=True` で、巡回しながら `/map` を作り Nav2 の static layer に渡す。既存地図を使う
 実験用に `slam:=False map_file:=<yaml>` も渡せる。Nav2 パラメータを差し替える場合は
 `nav_params_file:=<yaml>` を使う。
@@ -117,7 +118,7 @@ path length 比は改善するが odom aligned と進行性が悪化したため
 - `webots_waypoint_nav.launch.py` の既定 `mode` は `fast` なので、評価時は明示的に `mode:=realtime` を渡す。
 - 屋内 `indoor.wbt` の合格確認は `slam:=True` で行う。2026-06-20 の認識併走フル巡回では
   `reached=22/22 missed=[]` を確認済み。
-- `slam:=False map_file:=maps/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
+- `slam:=False map_file:=outputs/mapping_indoor/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
   モードは `reached=22/22 missed=[]` を維持している。自己位置評価の要点は次に集約する。
 
   | 区分 | 要点 |

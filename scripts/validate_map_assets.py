@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate occupancy-grid YAML files and their referenced image assets.
 
-This catches the common case where `maps/<name>.yaml` is present but the
+This catches the common case where `outputs/mapping_*/<name>.yaml` is present but the
 referenced `.pgm` image is missing or is a broken symlink. PGM/PNG artifacts are
 ignored by git in this repository, so text-only checks can otherwise pass while
 map support, overlay rendering, waypoint generation, or Nav2 map loading later
@@ -16,7 +16,10 @@ import yaml
 
 
 def _default_maps():
-    return sorted(Path('maps').glob('*.yaml'))
+    return sorted(
+        list(Path('outputs/mapping_indoor').glob('*.yaml'))
+        + list(Path('outputs/mapping_outdoor').glob('*.yaml'))
+    )
 
 
 def _load_yaml(path):
@@ -105,7 +108,7 @@ def main():
     ap.add_argument(
         'maps',
         nargs='*',
-        help='occupancy-grid YAML files. Defaults to maps/*.yaml',
+        help='occupancy-grid YAML files. Defaults to outputs/mapping_*/*.yaml',
     )
     ap.add_argument(
         '--only-bad',
@@ -140,7 +143,7 @@ def main():
         if bad:
             print()
             print('Fix: regenerate the missing map image with Nav2 map_saver_cli,')
-            print('for example: ros2 run nav2_map_server map_saver_cli -f maps/<map_name>')
+            print('for example: ros2 run nav2_map_server map_saver_cli -f outputs/mapping_indoor/<map_name>')
 
     raise SystemExit(1 if bad else 0)
 

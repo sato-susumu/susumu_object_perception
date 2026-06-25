@@ -67,28 +67,27 @@ webots_worlds/*.wbproj
 # ===== Personal notes (not part of the package) =====
 指示内容.md
 
-# ===== 保存地図の PGM / 確認用オーバーレイ PNG =====
+# ===== 保存地図の PNG / 確認用オーバーレイ =====
 # PGM は frontier 探索/SLAM で生成する占有格子地図（generate_waypoints.py の入力）。
 # 後段の Nav2 / waypoint / 認識評価が YAML だけ残る状態で壊れないよう、PGM は追跡対象にする。
 # PNG は generate_waypoints.py がウェイポイントを地図に重ねた確認用画像（再生成可能）。
 # 確認用 PNG は各自の環境で再生成する前提なので追跡しない。
-maps/*.png
-maps/*_crops/
-maps/*_object_assoc/
-maps/indoor_localization_cycle*.csv
-maps/indoor_localization_cycle*.json
-maps/indoor_localization_cycle*.md
-maps/indoor_recognition_cycle*.csv
-maps/indoor_recognition_cycle*.json
-maps/indoor_recognition_cycle*.md
-maps/indoor_recognition_cycle*.yaml
-maps/*_vs_world.json
+# ただし契約 PNG（outputs/recognition/indoor_recognition_overlay.png 等）は個別に追跡する。
+outputs/**/*.png
+!outputs/recognition/indoor_recognition_overlay.png
+!outputs/waypoint_generation/indoor_sparse_waypoints.png
 
 # ===== 色付き点群 PLY (大容量バイナリ、リポジトリに含めない) =====
 # colorized_pointcloud_mapper が omni camera + LiDAR fusion で作る色付き点群地図。
-# /slam/save_colorized_map サービスで maps/colorized/<world>_colored.ply に保存する。
+# /slam/save_colorized_map サービスで outputs/colorized_pointcloud/<world>_colored.ply に保存する。
 # 各自の環境で再生成する前提（数MB〜。プロジェクト内に置くが追跡しない）。
-maps/colorized/
+outputs/colorized_pointcloud/
+
+# ===== 中間成果物（実験ログ・cycle 系・検証中の地図/CSV/JSON/MD） =====
+# 整理: 最終成果物は outputs/<task>/ にタスク別フォルダで契約名固定、
+# 検証や実験の中間ファイルは experiments/<task>/<YYYY-MM-DD>_<label>/ に置く。
+# 中間ファイルは追跡しない。詳細は docs/tasks/README.md「成果物の扱い」を参照。
+experiments/
 
 # ===== MID-360 scan pattern CSV (大容量 ~40MB、リポジトリに含めない) =====
 # Gazebo MID-360 プラグイン(liblivox_mid360_sensor)が読む scan pattern。

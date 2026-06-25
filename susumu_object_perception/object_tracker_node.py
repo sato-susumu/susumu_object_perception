@@ -230,8 +230,8 @@ class ObjectTrackerNode(Node):
         self.declare_parameter('decay_half_life', 0.5)
         # 出力時の 2D 地図照合: トラック位置が地図上で壁/地図外に当たれば出力しない。
         # 方針: 「壁の近傍に張り付く静止ゴースト（緑ボックス）だけ消し、人も机も残す」。
-        # 机は地図から除去済み（maps/cafe.pgm の机5卓周辺 0.5m を free 化、
-        # clear_tables.py）なので地図照合では消えない。
+        # 机は地図から除去済み（outputs/mapping_indoor/cafe.pgm の机5卓周辺 0.5m を free 化、
+        # scripts/clear_tables.py）なので地図照合では消えない。
         #
         # 壁 margin を「静止トラックには広く・移動トラックには狭く」二段にする:
         #  - 静止トラック（人でない＝動かない）: 壁から wall_margin_static_cells 以内を

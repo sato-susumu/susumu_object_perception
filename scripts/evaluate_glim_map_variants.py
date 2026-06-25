@@ -472,7 +472,7 @@ def main():
     ap.add_argument('--cloud', required=True, help='Input GLIM map cloud .ply/.pcd')
     ap.add_argument('--wbt', required=True, help='Webots world for evaluation only')
     ap.add_argument('--out-prefix', required=True,
-                    help='Output prefix, e.g. maps/village_square_eval')
+                    help='Output prefix, e.g. experiments/mapping_outdoor/village_square_eval')
     ap.add_argument('--trajectory', action='append', default=[],
                     help='Trajectory variant as LABEL=PATH. Repeatable.')
     ap.add_argument('--no-none', action='store_true',

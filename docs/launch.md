@@ -14,7 +14,7 @@
 | `webots_outdoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=outdoor 固定ショートカット |
 | `webots_indoor.launch.py` | Webots | ✅ | ✅ | ○ | ✅ | — | ✅ | world=indoor 固定ショートカット |
 | `webots_nav.launch.py` | Webots | ✅ | ✅ | ✅ | ✅ | — | ✅ | robot+Nav2+SLAM フルスタック（自律走行可） |
-| `webots_indoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **屋内 world の frontier 探索自律マッピング**。`world:=<屋内wbt> map_name:=<name>`。完了時 `maps/` に自動保存。屋外 world は未対応 |
+| `webots_indoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **屋内 world の frontier 探索自律マッピング**。`world:=<屋内wbt> map_name:=<name>`。完了時 `outputs/mapping_indoor/` に自動保存。屋外 world は未対応 |
 | `webots_outdoor_glim_mapping.launch.py` | Webots | ✅ | — | GLIM | ✅ | ✅ | ○ | **屋外本線: GLIM で3D点群を作る**。終了後 PLY を `glim_cloud_to_2d_map.py` で2D map化 |
 | `webots_outdoor_mapping.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | 旧 `slam_toolbox` 屋外実験。GLIM-first 方針では本線から外す |
 | `webots_outdoor_waypoint_nav.launch.py` | Webots | ✅ | ✅ | — | ○ | — | ○ | **屋外保存地図 + waypoint 巡回**。`map_file:=village_square_trimmed.yaml waypoints:=village_square_trimmed_waypoints.yaml`。屋外専用 params を使う |
@@ -40,7 +40,7 @@
 [`tasks/waypoint_navigation.md`](tasks/waypoint_navigation.md) を参照。
 
 ```bash
-# 屋内: 事前地図なしの環境を frontier 探索で自律マッピング（完了時 maps/<name> に自動保存）
+# 屋内: 事前地図なしの環境を frontier 探索で自律マッピング（完了時 outputs/mapping_indoor/<name> に自動保存）
 #    ★ mode は realtime 必須。fast は odom が ~21% 過大積算しドリフト→地図が崩れる
 #      （docs/mid360_lidar_research.md / メモリ参照）。break_room なら world:=break_room.wbt map_name:=break_room
 ros2 launch susumu_object_perception webots_indoor_mapping.launch.py world:=indoor.wbt map_name:=indoor mode:=realtime
@@ -55,7 +55,7 @@ ros2 launch susumu_object_perception webots_outdoor_glim_mapping.launch.py \
 # 別端末で、走行中の GLIM pose を TUM trajectory として保存する。
 ros2 run susumu_object_perception save_pose_trajectory_to_tum.py \
   --topic /glim_ros/pose_corrected \
-  --out maps/glim/village_square_trimmed_pose.tum \
+  --out experiments/mapping_outdoor/glim/village_square_trimmed_pose.tum \
   --duration-sec 600 \
   --timeout-sec 660 \
   --min-poses 100 \
@@ -64,7 +64,7 @@ ros2 run susumu_object_perception save_pose_trajectory_to_tum.py \
 # GLIM 点群が十分に育ったら、現在の colorized GLIM map topic を PLY として保存する。
 ros2 run susumu_object_perception save_pointcloud2_to_ply.py \
   --topic /slam/glim_colorized_points_map \
-  --out maps/glim/village_square_trimmed_points.ply \
+  --out experiments/mapping_outdoor/glim/village_square_trimmed_points.ply \
   --timeout-sec 30 \
   --min-points 5000 \
   --qos sensor_data
@@ -77,12 +77,12 @@ ros2 run glim_ros offline_viewer
 # 同じPLYを trajectory なし / topic pose / GLIM dump trajectory で横並び評価する。
 # GLIM dump がある場合は `--trajectory dump=/tmp/dump/traj_lidar.txt` も追加する。
 ros2 run susumu_object_perception evaluate_glim_map_variants.py \
-  --cloud maps/glim/village_square_trimmed_points.ply \
+  --cloud experiments/mapping_outdoor/glim/village_square_trimmed_points.ply \
   --wbt webots_worlds/village_square_trimmed.wbt \
-  --out-prefix maps/village_square_trimmed_glim2d_eval \
-  --trajectory topic_pose=maps/glim/village_square_trimmed_pose.tum \
-  --adopt-prefix maps/village_square_trimmed_glim2d \
-  --waypoints-out maps/village_square_trimmed_glim2d_waypoints.yaml \
+  --out-prefix experiments/mapping_outdoor/village_square_trimmed_glim2d_eval \
+  --trajectory topic_pose=experiments/mapping_outdoor/glim/village_square_trimmed_pose.tum \
+  --adopt-prefix outputs/mapping_outdoor/village_square_trimmed_glim2d \
+  --waypoints-out outputs/waypoint_generation/village_square_trimmed_glim2d_waypoints.yaml \
   --waypoint-max-segment-length 4.0
 
 # `--waypoint-route-clearance 0.75` は edge 安全余裕の実験用。
@@ -90,19 +90,19 @@ ros2 run susumu_object_perception evaluate_glim_map_variants.py \
 
 ros2 run susumu_object_perception generate_webots_ground_truth_map.py \
   --wbt webots_worlds/village_square_trimmed.wbt \
-  --out maps/village_square_trimmed_gt.yaml \
-  --preview maps/village_square_trimmed_gt.png
+  --out outputs/mapping_outdoor/village_square_trimmed_gt.yaml \
+  --preview experiments/mapping_outdoor/village_square_trimmed_gt.png
 
 ros2 run susumu_object_perception check_map_vs_world.py \
   --wbt webots_worlds/village_square_trimmed.wbt \
-  --map maps/village_square_trimmed_glim2d.yaml \
-  --out maps/village_square_trimmed_glim2d_vs_world.png \
-  --report maps/village_square_trimmed_glim2d_vs_world.json \
-  --object-report maps/village_square_trimmed_glim2d_vs_world.csv
+  --map outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml \
+  --out experiments/mapping_outdoor/village_square_trimmed_glim2d_vs_world.png \
+  --report experiments/mapping_outdoor/village_square_trimmed_glim2d_vs_world.json \
+  --object-report experiments/mapping_outdoor/village_square_trimmed_glim2d_vs_world.csv
 
 # 保存地図から巡回ウェイポイントを生成（屋外は上の --waypoints-out で同時生成）
 ros2 run susumu_object_perception generate_waypoints.py \
-  --map maps/city.yaml --out maps/city_waypoints.yaml --spacing 1.5 --clearance 0.4
+  --map outputs/mapping_outdoor/city.yaml --out outputs/waypoint_generation/city_waypoints.yaml --spacing 1.5 --clearance 0.4
 
 # ウェイポイントに沿って Nav2 で巡回
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
@@ -110,8 +110,8 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
   perception:=True omni_perception:=True image_recognition:=True
 ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
   world:=village_square_trimmed.wbt \
-  map_file:=$HOME/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_glim2d.yaml \
-  waypoints:=$HOME/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_glim2d_waypoints.yaml \
+  map_file:=$HOME/ros2_ws/src/susumu_object_perception/outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml \
+  waypoints:=$HOME/ros2_ws/src/susumu_object_perception/outputs/waypoint_generation/village_square_trimmed_glim2d_waypoints.yaml \
   mode:=realtime loop:=False
 ```
 
@@ -140,13 +140,13 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | launch | 引数 | 既定 | 意味 |
 |---|---|---|---|
 | `webots_outdoor_mapping.launch.py` | `world` | `village_square_trimmed.wbt` | 特徴豊富な trimmed 屋外 world。正解データを見ずに SLAM 地図を作る |
-| `webots_outdoor_mapping.launch.py` | `map_name` | `village_square_trimmed` | 保存する `maps/<name>.yaml/.pgm` |
+| `webots_outdoor_mapping.launch.py` | `map_name` | `village_square_trimmed` | 保存する `outputs/mapping_outdoor/<name>.yaml/.pgm` |
 | `webots_outdoor_mapping.launch.py` | `explore_radius` | `14.0` | frontier 探索を初期位置から半径 R[m] に制限 |
 | `webots_outdoor_mapping.launch.py` | `goal_timeout_sec` | `120.0` | 屋外 frontier の 1 goal 到達猶予。10m 級 goal を早く諦めすぎない |
 | `webots_outdoor_mapping.launch.py` | `mode` | `realtime` | 採用評価は realtime |
 | `webots_outdoor_waypoint_nav.launch.py` | `world` | `village_square_trimmed.wbt` | 巡回する屋外 world |
-| `webots_outdoor_waypoint_nav.launch.py` | `map_file` | `village_square_trimmed.yaml` | AMCL/map_server に読む保存地図。maps/ 配下の filename または絶対パス |
-| `webots_outdoor_waypoint_nav.launch.py` | `waypoints` | `village_square_trimmed_waypoints.yaml` | maps/ 配下の waypoint YAML、または生成直後の source 側 YAML 絶対パス |
+| `webots_outdoor_waypoint_nav.launch.py` | `map_file` | `village_square_trimmed.yaml` | AMCL/map_server に読む保存地図。`outputs/mapping_outdoor/` 配下の filename または絶対パス |
+| `webots_outdoor_waypoint_nav.launch.py` | `waypoints` | `village_square_trimmed_waypoints.yaml` | `outputs/waypoint_generation/` 配下の waypoint YAML、または絶対パス |
 | `webots_outdoor_waypoint_nav.launch.py` | `nav_params_file` | `nav2_params_webots_explore_outdoor.yaml` | 屋外専用 Nav2 params |
 | `webots_outdoor_waypoint_nav.launch.py` | `goal_timeout_sec` | `120.0` | 各 outdoor waypoint の NavigateToPose 到達猶予 |
 | `webots_outdoor_waypoint_nav.launch.py` | `report_prefix` | 空 | 指定すると `<prefix>.json/.csv/.md` に reached/missed を保存 |
@@ -160,7 +160,7 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_hold_sec` | `1.0` | 危険 cost が継続したとみなす保持時間[s] |
 | `webots_outdoor_waypoint_nav.launch.py` | `safe_pose_recovery_timeout_sec` | `25.0` | 最後の安全姿勢へ戻る `NavigateToPose` recovery goal の timeout[s] |
 
-`generate_webots_ground_truth_map.py` が出す `maps/*_gt.yaml` は評価専用の正解データ。
+`generate_webots_ground_truth_map.py` が出す `outputs/mapping_outdoor/*_gt.yaml` は評価専用の正解データ。
 `webots_outdoor_waypoint_nav.launch.py map_file:=...` には渡さない。
 
 ## 屋外 GPS launch の主な引数（過去実験）
@@ -170,7 +170,7 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | `world` | `outdoor.wbt` | sparse outdoor GPS 実験で使う Webots world |
 | `mode` | `realtime` | Webots 起動モード。採用評価は `realtime` |
 | `run_follower` | `True` | `True` なら GPS localization に加えて地図なし smoke follower も起動 |
-| `waypoints` | `maps/outdoor_gps_smoke_waypoints.yaml` | 初期 GPS 位置からの相対 waypoint |
+| `waypoints` | `outputs/waypoint_generation/outdoor_gps_smoke_waypoints.yaml` | 初期 GPS 位置からの相対 waypoint |
 | `output_prefix` | `/tmp/outdoor_gps_nav` | follower の JSON/CSV/Markdown 出力先 prefix |
 
 詳細と評価値は [`tasks/mapping_outdoor.md`](tasks/mapping_outdoor.md) を参照。
@@ -182,7 +182,7 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | `world` | `outdoor.wbt` | sparse outdoor Nav2 実験で使う Webots world |
 | `mode` | `realtime` | Webots 起動モード。採用評価は `realtime` |
 | `run_waypoints` | `True` | `True` なら Nav2 起動後に smoke waypoint を `NavigateToPose` で順に送る |
-| `waypoints` | `maps/outdoor_gps_smoke_waypoints.yaml` | 初期 GPS 位置からの相対 waypoint |
+| `waypoints` | `outputs/waypoint_generation/outdoor_gps_smoke_waypoints.yaml` | 初期 GPS 位置からの相対 waypoint |
 | `output_prefix` | `/tmp/outdoor_nav2_gps_nav` | Nav2 waypoint runner の JSON/CSV/Markdown 出力先 prefix |
 | `nav2_params` | `config/nav2_params_outdoor_gps.yaml` | static map なし rolling costmap の Nav2 params |
 | `goal_timeout_sec` | `90.0` | 各 `NavigateToPose` goal の wall-clock timeout。sim time 初期ジャンプの影響を避けるため runner 内では wall clock で判定 |
@@ -221,7 +221,7 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | `use_rviz` | True | RViz2 を起動する |
 | `gui` | True | Teleop / 自動巡回 GUI を起動する |
 | `lidar_model` | `mid360` | 3D LiDAR profile。`mid360`（標準）または `vlp16` |
-| `map` | `maps/cafe.yaml` | マップ yaml のフルパス（house に戻すなら `maps/house.yaml`） |
+| `map` | `outputs/mapping_indoor/cafe.yaml` | マップ yaml のフルパス（house に戻すなら `outputs/mapping_indoor/house.yaml`） |
 | `params_file` | `config/nav2_params.yaml` | Nav2 パラメータ yaml のフルパス |
 | `x_pose` / `y_pose` / `yaw` | 0.0 / 0.0 / 0.0 | ロボットの spawn 姿勢 |
 

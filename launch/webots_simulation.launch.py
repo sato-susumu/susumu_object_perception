@@ -299,15 +299,21 @@ def generate_launch_description():
     default_nav2_map = os.path.join(
         tb3_pkg, 'resource', 'turtlebot3_burger_example_map.yaml')
     # Nav2 bringup に渡す map/params は絶対パスで安定させる。
-    # launch 実行ディレクトリに依存すると、`map_file:=maps/indoor.yaml` が
+    # launch 実行ディレクトリに依存すると、`map_file:=indoor.yaml` が
     # cd 位置によって読めたり読めなかったりする。相対指定は package share
-    # 基準（ファイル名だけなら maps/ または config/ 配下）へ解決する。
+    # 基準（ファイル名だけなら outputs/mapping_indoor/ → outputs/mapping_outdoor/
+    # の順で探索）に解決する。スラッシュを含む相対パスはパッケージ直下基準。
+    indoor_prefix = os.path.join(pkg, 'outputs', 'mapping_indoor', '')
+    outdoor_prefix = os.path.join(pkg, 'outputs', 'mapping_outdoor', '')
     nav2_map = PythonExpression([
         "'", default_nav2_map, "' if '", map_file, "' == '' else (",
         "'", map_file, "' if '", map_file, "'.startswith('/') else (",
-        "'", os.path.join(pkg, 'maps', ''), "' + '", map_file,
-        "' if '/' not in '", map_file, "' else ",
-        "'", os.path.join(pkg, ''), "' + '", map_file, "'))"])
+        "('", indoor_prefix, "' + '", map_file,
+        "') if ('/' not in '", map_file,
+        "' and __import__('os').path.exists('", indoor_prefix, "' + '", map_file, "')) else (",
+        "('", outdoor_prefix, "' + '", map_file,
+        "') if '/' not in '", map_file, "' else ",
+        "'", os.path.join(pkg, ''), "' + '", map_file, "')))"])
     default_nav2_params = os.path.join(tb3_pkg, 'resource', 'nav2_params.yaml')
     # nav_params_file が空なら従来の標準 params、指定があればそれを使う。
     # マッピング（webots_indoor_mapping）は nav2_params_webots_explore.yaml を渡す。
@@ -558,12 +564,12 @@ def generate_launch_description():
             'max_range': colored_slam_max_range,
             'min_z': colored_slam_min_z,
             'max_z': colored_slam_max_z,
-            # 色付き点群 PLY をプロジェクト内 maps/colorized/ に保存（.gitignore で無視）。
-            # install/share でなくソースの maps/colorized を指す（再生成物を手元に残すため）。
+            # 色付き点群 PLY をプロジェクト内 outputs/colorized_pointcloud/ に保存。
+            # install/share でなくソースを指す（再生成物を手元に残すため）。
             'save_dir': os.path.join(
                 os.path.expanduser(
                     '~/ros2_ws/src/susumu_object_perception'),
-                'maps', 'colorized'),
+                'outputs', 'colorized_pointcloud'),
         }],
         condition=launch.conditions.IfCondition(use_colored_slam))
 

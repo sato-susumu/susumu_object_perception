@@ -1,6 +1,6 @@
 # 保存済みウェイポイントに沿って Nav2 で巡回ナビゲーションする launch。
 #
-# generate_waypoints.py で作った maps/<world>_waypoints.yaml を読み、
+# generate_waypoints.py で作った outputs/waypoint_generation/<world>_waypoints.yaml を読み、
 #   - webots_nav.launch.py(robot + Webots + Nav2 + slam_toolbox) で地図と TF を供給
 #   - waypoint_nav_node が NavigateToPose を各点へ順に送りウェイポイントを巡回
 #   - waypoint_viz_node が地図上にウェイポイントと経路を可視化(/waypoints/markers)
@@ -93,11 +93,11 @@ def generate_launch_description():
     ekf_odom_start_sec = LaunchConfiguration('ekf_odom_start_sec')
     filtered_odom_topic = LaunchConfiguration('filtered_odom_topic')
 
-    # ウェイポイント yaml の絶対パス。ファイル名だけなら install/share/maps 配下、
-    # 絶対パスなら生成直後の source 側 maps/ もそのまま読めるようにする。
+    # ウェイポイント yaml の絶対パス。ファイル名だけなら outputs/waypoint_generation/、
+    # 絶対パスなら指定されたパスをそのまま使う。
     wp_path = PythonExpression([
         "'", waypoints, "' if '", waypoints, "'.startswith('/') else "
-        "'", os.path.join(pkg, 'maps', ''), "' + '", waypoints, "'"])
+        "'", os.path.join(pkg, 'outputs', 'waypoint_generation', ''), "' + '", waypoints, "'"])
 
     robot_nav = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -250,7 +250,7 @@ def generate_launch_description():
             description='ナビするワールド（city_robot.wbt / outdoor.wbt / indoor.wbt）'),
         DeclareLaunchArgument(
             'waypoints', default_value='city_waypoints.yaml',
-            description='maps/ 配下のウェイポイント yaml ファイル名、または絶対パス'),
+            description='outputs/waypoint_generation/ 配下のウェイポイント yaml ファイル名、または絶対パス'),
         DeclareLaunchArgument(
             'mode', default_value='fast',
             description='Webots 起動モード（realtime / fast / pause）'),

@@ -2,7 +2,7 @@
 
 このページは README のタスク一覧「マッピング（屋内）」の詳細ページ。事前地図のない屋内 Webots
 world を frontier 探索で走らせ、`slam_toolbox` が作る 2D OccupancyGrid を
-`maps/<name>.pgm/.yaml` として保存するところまでを扱う。
+`outputs/mapping_*/<name>.pgm/.yaml` として保存するところまでを扱う。
 
 屋外マッピングは別タスク。[`mapping_outdoor.md`](mapping_outdoor.md) を参照（現状は
 **「特徴の少ない広域屋外世界は未対応」** として保留）。
@@ -15,7 +15,8 @@ world を frontier 探索で走らせ、`slam_toolbox` が作る 2D OccupancyGri
 |---|---|
 | 入力 | `webots_worlds/<world>.wbt`、3D LiDAR 由来の `/scan`、SLAM/Nav2 |
 | 実行 | `launch/webots_indoor_mapping.launch.py` |
-| 出力 | `maps/<map_name>.pgm`、`maps/<map_name>.yaml` |
+| 出力（最終） | `outputs/mapping_indoor/<map_name>.pgm`、`outputs/mapping_indoor/<map_name>.yaml`（契約名・git 追跡） |
+| 出力（中間） | `experiments/mapping_indoor/<YYYY-MM-DD>_<label>/`（vs_world 比較、PGM 試作版、map_progress 等の cycle ログ。gitignore） |
 | 主な確認 | RViz の `/map`、`scripts/map_progress_monitor.py`、`scripts/eval_map_quality.py`、`scripts/check_map_vs_world.py` |
 
 ## 対応 world
@@ -69,11 +70,11 @@ ros2 launch susumu_object_perception webots_indoor_mapping.launch.py \
 CPU を SLAM/Nav2 に集中させたい場合、`image_recognition`、`colored_slam`、
 `collision_diagnostics` は既定 OFF。必要なときだけ明示的に ON にする。
 
-探索完了時に `save_map:=True` なら `maps/<map_name>.pgm/.yaml` が自動保存される。手動保存する場合:
+探索完了時に `save_map:=True` なら `outputs/mapping_indoor/<map_name>.pgm/.yaml` が自動保存される。手動保存する場合:
 
 ```bash
 ros2 run nav2_map_server map_saver_cli \
-  -f ~/ros2_ws/src/susumu_object_perception/maps/<map_name> \
+  -f ~/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/<map_name> \
   --ros-args \
   -p save_map_timeout:=20.0 \
   -p map_subscribe_transient_local:=true
@@ -81,14 +82,14 @@ ros2 run nav2_map_server map_saver_cli \
 
 `frontier_explore_node.py` の自動保存も同じく `save_map_timeout=20s` と
 `map_subscribe_transient_local=true` で `map_saver_cli` を呼び、CLI の終了コードと保存後の YAML/参照画像を
-検査する。保存後は YAML だけでなく参照画像も揃っていることを確認する。`maps/*.pgm` は今後すべて
+検査する。保存後は YAML だけでなく参照画像も揃っていることを確認する。`outputs/mapping_*/*.pgm` は今後すべて
 git 追跡対象にする。YAML だけが残った状態だと Nav2、waypoint 生成、認識の map support/overlay が
 後段で失敗するため、保存地図は `.yaml` と `.pgm` を必ずペアで扱う。確認用 `.png` は再生成可能なので
 引き続き追跡しない。
 
 ```bash
 cd ~/ros2_ws/src/susumu_object_perception
-ros2 run susumu_object_perception validate_map_assets.py maps/<map_name>.yaml
+ros2 run susumu_object_perception validate_map_assets.py outputs/mapping_indoor/<map_name>.yaml
 ```
 
 ## 合格基準
@@ -108,8 +109,8 @@ ros2 run susumu_object_perception validate_map_assets.py maps/<map_name>.yaml
    家具・人の位置と、地図上の occupied/free 配置・寸法を照合する。
 
 4. **次タスクに渡せる保存物になっている**
-   `maps/<map_name>.yaml` が保存され、PGM 画像への相対パス、`resolution`、`origin` が正しい。
-   `validate_map_assets.py maps/<map_name>.yaml` が `OK` になる。ウェイポイント生成はこの保存地図を入力にする。
+   `outputs/mapping_indoor/<map_name>.yaml` が保存され、PGM 画像への相対パス、`resolution`、`origin` が正しい。
+   `validate_map_assets.py outputs/mapping_indoor/<map_name>.yaml` が `OK` になる。ウェイポイント生成はこの保存地図を入力にする。
 
 ## 必須制約
 
@@ -132,17 +133,17 @@ ros2 run susumu_object_perception validate_map_assets.py maps/<map_name>.yaml
 python3 -u scripts/map_progress_monitor.py --interval 10 --duration 180
 
 # 保存後: 地図統計を確認
-ros2 run susumu_object_perception eval_map_quality.py maps/<map_name>.yaml
+ros2 run susumu_object_perception eval_map_quality.py outputs/mapping_indoor/<map_name>.yaml
 
 # 保存後: YAML が参照する PGM/PNG が実在することを確認
-ros2 run susumu_object_perception validate_map_assets.py maps/<map_name>.yaml
+ros2 run susumu_object_perception validate_map_assets.py outputs/mapping_indoor/<map_name>.yaml
 
 # 保存後: wbt の真値構造と重ねて確認
 ros2 run susumu_object_perception check_map_vs_world.py \
-  --map maps/<map_name>.yaml \
+  --map outputs/mapping_indoor/<map_name>.yaml \
   --wbt webots_worlds/<world>.wbt \
-  --out maps/<map_name>_vs_world.png \
-  --report maps/<map_name>_vs_world.json
+  --out experiments/mapping_indoor/<map_name>_vs_world.png \
+  --report experiments/mapping_indoor/<map_name>_vs_world.json
 ```
 
 数値だけでなく、`check_map_vs_world.py` の重畳図と RViz で目視確認する。移動量が十分あるのに
@@ -156,8 +157,8 @@ ros2 run susumu_object_perception check_map_vs_world.py \
 
 | 日付 | world / map | 条件 | 結果 |
 |---|---|---|---|
-| 2026-06-21 | `indoor.wbt` → `maps/indoor.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `99x201`, `5.0x10.1m`, 壁率 `2.6%`, 最大連結成分 `99%`, 判定 `OK(微小片あり)` |
-| 2026-06-21 | `break_room.wbt` → `maps/break_room.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `188x140`, `9.4x7.0m`, 壁率 `2.3%`, 最大連結成分 `100%`, 判定 `OK`。`check_map_vs_world.py`: wall `near_ratio_inside=0.848`, obstacle `0.750` |
+| 2026-06-21 | `indoor.wbt` → `outputs/mapping_indoor/indoor.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `99x201`, `5.0x10.1m`, 壁率 `2.6%`, 最大連結成分 `99%`, 判定 `OK(微小片あり)` |
+| 2026-06-21 | `break_room.wbt` → `outputs/mapping_indoor/break_room.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `188x140`, `9.4x7.0m`, 壁率 `2.3%`, 最大連結成分 `100%`, 判定 `OK`。`check_map_vs_world.py`: wall `near_ratio_inside=0.848`, obstacle `0.750` |
 
 次は地図品質が崩れた場合に、衝突ログ・`/scan`・SLAM 設定のどこで占有が欠けたかを切り分ける。
 

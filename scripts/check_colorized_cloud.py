@@ -10,7 +10,7 @@
 
 使い方:
   ros2 run susumu_object_perception check_colorized_cloud.py \
-      maps/colorized/<name>.ply --true-x 5 --true-y 10 --out /tmp/<name>_check.png
+      outputs/colorized_pointcloud/<name>.ply --true-x 5 --true-y 10 --out /tmp/<name>_check.png
 """
 
 import argparse

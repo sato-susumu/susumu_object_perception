@@ -112,7 +112,7 @@ flowchart LR
 | `image_recognition` | True | 画像認識を起動する。Gazebo は 6 面カメラ→全天球合成(`omni_image_node`) + LiDAR 検出物体の YOLO 分類(`object_classifier`) + 全天球信号認識(`traffic_light_*`)。YOLO が重ければ False（LiDAR perception は残る） |
 | `use_rviz` | True | RViz2 を起動する |
 | `gui` | True | Teleop / 自動巡回 GUI を起動する |
-| `map` | `maps/cafe.yaml` | マップ yaml のフルパス（既定は cafe world。house に戻すなら `maps/house.yaml`） |
+| `map` | `outputs/mapping_indoor/cafe.yaml` | マップ yaml のフルパス（既定は cafe world。house に戻すなら `outputs/mapping_indoor/house.yaml`） |
 | `params_file` | `config/nav2_params.yaml` | Nav2 パラメータ yaml のフルパス |
 | `x_pose` / `y_pose` / `yaw` | 0.0 / 0.0 / 0.0 | ロボットの spawn 姿勢（マップの空きスペース） |
 
@@ -444,8 +444,8 @@ susumu_object_perception/
 │   └── nav2_params.yaml           # Nav2（obstacle_layer=/scan、予測層=自作 predicted_layer。STVL 廃止）
 ├── models/turtlebot3_waffle_3d/   # waffle + 3D LiDAR の Gazebo SDF
 ├── urdf/turtlebot3_waffle_3d.urdf.xacro  # TF用URDF
-├── maps/cafe.{pgm,yaml}           # cafe のマップ（既定）
-├── maps/house.{pgm,yaml}          # house のマップ
+├── outputs/mapping_indoor/cafe.{pgm,yaml}           # cafe のマップ（既定）
+├── outputs/mapping_indoor/house.{pgm,yaml}          # house のマップ
 ├── rviz/simulation.rviz           # RViz設定（3D点群 + perception 可視化付き）
 ├── docs/software_design.md        # 本ドキュメント
 ├── docs/tasks/                    # タスク別の制約・合格基準・実行手順

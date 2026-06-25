@@ -3,6 +3,16 @@
 このページは README のタスク一覧「マッピング（屋外）」の詳細ページ。屋内マッピングは別タスクで
 [`mapping_indoor.md`](mapping_indoor.md) を参照。
 
+## 入出力
+
+| 項目 | 内容 |
+|---|---|
+| 入力 | `webots_worlds/village_square_trimmed.wbt` 等の屋外 world、3D LiDAR、必要なら GPS |
+| 実行 | `launch/webots_outdoor_mapping.launch.py`、`scripts/evaluate_glim_map_variants.py`、`scripts/check_map_vs_world.py` |
+| 出力（最終） | `outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml` / `.pgm`、`outputs/mapping_outdoor/<world>_gt.yaml` / `.pgm`（評価専用）（契約名・git 追跡） |
+| 出力（中間） | `experiments/mapping_outdoor/<YYYY-MM-DD>_<label>/`（cycleNN snapshot/promote/variants/monitor/risk/yaw 等の比較ログ）、`experiments/mapping_outdoor/glim/`（GLIM TUM/PLY 中間版）。gitignore |
+| 主な確認 | `scripts/check_map_vs_world.py`、`scripts/eval_map_quality.py` |
+
 ## 現在の本線
 
 屋外本線は **GLIM で 3D 点群を作る → trajectory 条件を比較 → Nav2 用 2D 地図化 → waypoint 生成 →
@@ -15,7 +25,7 @@
 - 都市部・公園のようにフェンス、植栽、ベンチ、街灯、小建物が複数方向にある world では、
   GLIM の 3D 点群から Nav2 用 2D map を作る方が筋が良い。
 
-重要: `maps/*_gt.yaml` は正解データであり、`map_file` や waypoint 生成の入力にしない。
+重要: `outputs/mapping_outdoor/*_gt.yaml` は正解データであり、`map_file` や waypoint 生成の入力にしない。
 world 由来地図は評価専用。Nav2 が読む地図は、GLIM のセンサ点群から作った保存地図にする。
 
 ## 屋外専用成果物
@@ -46,7 +56,7 @@ ros2 launch susumu_object_perception webots_outdoor_glim_mapping.launch.py \
 
 ros2 run susumu_object_perception save_pose_trajectory_to_tum.py \
   --topic /glim_ros/pose_corrected \
-  --out maps/glim/village_square_trimmed_pose.tum \
+  --out experiments/mapping_outdoor/glim/village_square_trimmed_pose.tum \
   --duration-sec 600 \
   --timeout-sec 660 \
   --min-poses 100 \
@@ -54,36 +64,36 @@ ros2 run susumu_object_perception save_pose_trajectory_to_tum.py \
 
 ros2 run susumu_object_perception save_pointcloud2_to_ply.py \
   --topic /slam/glim_colorized_points_map \
-  --out maps/glim/village_square_trimmed_points.ply \
+  --out experiments/mapping_outdoor/glim/village_square_trimmed_points.ply \
   --timeout-sec 30 \
   --min-points 5000 \
   --qos sensor_data
 
 ros2 run susumu_object_perception evaluate_glim_map_variants.py \
-  --cloud maps/glim/village_square_trimmed_points.ply \
+  --cloud experiments/mapping_outdoor/glim/village_square_trimmed_points.ply \
   --wbt webots_worlds/village_square_trimmed.wbt \
-  --out-prefix maps/village_square_trimmed_glim2d_eval \
-  --trajectory topic_pose=maps/glim/village_square_trimmed_pose.tum \
-  --adopt-prefix maps/village_square_trimmed_glim2d \
-  --waypoints-out maps/village_square_trimmed_glim2d_waypoints.yaml \
+  --out-prefix experiments/mapping_outdoor/village_square_trimmed_glim2d_eval \
+  --trajectory topic_pose=experiments/mapping_outdoor/glim/village_square_trimmed_pose.tum \
+  --adopt-prefix outputs/mapping_outdoor/village_square_trimmed_glim2d \
+  --waypoints-out outputs/waypoint_generation/village_square_trimmed_glim2d_waypoints.yaml \
   --waypoint-max-segment-length 4.0
 
 ros2 run susumu_object_perception generate_webots_ground_truth_map.py \
   --wbt webots_worlds/village_square_trimmed.wbt \
-  --out maps/village_square_trimmed_gt.yaml \
-  --preview maps/village_square_trimmed_gt.png
+  --out outputs/mapping_outdoor/village_square_trimmed_gt.yaml \
+  --preview experiments/mapping_outdoor/village_square_trimmed_gt.png
 
 ros2 run susumu_object_perception check_map_vs_world.py \
   --wbt webots_worlds/village_square_trimmed.wbt \
-  --map maps/village_square_trimmed_glim2d.yaml \
-  --out maps/village_square_trimmed_glim2d_vs_world.png \
-  --report maps/village_square_trimmed_glim2d_vs_world.json \
-  --object-report maps/village_square_trimmed_glim2d_vs_world.csv
+  --map outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml \
+  --out experiments/mapping_outdoor/village_square_trimmed_glim2d_vs_world.png \
+  --report experiments/mapping_outdoor/village_square_trimmed_glim2d_vs_world.json \
+  --object-report experiments/mapping_outdoor/village_square_trimmed_glim2d_vs_world.csv
 
 ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
   world:=village_square_trimmed.wbt \
-  map_file:=$HOME/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_glim2d.yaml \
-  waypoints:=$HOME/ros2_ws/src/susumu_object_perception/maps/village_square_trimmed_glim2d_waypoints.yaml \
+  map_file:=$HOME/ros2_ws/src/susumu_object_perception/outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml \
+  waypoints:=$HOME/ros2_ws/src/susumu_object_perception/outputs/waypoint_generation/village_square_trimmed_glim2d_waypoints.yaml \
   mode:=realtime \
   loop:=False
 ```
