@@ -15,8 +15,8 @@ world を frontier 探索で走らせ、`slam_toolbox` が作る 2D OccupancyGri
 |---|---|
 | 入力 | `webots_worlds/<world>.wbt`、3D LiDAR 由来の `/scan`、SLAM/Nav2 |
 | 実行 | `launch/webots_indoor_mapping.launch.py` |
-| 出力（最終） | `outputs/mapping_indoor/<map_name>.pgm`、`outputs/mapping_indoor/<map_name>.yaml`（契約名・git 追跡） |
-| 出力（中間） | `experiments/mapping_indoor/<YYYY-MM-DD>_<label>/`（vs_world 比較、PGM 試作版、map_progress 等の cycle ログ。gitignore） |
+| 出力（最終） | `outputs/mapping_indoor/<map_name>.pgm`、`outputs/mapping_indoor/<map_name>.yaml`、`outputs/mapping_indoor/<map_name>_vs_world.{png,json}`（契約名・git 追跡。`_vs_world` は save_map 完了直後に `check_map_vs_world.py` が自動生成する world 真値との重ね合わせ＋アライメント JSON） |
+| 出力（中間） | `experiments/mapping_indoor/<YYYY-MM-DD>_<label>/`（PGM 試作版、map_progress 等の cycle ログ。gitignore）、`experiments/mapping_indoor/legacy/` （旧採用版で対応 wbt が無いもの、house.yaml 等） |
 | 主な確認 | RViz の `/map`、`scripts/map_progress_monitor.py`、`scripts/eval_map_quality.py`、`scripts/check_map_vs_world.py` |
 
 ## 対応 world

@@ -1,0 +1,845 @@
+{
+  "summary": {
+    "threshold_m": 0.5,
+    "samples": 34,
+    "inside": 10,
+    "near_occupied": 10,
+    "by_kind": {
+      "obstacle": {
+        "objects": 4,
+        "objects_inside": 4,
+        "objects_near_any": 4,
+        "object_near_any_ratio_inside": 1.0,
+        "mean_object_coverage_inside": 1.0,
+        "samples": 4,
+        "inside": 4,
+        "near_occupied": 4,
+        "cell_counts": {
+          "occupied": 1,
+          "free": 0,
+          "unknown": 3,
+          "outside": 0
+        },
+        "near_ratio_inside": 1.0,
+        "mean_distance_to_occupied_m": 0.07795084971874738,
+        "max_distance_to_occupied_m": 0.1118033988749895
+      },
+      "wall": {
+        "objects": 6,
+        "objects_inside": 4,
+        "objects_near_any": 4,
+        "object_near_any_ratio_inside": 1.0,
+        "mean_object_coverage_inside": 1.0,
+        "samples": 30,
+        "inside": 6,
+        "near_occupied": 6,
+        "cell_counts": {
+          "occupied": 4,
+          "free": 0,
+          "unknown": 2,
+          "outside": 24
+        },
+        "near_ratio_inside": 1.0,
+        "mean_distance_to_occupied_m": 0.016666666666666666,
+        "max_distance_to_occupied_m": 0.05
+      }
+    },
+    "near_ratio_inside": 1.0
+  },
+  "objects": [
+    {
+      "object_index": 0,
+      "object_name": "potted tree(5)",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.1,
+      "max_distance_to_occupied_m": 0.1
+    },
+    {
+      "object_index": 1,
+      "object_name": "potted tree(8)",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.1,
+      "max_distance_to_occupied_m": 0.1
+    },
+    {
+      "object_index": 3,
+      "object_name": "wall(5)",
+      "type": "Wall",
+      "kind": "wall",
+      "samples": 5,
+      "inside": 0,
+      "near_occupied": 0,
+      "coverage_inside": null,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 0,
+        "outside": 5
+      },
+      "mean_distance_to_occupied_m": null,
+      "max_distance_to_occupied_m": null
+    },
+    {
+      "object_index": 4,
+      "object_name": "wall(7)",
+      "type": "Wall",
+      "kind": "wall",
+      "samples": 5,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 4
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 5,
+      "object_name": "wall(10)",
+      "type": "Wall",
+      "kind": "wall",
+      "samples": 5,
+      "inside": 2,
+      "near_occupied": 2,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 1,
+        "outside": 3
+      },
+      "mean_distance_to_occupied_m": 0.025,
+      "max_distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 6,
+      "object_name": "wall(6)",
+      "type": "Wall",
+      "kind": "wall",
+      "samples": 5,
+      "inside": 0,
+      "near_occupied": 0,
+      "coverage_inside": null,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 0,
+        "outside": 5
+      },
+      "mean_distance_to_occupied_m": null,
+      "max_distance_to_occupied_m": null
+    },
+    {
+      "object_index": 7,
+      "object_name": "wall(2)",
+      "type": "Wall",
+      "kind": "wall",
+      "samples": 5,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 4
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 8,
+      "object_name": "wall(1)",
+      "type": "Wall",
+      "kind": "wall",
+      "samples": 5,
+      "inside": 2,
+      "near_occupied": 2,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 1,
+        "outside": 3
+      },
+      "mean_distance_to_occupied_m": 0.025,
+      "max_distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 9,
+      "object_name": "",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 1,
+        "free": 0,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 10,
+      "object_name": "potted tree(3)",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "samples": 1,
+      "inside": 1,
+      "near_occupied": 1,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 0,
+        "free": 0,
+        "unknown": 1,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.1118033988749895,
+      "max_distance_to_occupied_m": 0.1118033988749895
+    }
+  ],
+  "samples": [
+    {
+      "object_index": 0,
+      "object_name": "potted tree(5)",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "world_xy": [
+        7.0,
+        -4.0
+      ],
+      "pixel_xy": [
+        38.599999999999994,
+        20.999999999999996
+      ],
+      "inside_map": true,
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.1
+    },
+    {
+      "object_index": 1,
+      "object_name": "potted tree(8)",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "world_xy": [
+        5.8,
+        3.3
+      ],
+      "pixel_xy": [
+        14.59999999999999,
+        166.99999999999997
+      ],
+      "inside_map": true,
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.1
+    },
+    {
+      "object_index": 3,
+      "object_name": "wall(5)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        10.000000265350177,
+        5.199993366025164
+      ],
+      "pixel_xy": [
+        98.60000530700354,
+        204.99986732050326
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 3,
+      "object_name": "wall(5)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.000000265367781,
+        5.200006633974131
+      ],
+      "pixel_xy": [
+        -1.399994692644384,
+        205.00013267948262
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 3,
+      "object_name": "wall(5)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        4.999999734649823,
+        5.000006633974835
+      ],
+      "pixel_xy": [
+        -1.4000053070035534,
+        201.0001326794967
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 3,
+      "object_name": "wall(5)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        9.999999734632219,
+        4.999993366025868
+      ],
+      "pixel_xy": [
+        98.59999469264437,
+        200.99986732051735
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 3,
+      "object_name": "wall(5)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        7.5,
+        5.1
+      ],
+      "pixel_xy": [
+        48.599999999999994,
+        202.99999999999997
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 4,
+      "object_name": "wall(7)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.0,
+        -5.199999999999999
+      ],
+      "pixel_xy": [
+        -1.4000000000000057,
+        -2.9999999999999893
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 4,
+      "object_name": "wall(7)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        6.0,
+        -5.199999999999999
+      ],
+      "pixel_xy": [
+        18.599999999999994,
+        -2.9999999999999893
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 4,
+      "object_name": "wall(7)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        6.0,
+        -5.0
+      ],
+      "pixel_xy": [
+        18.599999999999994,
+        0.9999999999999964
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 4,
+      "object_name": "wall(7)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.0,
+        -5.0
+      ],
+      "pixel_xy": [
+        -1.4000000000000057,
+        0.9999999999999964
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 4,
+      "object_name": "wall(7)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.5,
+        -5.1
+      ],
+      "pixel_xy": [
+        8.599999999999994,
+        -0.9999999999999964
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 5,
+      "object_name": "wall(10)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        7.0,
+        -5.199999999999999
+      ],
+      "pixel_xy": [
+        38.599999999999994,
+        -2.9999999999999893
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 5,
+      "object_name": "wall(10)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        10.0,
+        -5.199999999999999
+      ],
+      "pixel_xy": [
+        98.6,
+        -2.9999999999999893
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 5,
+      "object_name": "wall(10)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        10.0,
+        -5.0
+      ],
+      "pixel_xy": [
+        98.6,
+        0.9999999999999964
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 5,
+      "object_name": "wall(10)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        7.0,
+        -5.0
+      ],
+      "pixel_xy": [
+        38.599999999999994,
+        0.9999999999999964
+      ],
+      "inside_map": true,
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 5,
+      "object_name": "wall(10)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        8.5,
+        -5.1
+      ],
+      "pixel_xy": [
+        68.6,
+        -0.9999999999999964
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 6,
+      "object_name": "wall(6)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        10.20121509792532,
+        -5.19997649071147
+      ],
+      "pixel_xy": [
+        102.62430195850641,
+        -2.9995298142294047
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 6,
+      "object_name": "wall(6)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        10.198784896614363,
+        5.200023225352065
+      ],
+      "pixel_xy": [
+        102.57569793228726,
+        205.00046450704127
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 6,
+      "object_name": "wall(6)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        9.998784902074679,
+        5.19997649071147
+      ],
+      "pixel_xy": [
+        98.57569804149357,
+        204.9995298142294
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 6,
+      "object_name": "wall(6)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        10.001215103385636,
+        -5.200023225352065
+      ],
+      "pixel_xy": [
+        98.62430206771272,
+        -3.0004645070413005
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 6,
+      "object_name": "wall(6)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        10.1,
+        0.0
+      ],
+      "pixel_xy": [
+        100.59999999999998,
+        100.99999999999999
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 7,
+      "object_name": "wall(2)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        4.899306943828736,
+        4.999976817983581
+      ],
+      "pixel_xy": [
+        -3.4138611234252814,
+        200.9995363596716
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 7,
+      "object_name": "wall(2)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        4.90069306150827,
+        -1.000023021906232
+      ],
+      "pixel_xy": [
+        -3.3861387698346057,
+        80.99953956187535
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 7,
+      "object_name": "wall(2)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.100693056171264,
+        -0.9999768179835806
+      ],
+      "pixel_xy": [
+        0.61386112342527,
+        81.00046364032838
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 7,
+      "object_name": "wall(2)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.09930693849173,
+        5.000023021906232
+      ],
+      "pixel_xy": [
+        0.5861387698345943,
+        201.0004604381246
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 7,
+      "object_name": "wall(2)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.0,
+        2.0
+      ],
+      "pixel_xy": [
+        -1.4000000000000057,
+        141.0
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 8,
+      "object_name": "wall(1)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        4.89965347324862,
+        -2.0000231419888723
+      ],
+      "pixel_xy": [
+        -3.4069305350276124,
+        60.999537160222545
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 8,
+      "object_name": "wall(1)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        4.9003465320883866,
+        -5.000023061933779
+      ],
+      "pixel_xy": [
+        -3.3930693582322746,
+        0.9995387613244233
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 8,
+      "object_name": "wall(1)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.10034652675138,
+        -4.999976858011127
+      ],
+      "pixel_xy": [
+        0.6069305350276011,
+        1.0004628397774518
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 8,
+      "object_name": "wall(1)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.0996534679116134,
+        -1.9999769380662213
+      ],
+      "pixel_xy": [
+        0.5930693582322633,
+        61.00046123867557
+      ],
+      "inside_map": true,
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 8,
+      "object_name": "wall(1)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        5.0,
+        -3.5
+      ],
+      "pixel_xy": [
+        -1.4000000000000057,
+        30.999999999999996
+      ],
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
+    },
+    {
+      "object_index": 9,
+      "object_name": "",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "world_xy": [
+        9.17,
+        -1.7
+      ],
+      "pixel_xy": [
+        81.99999999999999,
+        66.99999999999999
+      ],
+      "inside_map": true,
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
+    },
+    {
+      "object_index": 10,
+      "object_name": "potted tree(3)",
+      "type": "PottedTree",
+      "kind": "obstacle",
+      "world_xy": [
+        5.6,
+        -4.5
+      ],
+      "pixel_xy": [
+        10.599999999999987,
+        10.999999999999996
+      ],
+      "inside_map": true,
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.1118033988749895
+    }
+  ]
+}

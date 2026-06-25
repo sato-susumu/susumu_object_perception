@@ -101,6 +101,11 @@ def generate_launch_description():
         "'", os.path.expanduser(
             '~/ros2_ws/src/susumu_object_perception/experiments/mapping_outdoor/'), "' + '",
         map_name, "' + '_truth_monitor'"])
+    # vs_world 自動生成用に world ファイルの絶対パスを組み立てる。
+    world_file_path = PythonExpression([
+        "'", os.path.expanduser(
+            '~/ros2_ws/src/susumu_object_perception/webots_worlds/'), "' + '",
+        world, "'"])
 
     # フロンティア探索。屋外実験では explore_radius でロボット初期位置からの半径を制限する。
     # village_center のような広大 world でも、特徴の多い周辺だけマッピングできる。
@@ -121,6 +126,7 @@ def generate_launch_description():
                     'gain': gain,
                     'save_map': save_map,
                     'map_save_path': save_path,
+                    'world_file': world_file_path,
                     'start_delay_sec': 8.0,
                     'done_after_empty': 12,
                     'goal_timeout_sec': goal_timeout,

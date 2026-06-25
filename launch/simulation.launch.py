@@ -59,7 +59,7 @@ def generate_launch_description():
     declare_gui = DeclareLaunchArgument('gui', default_value='True',
         description='Teleop / 自動巡回 GUI ウィンドウを起動する')
     declare_map = DeclareLaunchArgument('map',
-        default_value=os.path.join(susumu_pkg, 'maps', 'cafe.yaml'),
+        default_value=os.path.join(susumu_pkg, 'outputs', 'mapping_indoor', 'cafe.yaml'),
         description='マップ yaml のフルパス')
     declare_params = DeclareLaunchArgument('params_file',
         default_value=os.path.join(susumu_pkg, 'config', 'nav2_params.yaml'),

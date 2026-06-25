@@ -36,28 +36,33 @@
 ```
 outputs/                                    # 最終成果物（タスク別・契約名・git追跡）
   mapping_indoor/
-    indoor.yaml / .pgm                      # mapping_indoor 採用版
-    break_room.yaml / .pgm
-    cafe.yaml / .pgm
-    house.yaml
-  mapping_outdoor/
-    outdoor.yaml
-    village_square_trimmed_glim2d.yaml / .pgm
-    village_square_trimmed_gt.yaml          # 評価専用
+    indoor.{yaml,pgm,_vs_world.{png,json}}  # mapping_indoor 採用版 (vs_world は自動生成)
+    break_room.{yaml,pgm,_vs_world.{png,json}}
+    cafe.{yaml,pgm}                         # Gazebo simulation 用 (Webots wbt 無し)
+  mapping_outdoor/                          # 現状未対応 (.gitkeep のみ)
   waypoint_generation/
-    indoor_waypoints.yaml
-    outdoor_waypoints.yaml
-    city_waypoints.yaml
+    indoor_waypoints.{yaml,png}
+    indoor_sparse_waypoints.{yaml,png}
+    break_room_waypoints.{yaml,png}
+    cafe_waypoints.{yaml,png}
+    outdoor_gps_*_waypoints.yaml            # 屋外 GPS baseline (4 種)
   recognition/
     indoor_recognition_eval.{csv,json,md}
-    indoor_recognition_overlay.png
+    indoor_recognition_eval_ignore_table_sofa.{csv,json,md}
   colorized_pointcloud/
-    colorized_pointcloud_indoor_apriltag_calib_final.ply
+    colorized_pointcloud_<world>_apriltag_calib_final.ply
+    colorized_pointcloud_<world>_goal_run_final.ply
+  extrinsic_calibration/
+    calib.json
 experiments/                                # 中間成果物（汚れ場・gitignore）
+  mapping_indoor/legacy/                    # 旧採用版 (house 等、対応 wbt 無し)
   mapping_indoor/2026-06-19_break_room_waypoints/...
+  mapping_outdoor/legacy/                   # 旧 yaml (city, outdoor, village 系の PGM 無し yaml)
   mapping_outdoor/2026-06-21_cycle27/...
+  waypoint_generation/legacy/               # 旧採用外 (indoor_recognition_waypoints 等)
   recognition/2026-06-22_cycle31_multifov/...
   waypoint_navigation/2026-06-22_cycle08b_radius1025/...
+  colorized_pointcloud/legacy/              # 中間 / 試験版 PLY
   colorized_pointcloud/intermediate/...
 ```
 
@@ -65,13 +70,12 @@ experiments/                                # 中間成果物（汚れ場・giti
 
 | 契約パス | 作るタスク | 使うタスク |
 |---|---|---|
-| `outputs/mapping_*/<world>.yaml` / `.pgm`<br/>（`indoor` / `break_room` / `cafe` / `city` / `house` / `outdoor` / `village_center`） | マッピング | Nav2、waypoint_generation、認識評価、カラー点群レビュー |
-| `outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml` / `.pgm` | mapping_outdoor (GLIM→2D) | waypoint_generation、Nav2 |
-| `outputs/mapping_outdoor/<world>_gt.yaml` / `.pgm`<br/>（`village_square_trimmed_gt` / `village_park_trimmed_gt`） | 屋外マッピング評価 | SLAM 地図の評価のみ。Nav2 や waypoint 生成には使わない |
-| `outputs/waypoint_generation/<world>_waypoints.yaml` / `.png`<br/>（`indoor_waypoints` / `indoor_sparse_waypoints` / `indoor_recognition_waypoints` / `outdoor_waypoints` / `outdoor_gps_*_waypoints` / `city_waypoints` / `village_square_trimmed_glim2d_waypoints`） | ウェイポイント生成 | 巡回ナビ、認識、カラー点群記録 |
+| `outputs/mapping_indoor/<world>.yaml` / `.pgm` / `_vs_world.{png,json}`<br/>（`indoor` / `break_room` / `cafe`） | マッピング | Nav2、waypoint_generation、認識評価、カラー点群レビュー。`_vs_world.{png,json}` は world 真値との重ね合わせ自動生成 |
+| `outputs/mapping_outdoor/` | 屋外マッピング | **現状未対応**。 [`mapping_outdoor.md`](mapping_outdoor.md) を参照。旧 yaml は `experiments/mapping_outdoor/legacy/` に隔離 |
+| `outputs/waypoint_generation/<world>_waypoints.yaml` / `.png`<br/>（`indoor_waypoints` / `indoor_sparse_waypoints` / `break_room_waypoints` / `cafe_waypoints` / `outdoor_gps_*_waypoints`） | ウェイポイント生成 | 巡回ナビ、認識、カラー点群記録。`outdoor_gps_*` は屋外 GPS baseline として保持 |
 | `outputs/recognition/indoor_recognition_overlay.png` | 認識 | 認識レビュー |
 | `outputs/recognition/indoor_recognition_eval.{md,json,csv}`、`outputs/recognition/indoor_recognition_eval_ignore_table_sofa.{md,json,csv}` | 認識 | 採用/未採用判断 |
-| `outputs/colorized_pointcloud/*.ply`<br/>（タイムスタンプ無し・名前固定のもの。`colorized_pointcloud_<world>_apriltag_calib_final.ply` 等） | カラー点群出力 | 点群レビュー、外部可視化 |
+| `outputs/colorized_pointcloud/colorized_pointcloud_<world>_apriltag_calib_final.ply`、`colorized_pointcloud_<world>_goal_run_final.ply` 等 | カラー点群出力 | 点群レビュー、外部可視化。中間 / 試験版は `experiments/colorized_pointcloud/legacy/` |
 | `outputs/extrinsic_calibration/calib.json` | 外部キャリブレーション | `omni_calibration_json:=` で TF 置換（色付き点群・物体クロップ） |
 
 `*.pgm` はすべて commit 対象にする。保存地図は YAML だけでは後段が再現できないため、`.yaml` と `.pgm`

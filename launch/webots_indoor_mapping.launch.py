@@ -82,6 +82,12 @@ def generate_launch_description():
         "'", os.path.expanduser(
             '~/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/'), "' + '",
         map_name, "'"])
+    # vs_world 自動生成用に world ファイルの絶対パスを組み立てる。
+    # source 側の webots_worlds/ を優先（install 経由でも同じ内容）。
+    world_file_path = PythonExpression([
+        "'", os.path.expanduser(
+            '~/ros2_ws/src/susumu_object_perception/webots_worlds/'), "' + '",
+        world, "'"])
 
     # フロンティア探索（自作 frontier_explore_node）。屋内 world では純 frontier で十分。
     # sweep_mode は False（屋外用の perimeter sweep は使わない）、forward_step は屋内向けの
@@ -103,6 +109,7 @@ def generate_launch_description():
                     'gain': gain,
                     'save_map': save_map,
                     'map_save_path': save_path,
+                    'world_file': world_file_path,
                     'start_delay_sec': 8.0,
                     'done_after_empty': 12,
                     'goal_timeout_sec': goal_timeout,

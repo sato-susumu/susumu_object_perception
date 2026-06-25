@@ -156,6 +156,15 @@ class FrontierExploreNode(Node):
             os.path.expanduser('~/ros2_ws/src/susumu_object_perception/outputs/mapping_outdoor/city'))
         self.declare_parameter('map_saver_timeout_sec', 20.0)
         self.declare_parameter('map_saver_transient_local', True)
+        # 保存完了後に world 真値と地図の重ね合わせ画像を自動生成する。world_file が空でなければ
+        # check_map_vs_world.py を呼び、保存地図と同じディレクトリに <map_name>_vs_world.{png,json}
+        # を出す。world_file は webots_worlds/<name>.wbt の絶対パスを期待する。
+        self.declare_parameter('world_file', '')
+        self.declare_parameter(
+            'vs_world_script',
+            os.path.expanduser(
+                '~/ros2_ws/src/susumu_object_perception/scripts/check_map_vs_world.py'))
+        self.declare_parameter('vs_world_timeout_sec', 30.0)
         # 【非frontier的な特殊探索: sweep モード】屋外の特徴が乏しい開放空間では frontier が
         # ロボット至近にしか出ず原点付近から動けない。そこで frontier 探索の前に、外周/spiral
         # の遠征ゴールを順に送り、未知でも構わず領域を舐めて回る（coverage 型）。全体を一巡
@@ -246,6 +255,11 @@ class FrontierExploreNode(Node):
             self.get_parameter('map_saver_timeout_sec').value)
         self.map_saver_transient_local = self._bool_param(
             'map_saver_transient_local')
+        self.world_file = str(self.get_parameter('world_file').value or '')
+        self.vs_world_script = str(
+            self.get_parameter('vs_world_script').value or '')
+        self.vs_world_timeout_sec = float(
+            self.get_parameter('vs_world_timeout_sec').value)
 
         self._map = None
         self._busy = False
@@ -1242,9 +1256,60 @@ class FrontierExploreNode(Node):
         ok, detail = self._saved_map_assets_status()
         if ok:
             self._publish_status(f'map saved: {detail}')
+            self._run_vs_world_overlay()
         else:
             suffix = self._tail_for_status(output)
             self._publish_status(f'map save failed: {detail}{suffix}')
+
+    def _run_vs_world_overlay(self):
+        """保存地図と world 真値の重ね合わせ画像 + アライメント JSON を生成。
+
+        world_file が空、または check_map_vs_world.py が存在しないときは何もしない
+        （cafe.wbt のように Webots world が無い world では正しく skip される）。
+        """
+        if not self.world_file:
+            return
+        if not os.path.exists(self.world_file):
+            self._publish_status(
+                f'vs_world skip: world file missing ({self.world_file})')
+            return
+        if not self.vs_world_script or not os.path.exists(self.vs_world_script):
+            self._publish_status(
+                f'vs_world skip: script missing ({self.vs_world_script})')
+            return
+        yaml_path = self.map_save_path
+        if not yaml_path.endswith(('.yaml', '.yml')):
+            yaml_path = self.map_save_path + '.yaml'
+        out_prefix = self.map_save_path
+        if out_prefix.endswith(('.yaml', '.yml')):
+            out_prefix = os.path.splitext(out_prefix)[0]
+        out_png = f'{out_prefix}_vs_world.png'
+        out_json = f'{out_prefix}_vs_world.json'
+        cmd = [
+            'python3', self.vs_world_script,
+            '--wbt', self.world_file,
+            '--map', yaml_path,
+            '--out', out_png,
+            '--report', out_json,
+        ]
+        try:
+            completed = subprocess.run(
+                cmd, check=False, text=True, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, timeout=self.vs_world_timeout_sec)
+        except subprocess.TimeoutExpired:
+            self._publish_status(
+                f'vs_world failed: timed out after '
+                f'{self.vs_world_timeout_sec:.1f}s')
+            return
+        except Exception as e:  # noqa: BLE001
+            self._publish_status(f'vs_world failed: {e}')
+            return
+        if completed.returncode != 0:
+            suffix = self._tail_for_status(completed.stdout or '')
+            self._publish_status(
+                f'vs_world failed: exit {completed.returncode}{suffix}')
+            return
+        self._publish_status(f'vs_world saved: {out_png}')
 
     def _tail_for_status(self, text):
         if not text:

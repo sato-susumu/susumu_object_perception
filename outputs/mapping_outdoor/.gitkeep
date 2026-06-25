@@ -1,0 +1,3 @@
+# outputs/mapping_outdoor/ は屋外マッピング採用版用のディレクトリ。
+# 現状: 屋外マッピングは「現状未対応」のため成果物なし (docs/tasks/mapping_outdoor.md 参照)。
+# 旧バージョンは experiments/mapping_outdoor/legacy/ に隔離した (2026-06-25)。
