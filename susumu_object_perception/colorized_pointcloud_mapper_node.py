@@ -60,6 +60,16 @@ class ColorizedPointCloudMapperNode(Node):
         self.declare_parameter(
             'save_dir', str(Path.home() / 'ros2_ws' / 'colorized_slam_maps'))
         self.declare_parameter('save_service', '/slam/save_colorized_map')
+        # 【静止時のみ蓄積モード】docs/tasks/colorized_pointcloud.md の「未検証の有力策」。
+        # 巡回中の SLAM 2D 姿勢誤差が点群のブレ・放射状の筋の真因。 連続する TF から
+        # 並進・回転速度を推定し、両方とも閾値以下のときだけ integrate する。
+        # 屋内で歩行ロボット (Webots Burger ~0.2 m/s) なら threshold 0.05 m/s が目安。
+        # 0 以下で無効（既存動作と同じ）。
+        # 一般的 robot SLAM の stationary detection 閾値 (VILENS 等で 0.2 m / 5°) より厳しめ。
+        self.declare_parameter('stationary_only', False)
+        self.declare_parameter('stationary_max_lin_velocity', 0.05)
+        self.declare_parameter('stationary_max_ang_velocity', 0.2)
+        self.declare_parameter('stationary_velocity_window_sec', 0.5)
 
         self.input_cloud = self.get_parameter('input_cloud').value
         self.output_cloud = self.get_parameter('output_cloud').value
@@ -75,10 +85,26 @@ class ColorizedPointCloudMapperNode(Node):
         self.update_alpha = float(self.get_parameter('update_alpha').value)
         self.save_dir = Path(self.get_parameter('save_dir').value)
 
+        self.stationary_only = bool(
+            self.get_parameter('stationary_only').value)
+        self.stationary_max_lin = float(
+            self.get_parameter('stationary_max_lin_velocity').value)
+        self.stationary_max_ang = float(
+            self.get_parameter('stationary_max_ang_velocity').value)
+        self.stationary_window_sec = float(
+            self.get_parameter('stationary_velocity_window_sec').value)
+
         self.voxels = {}
         self.current_frame = self.target_frame
         self.last_stamp = self.get_clock().now().to_msg()
         self.received_clouds = 0
+        # 速度推定用の前回 TF キャッシュ (translation, quaternion, sec)。
+        # stationary_only=False のときは未使用。
+        self._prev_tf_xyz = None
+        self._prev_tf_quat = None
+        self._prev_tf_sec = None
+        self._skipped_moving = 0
+        self._accepted_stationary = 0
 
         self.pub = self.create_publisher(
             PointCloud2, self.output_cloud, qos_profile_sensor_data)
@@ -145,6 +171,60 @@ class ColorizedPointCloudMapperNode(Node):
             tf.transform.translation.y,
             tf.transform.translation.z,
         ], dtype=np.float32)
+
+        # 【静止時のみ蓄積】速度推定し、両方が閾値以下のときだけ integrate する。
+        if self.stationary_only and self._prev_tf_xyz is not None:
+            now_sec = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+            dt = now_sec - self._prev_tf_sec
+            if dt > 0.0 and dt <= self.stationary_window_sec:
+                lin_v = float(np.linalg.norm(trans - self._prev_tf_xyz)) / dt
+                # quaternion 距離 -> 角度 -> 角速度
+                q1 = self._prev_tf_quat
+                q2 = np.array([
+                    tf.transform.rotation.x,
+                    tf.transform.rotation.y,
+                    tf.transform.rotation.z,
+                    tf.transform.rotation.w,
+                ], dtype=np.float32)
+                # |dot| ≈ cos(theta/2) のため angle = 2*acos(|dot|)
+                dot = float(np.clip(abs(np.dot(q1, q2)), -1.0, 1.0))
+                ang = 2.0 * float(np.arccos(dot))
+                ang_v = ang / dt
+                if (lin_v > self.stationary_max_lin
+                        or ang_v > self.stationary_max_ang):
+                    self._skipped_moving += 1
+                    if self._skipped_moving % 50 == 0:
+                        self.get_logger().info(
+                            f'stationary_only: skipped {self._skipped_moving} '
+                            f'moving frames (last lin={lin_v:.3f} m/s '
+                            f'ang={ang_v:.3f} rad/s)')
+                    # TF キャッシュは更新する (速度推定のため)
+                    self._prev_tf_xyz = trans.copy()
+                    self._prev_tf_quat = q2
+                    self._prev_tf_sec = now_sec
+                    return
+                self._accepted_stationary += 1
+            self._prev_tf_xyz = trans.copy()
+            self._prev_tf_quat = np.array([
+                tf.transform.rotation.x,
+                tf.transform.rotation.y,
+                tf.transform.rotation.z,
+                tf.transform.rotation.w,
+            ], dtype=np.float32)
+            self._prev_tf_sec = now_sec
+        elif self.stationary_only:
+            # 初回: TF キャッシュ初期化のみ
+            now_sec = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+            self._prev_tf_xyz = trans.copy()
+            self._prev_tf_quat = np.array([
+                tf.transform.rotation.x,
+                tf.transform.rotation.y,
+                tf.transform.rotation.z,
+                tf.transform.rotation.w,
+            ], dtype=np.float32)
+            self._prev_tf_sec = now_sec
+            return
+
         pts_map = pts @ rot.T + trans
         self.integrate(pts_map, rgb)
         self.last_stamp = msg.header.stamp
