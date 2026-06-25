@@ -70,13 +70,28 @@ run_patrol() {
   local WP=$3
   local LOG="$LOGDIR/patrol_${NAME}.log"
   echo "[$(date -Iseconds)] TASK 3 patrol $WORLD" | tee "$LOG"
+  # report_prefix を渡して JSON/CSV/Markdown を必ず出す → PNG 可視化の入力にする
+  local REPORT_PREFIX="$PKG/outputs/waypoint_generation/${NAME}_patrol_report"
   timeout "$STEP_TIMEOUT_SEC" ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
     world:="$WORLD" waypoints:="$WP" mode:=realtime \
     rviz:=False loop:=False image_recognition:=False \
     perception:=False omni_perception:=False \
+    report_prefix:="$REPORT_PREFIX" \
     >> "$LOG" 2>&1
   echo "[$(date -Iseconds)] patrol $NAME exit=$?" | tee -a "$LOG"
   killall_webots
+  # === 巡回結果 PNG 必須生成 (ユーザー指示: 巡回タスクで PNG 結果出力) ===
+  local MAP="$PKG/outputs/mapping_indoor/${NAME}.yaml"
+  local REPORT_JSON="${REPORT_PREFIX}.json"
+  local PATROL_PNG="$PKG/outputs/waypoint_generation/${NAME}_patrol_result.png"
+  if [[ -f "$REPORT_JSON" && -f "$MAP" ]]; then
+    echo "[$(date -Iseconds)] rendering patrol PNG -> $PATROL_PNG" | tee -a "$LOG"
+    python3 "$PKG/scripts/visualize_patrol_result.py" \
+      --map "$MAP" --report "$REPORT_JSON" --out "$PATROL_PNG" \
+      >> "$LOG" 2>&1 || echo "  -> patrol PNG render failed" | tee -a "$LOG"
+  else
+    echo "[$(date -Iseconds)] WARN: report=$REPORT_JSON or map=$MAP missing; skip patrol PNG" | tee -a "$LOG"
+  fi
 }
 
 run_recog() {
@@ -87,10 +102,13 @@ run_recog() {
   local DB="$HOME/.ros/object_memory.sqlite3"
   echo "[$(date -Iseconds)] TASK 4 recognition patrol $WORLD" | tee "$LOG"
   rm -f "$DB"
+  # 認識巡回でも reached/missed PNG を出すため report_prefix を渡す
+  local RECOG_PATROL_PREFIX="$PKG/outputs/recognition/${NAME}_recognition_patrol_report"
   timeout "$STEP_TIMEOUT_SEC" ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
     world:="$WORLD" waypoints:="$WP" mode:=realtime \
     rviz:=False loop:=False \
     perception:=True omni_perception:=True image_recognition:=True \
+    report_prefix:="$RECOG_PATROL_PREFIX" \
     >> "$LOG" 2>&1
   echo "[$(date -Iseconds)] recog $NAME exit=$?" | tee -a "$LOG"
   killall_webots
@@ -119,6 +137,15 @@ run_recog() {
       --out-prefix "$EVAL_PREFIX" \
       --min-existence 0.5 --min-hits 2 --match-distance 1.0 \
       >> "$LOG" 2>&1 || echo "  -> eval failed" | tee -a "$LOG"
+  fi
+  # 認識巡回の reached/missed PNG も生成 (ユーザー指示: 巡回タスクで PNG 結果出力)
+  local RECOG_PATROL_JSON="${RECOG_PATROL_PREFIX}.json"
+  local RECOG_PATROL_PNG="$PKG/outputs/recognition/${NAME}_recognition_patrol_result.png"
+  if [[ -f "$RECOG_PATROL_JSON" && -f "$MAP" ]]; then
+    echo "[$(date -Iseconds)] rendering recognition patrol PNG -> $RECOG_PATROL_PNG" | tee -a "$LOG"
+    python3 "$PKG/scripts/visualize_patrol_result.py" \
+      --map "$MAP" --report "$RECOG_PATROL_JSON" --out "$RECOG_PATROL_PNG" \
+      >> "$LOG" 2>&1 || echo "  -> recog patrol PNG failed" | tee -a "$LOG"
   fi
 }
 

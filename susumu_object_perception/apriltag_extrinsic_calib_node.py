@@ -177,23 +177,6 @@ class AprilTagExtrinsicCalibNode(Node):
         # 物理中心（カメラ PnP が見るタグ面中心と同じ）に合わせ、x 方向の系統オフセットを消す。
         # calibration.wbt のパネル Box 厚 0.04m → 補正 0.02m。0.0 で無効。
         self.declare_parameter('board_thickness', 0.04)
-        # 【LiDAR 上向き FOV 補正】LiDAR が板の下半分にしか点を返さない場合、 重心の
-        # z 座標は板物理中心より下に偏る。 z 座標を「点群の z 範囲中央 (max+min)/2」
-        # に置き換えると、 点が下半分に偏っていても z は板中央近くになる。
-        # True で有効。 docs/tasks/extrinsic_calibration.md の「並進絶対誤差 24mm 」
-        # 対策 (LiDAR が板の下半分にしか点を返さず重心が下に偏る) の候補。
-        self.declare_parameter('lidar_z_use_range_mid', False)
-        # 【新案 iter25】 板上端 (z_max) からの理論的中心推定。
-        # LiDAR が板下半分にしか点を返さない場合でも、 板上端 (z_max) は捉えやすい。
-        # 板物理中心 z = z_max - board_height / 2 と仮定。 範囲中央 (max+min)/2 と
-        # 異なり、 「下半分しか点が無くても上端だけ取れれば中心が出る」 想定。
-        # 板高は world ごとに異なるので明示的にパラメータで渡す。 0.0 で無効。
-        self.declare_parameter('board_height_assumption', 0.0)
-        # 【iter26 ロバスト推定】 board_height_assumption の z_top 推定で max()
-        # の代わりに上位分位平均を使う。 0.0-0.5 の範囲、 既定 0.0 で max() のまま。
-        # 0.1 なら上位 10% の点の平均で z_top を決める (外れ値に強い)。
-        # iter25 で max() が天井反射等の外れ値に支配されたため追加。
-        self.declare_parameter('board_top_quantile', 0.0)
         self.declare_parameter('output_json', os.path.expanduser(
             '~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json'))
         # 既知初期 TF（lidar_link -> omni_camera_link、検証時の参照）。
@@ -220,12 +203,6 @@ class AprilTagExtrinsicCalibNode(Node):
         self.z_min = float(self.get_parameter('lidar_z_min').value)
         self.z_max = float(self.get_parameter('lidar_z_max').value)
         self.board_thickness = float(self.get_parameter('board_thickness').value)
-        self.lidar_z_use_range_mid = bool(
-            self.get_parameter('lidar_z_use_range_mid').value)
-        self.board_height_assumption = float(
-            self.get_parameter('board_height_assumption').value)
-        self.board_top_quantile = float(
-            self.get_parameter('board_top_quantile').value)
         self.output_json = self.get_parameter('output_json').value
         self.ref_translation = [float(v)
                                 for v in self.get_parameter('ref_translation').value]
@@ -363,31 +340,6 @@ class AprilTagExtrinsicCalibNode(Node):
             return None
         inliers = seg[best_inliers]
         center = inliers.mean(axis=0)
-        # z 補正は排他的に選ぶ。 同時に True ならば board_height_assumption を優先。
-        if self.board_height_assumption > 0.0:
-            # 板上端の z (max) は LiDAR が下半分しか取れなくても捉えやすい。
-            # 物理中心 = z_top - board_height / 2 と仮定し x,y は重心を維持。
-            # z_top の推定: 既定は max()。 board_top_quantile が正なら上位分位平均
-            # (例 0.1 = 上位 10% の点の平均) でロバスト推定する。 iter25 で max()
-            # が天井反射等の外れ値に弱いと判明したため。
-            z_vals = inliers[:, 2]
-            if 0.0 < self.board_top_quantile < 1.0:
-                q_thresh = float(np.quantile(z_vals, 1.0 - self.board_top_quantile))
-                top_mask = z_vals >= q_thresh
-                if top_mask.sum() > 0:
-                    z_top = float(z_vals[top_mask].mean())
-                else:
-                    z_top = float(z_vals.max())
-            else:
-                z_top = float(z_vals.max())
-            z_center = z_top - self.board_height_assumption / 2.0
-            center = np.array([center[0], center[1], z_center])
-        elif self.lidar_z_use_range_mid:
-            # LiDAR が板下半分しか取れない条件で z 重心が下に偏るのを矯正。
-            # x, y は重心のまま、 z だけ点群 z 範囲中央 (max+min)/2 に置換。
-            z_mid = (float(inliers[:, 2].max()) +
-                     float(inliers[:, 2].min())) * 0.5
-            center = np.array([center[0], center[1], z_mid])
         return center
 
     # ---- 収集 + 推定 -----------------------------------------------------

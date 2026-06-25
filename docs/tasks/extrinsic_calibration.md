@@ -95,29 +95,22 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 変更か、 LiDAR 点群の理論補正 (上向き FOV で偏った重心を解析的にシフト) が要る。
 実験ファイルは `experiments/extrinsic_calibration/2026-06-26_panel_z020/` に保存。
 
-**iter10 (lidar_z_use_range_mid 追試)**: 重心 z を「点群 z 範囲中央 (max+min)/2」
-に置換するパラメータを実装し検証。 結果は RMS 10.0mm / translation 27.8mm で
-採用版より悪化。 「下半分点群の範囲中央」自体が板物理中心と一致せず、 補正が
-逆効果。 引き続き採用版 (mean、 板厚補正のみ) を維持。 機能はパラメータとして
-残るので将来の検証 (重み付き重心、 板上端推定) で活用できる。
+### 試行済みで採用しなかった補正案 (実装は削除済み)
 
-**iter25 (board_height_assumption 追試)**: 「上端 z (max) を板上端と仮定し、 そこから
-板高の半分を引いた値を中心とする」 案を実装し検証。 calibration.wbt のパネル高
-0.3m を `board_height_assumption:=0.3` で渡してライブ実行。 結果は z translation
-0.8635m (期待 0.55m、 **314mm 大幅悪化**) / RMS 10.0mm。 採用版から **z が大きく
-ずれた**。 原因: `max()` ベース推定が天井反射等の外れ値に敏感で、 板上端ではなく
-高い位置の点に支配される。 → **不採用**、 採用版 (mean、 板厚補正のみ) を維持。
-実装はそのまま残し、 既定 0.0 で OFF。 将来別のロバスト推定 (中央値、 上位
-10% 平均) を試す際の足場として活用可能。
-実験ファイル: `experiments/extrinsic_calibration/2026-06-26_iter25_board_height_assumption/`
+数値ベースの z 補正案を 3 件試したがいずれも採用版より悪化したため、 ソースから
+完全削除した。 学び:
 
-**iter26 (board_top_quantile 追試)**: iter25 の max() を上位分位平均に置き換えた
-ロバスト推定を試す。 q=0.1/0.3/0.5 で z translation err = 294/190/91mm。 quantile を
-上げると採用版 (mean) に収束するだけで、 **採用版を超えるロバスト推定値は存在しない**
-ことが実機実証で判明。 真因は「下半分点群の偏り」 vs 「上端の外れ値」 のトレードオフ
-で、 数値補正では超えられない。 1cm 未満達成には LiDAR 物理モデルの解析的補正が
-必要。 → **不採用**、 機能はパラメータとして残す (既定 0.0 で OFF、 既存と完全互換)。
-実験ファイル: `experiments/extrinsic_calibration/2026-06-26_iter26_top_quantile/`
+- **「点群 z 範囲中央 (max+min)/2」**: RMS 10.0mm / translation 27.8mm → 悪化
+  (実機 iter10、 calibration.wbt)
+- **「板高仮定で z_top - board_height/2」**: z translation 0.8635m / 314mm
+  大幅悪化 (実機 iter25)。 真因は max() ベース推定が天井反射等の外れ値に支配される
+- **「上位分位平均でロバスト z_top 推定」**: q=0.1/0.3/0.5 で err=294/190/91mm。
+  quantile を上げると採用版 (mean) に収束するだけ (実機 iter26)。 「下半分偏り」 vs
+  「上端外れ値」 のトレードオフで数値補正では超えられない
+
+**結論**: 数値的な z 補正では 1cm 未満は達成不能。 1cm 未満達成には LiDAR 物理
+モデルの解析的補正 (上向き FOV 上限から偏り量を sin θ で計算) または target 配置の
+見直しが必要。 短期的にはこれ以上踏み込まない。
 
 ## 関連
 

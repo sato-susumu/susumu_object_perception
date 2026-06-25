@@ -10,6 +10,7 @@
 | 入力 | `webots_worlds/<world>.wbt`、`outputs/waypoint_generation/<world>_waypoints.yaml` |
 | 実行 | `launch/webots_waypoint_nav.launch.py` |
 | 出力（ライブ） | `/waypoint_nav/status`、`/waypoints/markers`、Nav2 の走行結果 |
+| 出力（最終） | `outputs/waypoint_generation/<world>_patrol_report.{json,csv,md}` (reached/missed 詳細)、`outputs/waypoint_generation/<world>_patrol_result.png` (地図に reached=緑/苦戦=黄/missed=赤 を重ねた可視化)。 `scripts/run_all_tasks.sh` が巡回完了後に `visualize_patrol_result.py` を必ず呼んで PNG を生成 |
 | 出力（中間） | `experiments/waypoint_navigation/<YYYY-MM-DD>_<label>/`（`report_prefix.{json,csv,md}` / localization cycle / EKF/odom 比較 / radius multiplier 評価。gitignore） |
 | 併用 | `perception:=True omni_perception:=True image_recognition:=True` で巡回しながら認識も実行可能 |
 
