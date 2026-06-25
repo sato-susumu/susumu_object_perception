@@ -74,6 +74,11 @@ class StepDetectorNode(Node):
         self.declare_parameter('stuck_progress_ratio', 0.3)
         # 進行率判定の窓 [s]。
         self.declare_parameter('stuck_window_sec', 2.0)
+        # stuck 判定にこの秒数のサンプルが揃うまで発火しない (起動直後/加速時の
+        # false positive を避ける)。 窓長の 80% 以上が初期値の目安。
+        self.declare_parameter('stuck_min_window_fill_sec', 1.6)
+        # stuck 発火後のクールダウン [s]。 1 つの段差で多発しないように。
+        self.declare_parameter('stuck_cooldown_sec', 3.0)
         # 加速度 z 急変判定 [m/s^2]。 短時間に重力 (9.81) からこの値以上ズレたら
         # 「段差通過」 イベント。
         self.declare_parameter('accel_z_jolt_threshold', 4.0)
@@ -92,6 +97,10 @@ class StepDetectorNode(Node):
             self.get_parameter('stuck_progress_ratio').value)
         self.stuck_window_sec = float(
             self.get_parameter('stuck_window_sec').value)
+        self.stuck_min_window_fill_sec = float(
+            self.get_parameter('stuck_min_window_fill_sec').value)
+        self.stuck_cooldown_sec = float(
+            self.get_parameter('stuck_cooldown_sec').value)
         self.jolt_threshold = float(
             self.get_parameter('accel_z_jolt_threshold').value)
         self.warn_period_sec = float(
@@ -104,6 +113,7 @@ class StepDetectorNode(Node):
         # 直近 cmd_vel と odom サンプル
         self._cmd_vel_samples = deque(maxlen=200)
         self._odom_samples = deque(maxlen=200)
+        self._last_stuck_fire_t = 0.0
 
         # Publisher / Subscriber
         self.pub_status = self.create_publisher(
@@ -213,8 +223,19 @@ class StepDetectorNode(Node):
             self._cmd_vel_samples.popleft()
 
     def _check_stuck(self, now):
-        # 直近窓の平均
         if not self._cmd_vel_samples or not self._odom_samples:
+            return
+        # 窓のサンプルが十分に貯まるまで判定保留 (起動直後/加速中の false positive
+        # 回避)。 両方の系列で「窓内の時間長」 が閾値以上であることを要求する。
+        def _series_span(samples):
+            if len(samples) < 2:
+                return 0.0
+            return samples[-1][0] - samples[0][0]
+        if (_series_span(self._cmd_vel_samples) < self.stuck_min_window_fill_sec
+                or _series_span(self._odom_samples) < self.stuck_min_window_fill_sec):
+            return
+        # 直近の発火からクールダウン中は判定しない
+        if now - self._last_stuck_fire_t < self.stuck_cooldown_sec:
             return
         cmd_avg = sum(s for _, s in self._cmd_vel_samples) / len(self._cmd_vel_samples)
         odom_avg = sum(s for _, s in self._odom_samples) / len(self._odom_samples)
@@ -223,6 +244,7 @@ class StepDetectorNode(Node):
             return
         ratio = odom_avg / cmd_avg if cmd_avg > 0 else 1.0
         if ratio < self.stuck_progress_ratio:
+            self._last_stuck_fire_t = now
             self._emit_event('stuck', {
                 'cmd_vel_avg': cmd_avg,
                 'odom_avg': odom_avg,

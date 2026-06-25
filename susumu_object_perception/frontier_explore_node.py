@@ -770,7 +770,7 @@ class FrontierExploreNode(Node):
         # tilt_recover / accel_jolt は無視 (検出だけで blacklist 不要)
         if event_type not in ('tilt', 'stuck'):
             return
-        now = self._now_sec()
+        now = self.get_clock().now().nanoseconds * 1e-9
         if (self._last_step_event_t is not None and
                 now - self._last_step_event_t < self.step_detector_cooldown_sec):
             return
