@@ -222,7 +222,15 @@ pass-through 追加 (iter13)。 これで **巡回中も静止フレームだけ
 | **iter13 (巡回 + stationary_only)** | **69,682** | **5.01×9.97m** | **5,922** | **8/8 missed=[]** |
 
 iter13 は **巡回完走 + 占有セル 57% 減 + 点数 1/3** でバランスが良い。 巡回完走と
-シャープさを両立する有力策で、 次の採用候補。 使い方:
+シャープさを両立する有力策で、 次の採用候補。
+
+**iter20 (2026-06-26): break_room ライブ検証で world 非依存性を確認。** break_room.wbt
+で `stationary_only:=True` で 60s 静止累積 → 7,629 点 / 272 KB を取得。 indoor の
+巡回 6 分成果物 (280 KB) と同等サイズで、 full 蓄積 (12 MB) より 1/40 にコンパクト。
+モードが indoor 以外の world でも期待通り動作することを確認。
+詳細: `experiments/colorized_pointcloud/2026-06-26_iter20_break_room_stationary/README.md`
+
+使い方:
 
 ```bash
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
