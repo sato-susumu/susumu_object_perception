@@ -84,8 +84,9 @@ run_recog() {
   local WORLD=$2
   local WP=$3
   local LOG="$LOGDIR/recog_${NAME}.log"
+  local DB="$HOME/.ros/object_memory.sqlite3"
   echo "[$(date -Iseconds)] TASK 4 recognition patrol $WORLD" | tee "$LOG"
-  rm -f /tmp/${NAME}_object_memory.sqlite3
+  rm -f "$DB"
   timeout "$STEP_TIMEOUT_SEC" ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
     world:="$WORLD" waypoints:="$WP" mode:=realtime \
     rviz:=False loop:=False \
@@ -93,6 +94,32 @@ run_recog() {
     >> "$LOG" 2>&1
   echo "[$(date -Iseconds)] recog $NAME exit=$?" | tee -a "$LOG"
   killall_webots
+  # === 認識結果の可視化 PNG 必須生成 ===
+  # webots_simulation.launch.py で object_memory_node が ~/.ros/object_memory.sqlite3
+  # に書く前提。DB が無いときは「認識が動かなかった」サインとして強調表示する。
+  local MAP="$PKG/outputs/mapping_indoor/${NAME}.yaml"
+  local OVERLAY_PNG="$PKG/outputs/recognition/${NAME}_recognition_overlay.png"
+  local EVAL_PREFIX="$PKG/outputs/recognition/${NAME}_recognition_eval"
+  local WBT="$PKG/webots_worlds/${WORLD}"
+  if [[ ! -f "$DB" ]]; then
+    echo "[$(date -Iseconds)] WARN: DB missing ($DB); skip PNG visualization" | tee -a "$LOG"
+    return
+  fi
+  if [[ -f "$MAP" ]]; then
+    echo "[$(date -Iseconds)] rendering overlay -> $OVERLAY_PNG" | tee -a "$LOG"
+    python3 "$PKG/scripts/render_recognition_overlay.py" \
+      --map "$MAP" --db "$DB" --out "$OVERLAY_PNG" \
+      --min-existence 0.5 --min-hits 2 \
+      >> "$LOG" 2>&1 || echo "  -> overlay render failed" | tee -a "$LOG"
+  fi
+  if [[ -f "$WBT" && -f "$MAP" ]]; then
+    echo "[$(date -Iseconds)] evaluating vs world -> ${EVAL_PREFIX}.{md,json,csv,png}" | tee -a "$LOG"
+    python3 "$PKG/scripts/evaluate_recognition_vs_world.py" \
+      --wbt "$WBT" --map "$MAP" --db "$DB" \
+      --out-prefix "$EVAL_PREFIX" \
+      --min-existence 0.5 --min-hits 2 --match-distance 1.0 \
+      >> "$LOG" 2>&1 || echo "  -> eval failed" | tee -a "$LOG"
+  fi
 }
 
 run_color() {

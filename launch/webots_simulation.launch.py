@@ -544,6 +544,32 @@ def generate_launch_description():
         }],
         condition=launch.conditions.IfCondition(use_image_recognition))
 
+    # === セマンティック物体メモリ（image_recognition:=True で起動）===
+    # tracked_objects_classified を SQLite DB に記録し、認識タスクの最終評価
+    # (render_recognition_overlay.py / evaluate_recognition_vs_world.py) の入力にする。
+    # DB の出力先は ~/.ros/object_memory.sqlite3 が既定。run_all_tasks.sh では
+    # db_path:= で /tmp/<world>_object_memory.sqlite3 にリダイレクトする。
+    object_memory = Node(
+        package='susumu_object_perception',
+        executable='object_memory_node.py',
+        name='object_memory',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'input_topic': '/perception/tracked_objects_classified',
+            'require_fine_class': True,
+            'min_fine_conf': 0.15,
+            'require_map_support': True,
+            'map_support_dist': 0.45,
+            'map_support_class_distances': 'plant=0.55,table=0.55',
+            'static_class_geometry_filter': True,
+            'static_duplicate_merge_dist': 1.7,
+            'static_cross_class_merge_dist': 0.75,
+            'static_compatible_class_groups': 'chair,couch',
+            'static_merge_class_priority': 'chair,couch',
+        }],
+        condition=launch.conditions.IfCondition(use_image_recognition))
+
     colorized_mapper = Node(
         package='susumu_object_perception',
         executable='colorized_pointcloud_mapper_node.py',
@@ -747,6 +773,7 @@ def generate_launch_description():
         traffic_light_detector,
         traffic_light_localizer,
         traffic_light_marker,
+        object_memory,
         colorized_mapper,
         rviz,
         # Webots 終了時に全ノードを落とす

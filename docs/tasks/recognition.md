@@ -11,7 +11,8 @@
 | 入力 | 3D LiDAR 点群、全天球画像、2D `/map` |
 | 実行 | `simulation.launch.py`、`webots_simulation.launch.py`、`webots_waypoint_nav.launch.py perception:=True omni_perception:=True image_recognition:=True` |
 | 出力（ライブ） | `/perception/tracked_objects`、`/perception/tracked_objects_classified`、`/perception/predicted_objects`、`/perception/predicted_costmap`、`/perception/traffic_signals`、RViz markers |
-| 出力（最終） | `outputs/recognition/indoor_recognition_overlay.png`、`outputs/recognition/indoor_recognition_eval.{md,json,csv}`、`outputs/recognition/indoor_recognition_eval_ignore_table_sofa.{md,json,csv}`（採用評価。契約名・git 追跡） |
+| 出力（最終） | `outputs/recognition/<world>_recognition_overlay.png`（地図上に物体ラベル重ね、必須）、`outputs/recognition/<world>_recognition_eval.{md,json,csv,png}`（world 真値との照合・採用評価、PNG 必須）、`outputs/recognition/<world>_recognition_eval_ignore_table_sofa.{md,json,csv}`（採用評価。契約名・git 追跡） |
+| 出力 PNG の必須化 | 認識タスクの launch 終了後、`scripts/run_all_tasks.sh` が `render_recognition_overlay.py` と `evaluate_recognition_vs_world.py` を必ず呼び `_recognition_overlay.png` と `_recognition_eval.png` を生成する。`webots_simulation.launch.py` は `image_recognition:=True` のとき `object_memory_node` を自動起動して `~/.ros/object_memory.sqlite3` を書く。DB が見つからないときは run_all_tasks.sh が WARN を出して visualization を skip し、認識が機能していないサインとして強調する |
 | 出力（中間） | `experiments/recognition/<YYYY-MM-DD>_<label>/`（cycle 別の eval / recorder / nav / crops / yolo_compare / viewpoint。gitignore） |
 | Nav2 連携 | prediction のみを `/perception/predicted_costmap` として自作 costmap layer に max 合成 |
 
