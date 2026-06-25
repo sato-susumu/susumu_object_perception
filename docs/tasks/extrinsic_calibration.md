@@ -77,6 +77,24 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 - 評価モードは `mode:=realtime`。
 - 独自 `.msg` は作らない。検出は OpenCV `cv2.aruco`、出力は vlcal 互換 calib.json。
 
+## 試行・未採用 (2026-06-26)
+
+「パネル z を LiDAR 水平面 (z=0.20) 中心へ下げる」案をライブで検証。 結果:
+
+| パネル z | 結果 | 判定 |
+|---|---|---|
+| **0.75 (採用)** | RMS 9.6mm / transl err 24.2mm | **採用維持** |
+| 0.20 (LiDAR水平面) | cam tags=[] (camera から見えない) | 不可 |
+| 0.475 (LiDAR と camera の中間) | RMS 12.7mm / transl err 33.8mm | 改悪 |
+
+- z=0.20 は omni camera (z=0.75) から見て真下になり画角外で検出できず。
+- z=0.475 は LiDAR 視点での「板上半分の重心ズレ」と camera 見下げ角の「タグ歪み」の
+  両方が重畳し採用版より精度低下。
+
+**結論**: パネルだけ動かしても精度改善しない。 1cm 未満を狙うなら cam/LiDAR 配置の
+変更か、 LiDAR 点群の理論補正 (上向き FOV で偏った重心を解析的にシフト) が要る。
+実験ファイルは `experiments/extrinsic_calibration/2026-06-26_panel_z020/` に保存。
+
 ## 関連
 
 - [全天球カメラ + LiDAR 色付き点群メモ](../omni_lidar_camera.md)（手法・実測・落とし穴の正本）
