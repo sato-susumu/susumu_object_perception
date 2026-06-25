@@ -68,6 +68,8 @@ def generate_launch_description():
                     # Webots driver の実 LiDAR トピックは /lidar/points/point_cloud
                     # （webots_simulation.launch.py と同じ）。
                     'input_cloud': '/lidar/points/point_cloud',
+                    'lidar_z_use_range_mid': LaunchConfiguration(
+                        'lidar_z_use_range_mid'),
                 }],
             ),
         ],
@@ -101,6 +103,11 @@ def generate_launch_description():
             default_value=os.path.expanduser(
                 '~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json'),
             description='AprilTag キャリブ結果 calib.json の出力先'),
+        DeclareLaunchArgument(
+            'lidar_z_use_range_mid', default_value='False',
+            description='LiDAR 板抽出で z 座標を「点群の z 範囲中央 (max+min)/2」に '
+                        '置換する。 板下半分しか点が来ない場合 (MID-360 上向き FOV) '
+                        'の補正候補'),
         sim,
         apriltag_calib,
     ])

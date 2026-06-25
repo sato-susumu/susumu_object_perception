@@ -177,6 +177,12 @@ class AprilTagExtrinsicCalibNode(Node):
         # 物理中心（カメラ PnP が見るタグ面中心と同じ）に合わせ、x 方向の系統オフセットを消す。
         # calibration.wbt のパネル Box 厚 0.04m → 補正 0.02m。0.0 で無効。
         self.declare_parameter('board_thickness', 0.04)
+        # 【LiDAR 上向き FOV 補正】LiDAR が板の下半分にしか点を返さない場合、 重心の
+        # z 座標は板物理中心より下に偏る。 z 座標を「点群の z 範囲中央 (max+min)/2」
+        # に置き換えると、 点が下半分に偏っていても z は板中央近くになる。
+        # True で有効。 docs/tasks/extrinsic_calibration.md の「並進絶対誤差 24mm 」
+        # 対策 (LiDAR が板の下半分にしか点を返さず重心が下に偏る) の候補。
+        self.declare_parameter('lidar_z_use_range_mid', False)
         self.declare_parameter('output_json', os.path.expanduser(
             '~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json'))
         # 既知初期 TF（lidar_link -> omni_camera_link、検証時の参照）。
@@ -203,6 +209,8 @@ class AprilTagExtrinsicCalibNode(Node):
         self.z_min = float(self.get_parameter('lidar_z_min').value)
         self.z_max = float(self.get_parameter('lidar_z_max').value)
         self.board_thickness = float(self.get_parameter('board_thickness').value)
+        self.lidar_z_use_range_mid = bool(
+            self.get_parameter('lidar_z_use_range_mid').value)
         self.output_json = self.get_parameter('output_json').value
         self.ref_translation = [float(v)
                                 for v in self.get_parameter('ref_translation').value]
@@ -338,7 +346,15 @@ class AprilTagExtrinsicCalibNode(Node):
                 best_inliers = inliers
         if best_inliers is None or best_count < 15:
             return None
-        return seg[best_inliers].mean(axis=0)
+        inliers = seg[best_inliers]
+        center = inliers.mean(axis=0)
+        if self.lidar_z_use_range_mid:
+            # LiDAR が板下半分しか取れない条件で z 重心が下に偏るのを矯正。
+            # x, y は重心のまま、 z だけ点群 z 範囲中央 (max+min)/2 に置換。
+            z_mid = (float(inliers[:, 2].max()) +
+                     float(inliers[:, 2].min())) * 0.5
+            center = np.array([center[0], center[1], z_mid])
+        return center
 
     # ---- 収集 + 推定 -----------------------------------------------------
 

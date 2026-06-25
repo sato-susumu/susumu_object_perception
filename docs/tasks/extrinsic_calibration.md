@@ -95,6 +95,12 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 変更か、 LiDAR 点群の理論補正 (上向き FOV で偏った重心を解析的にシフト) が要る。
 実験ファイルは `experiments/extrinsic_calibration/2026-06-26_panel_z020/` に保存。
 
+**iter10 (lidar_z_use_range_mid 追試)**: 重心 z を「点群 z 範囲中央 (max+min)/2」
+に置換するパラメータを実装し検証。 結果は RMS 10.0mm / translation 27.8mm で
+採用版より悪化。 「下半分点群の範囲中央」自体が板物理中心と一致せず、 補正が
+逆効果。 引き続き採用版 (mean、 板厚補正のみ) を維持。 機能はパラメータとして
+残るので将来の検証 (重み付き重心、 板上端推定) で活用できる。
+
 ## 関連
 
 - [全天球カメラ + LiDAR 色付き点群メモ](../omni_lidar_camera.md)（手法・実測・落とし穴の正本）
