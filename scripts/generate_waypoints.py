@@ -862,6 +862,12 @@ def main():
                     help='測地距離がこの値[m]超の区間を既存点経由で短い連続ジャンプにする（0で無効）')
     ap.add_argument('--max-segment-length', type=float, default=0.0,
                     help='split route edges longer than this geodesic length [m]')
+    # Consecutive duplicate-like waypoints (e.g. 5cm apart pairs created by relink /
+    # split) are mapped to "already at goal" by Nav2 and just consume goal_timeout
+    # per WP. xy_goal_tolerance is typically 0.25m so points closer than ~0.3m are
+    # practically the same goal. Merge them in post-processing.
+    ap.add_argument('--dedupe-min-separation', type=float, default=0.3,
+                    help='merge consecutive waypoints closer than this [m] (0 disables)')
     # 屋外のように LiDAR が通行止めの向こう側を free として広く観測する地図では、
     # 探索対象外の free セルまで巡回点にすると Nav2 が区画外へ向かう。0 以下なら無制限。
     ap.add_argument('--limit-radius', type=float, default=0.0,
@@ -1054,6 +1060,23 @@ def main():
         ordered_cells, connectable, res, args.max_segment_length,
         waypoint_mask=place, shortest_path_func=shortest_path_func)
     ordered = [cell_to_map(*cell) for cell in route_cells]
+    # Dedupe consecutive near-duplicate waypoints (within --dedupe-min-separation [m]).
+    # Nav2 controllers' xy_goal_tolerance is typically 0.25m, so points closer than
+    # ~0.3m are practically the same goal and just consume goal_timeout per WP.
+    # See ros-planning/navigation2#3107 for related "waypoint skipping" issue.
+    dedupe_min = float(args.dedupe_min_separation)
+    if dedupe_min > 0.0 and len(ordered) > 1:
+        before = len(ordered)
+        dedup_min2 = dedupe_min ** 2
+        deduped = [ordered[0]]
+        for (px, py) in ordered[1:]:
+            qx, qy = deduped[-1]
+            if (px - qx) ** 2 + (py - qy) ** 2 >= dedup_min2:
+                deduped.append((px, py))
+        ordered = deduped
+        if before > len(ordered):
+            print(f'  dedupe: {before} -> {len(ordered)} '
+                  f'(連続近接 < {dedupe_min:.2f}m を統合)')
     edge_stats = _route_edge_stats(
         route_cells, connectable, dist_cells, res, args.edge_clearance,
         shortest_path_func)
