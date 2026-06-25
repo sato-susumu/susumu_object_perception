@@ -183,6 +183,12 @@ class AprilTagExtrinsicCalibNode(Node):
         # True で有効。 docs/tasks/extrinsic_calibration.md の「並進絶対誤差 24mm 」
         # 対策 (LiDAR が板の下半分にしか点を返さず重心が下に偏る) の候補。
         self.declare_parameter('lidar_z_use_range_mid', False)
+        # 【新案 iter25】 板上端 (z_max) からの理論的中心推定。
+        # LiDAR が板下半分にしか点を返さない場合でも、 板上端 (z_max) は捉えやすい。
+        # 板物理中心 z = z_max - board_height / 2 と仮定。 範囲中央 (max+min)/2 と
+        # 異なり、 「下半分しか点が無くても上端だけ取れれば中心が出る」 想定。
+        # 板高は world ごとに異なるので明示的にパラメータで渡す。 0.0 で無効。
+        self.declare_parameter('board_height_assumption', 0.0)
         self.declare_parameter('output_json', os.path.expanduser(
             '~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json'))
         # 既知初期 TF（lidar_link -> omni_camera_link、検証時の参照）。
@@ -211,6 +217,8 @@ class AprilTagExtrinsicCalibNode(Node):
         self.board_thickness = float(self.get_parameter('board_thickness').value)
         self.lidar_z_use_range_mid = bool(
             self.get_parameter('lidar_z_use_range_mid').value)
+        self.board_height_assumption = float(
+            self.get_parameter('board_height_assumption').value)
         self.output_json = self.get_parameter('output_json').value
         self.ref_translation = [float(v)
                                 for v in self.get_parameter('ref_translation').value]
@@ -348,7 +356,14 @@ class AprilTagExtrinsicCalibNode(Node):
             return None
         inliers = seg[best_inliers]
         center = inliers.mean(axis=0)
-        if self.lidar_z_use_range_mid:
+        # z 補正は排他的に選ぶ。 同時に True ならば board_height_assumption を優先。
+        if self.board_height_assumption > 0.0:
+            # 板上端の z (max) は LiDAR が下半分しか取れなくても捉えやすい。
+            # 物理中心 = z_max - board_height / 2 と仮定し x,y は重心を維持。
+            z_top = float(inliers[:, 2].max())
+            z_center = z_top - self.board_height_assumption / 2.0
+            center = np.array([center[0], center[1], z_center])
+        elif self.lidar_z_use_range_mid:
             # LiDAR が板下半分しか取れない条件で z 重心が下に偏るのを矯正。
             # x, y は重心のまま、 z だけ点群 z 範囲中央 (max+min)/2 に置換。
             z_mid = (float(inliers[:, 2].max()) +

@@ -70,6 +70,8 @@ def generate_launch_description():
                     'input_cloud': '/lidar/points/point_cloud',
                     'lidar_z_use_range_mid': LaunchConfiguration(
                         'lidar_z_use_range_mid'),
+                    'board_height_assumption': LaunchConfiguration(
+                        'board_height_assumption'),
                 }],
             ),
         ],
@@ -108,6 +110,13 @@ def generate_launch_description():
             description='LiDAR 板抽出で z 座標を「点群の z 範囲中央 (max+min)/2」に '
                         '置換する。 板下半分しか点が来ない場合 (MID-360 上向き FOV) '
                         'の補正候補'),
+        DeclareLaunchArgument(
+            'board_height_assumption', default_value='0.0',
+            description='板の物理高 [m] を渡すと、 LiDAR 板抽出で z 座標を '
+                        '「点群 z の最上端 - board_height_assumption / 2」 に置換する。 '
+                        'iter25 で実装した代替補正案 (上端 z は LiDAR 上向き FOV でも '
+                        '捉えやすい想定)。 0.0 で無効 (既定)。 既知の calibration.wbt '
+                        'では 0.3 推奨。'),
         sim,
         apriltag_calib,
     ])

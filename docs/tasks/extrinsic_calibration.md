@@ -101,6 +101,16 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 逆効果。 引き続き採用版 (mean、 板厚補正のみ) を維持。 機能はパラメータとして
 残るので将来の検証 (重み付き重心、 板上端推定) で活用できる。
 
+**iter25 (board_height_assumption 追試)**: 「上端 z (max) を板上端と仮定し、 そこから
+板高の半分を引いた値を中心とする」 案を実装し検証。 calibration.wbt のパネル高
+0.3m を `board_height_assumption:=0.3` で渡してライブ実行。 結果は z translation
+0.8635m (期待 0.55m、 **314mm 大幅悪化**) / RMS 10.0mm。 採用版から **z が大きく
+ずれた**。 原因: `max()` ベース推定が天井反射等の外れ値に敏感で、 板上端ではなく
+高い位置の点に支配される。 → **不採用**、 採用版 (mean、 板厚補正のみ) を維持。
+実装はそのまま残し、 既定 0.0 で OFF。 将来別のロバスト推定 (中央値、 上位
+10% 平均) を試す際の足場として活用可能。
+実験ファイル: `experiments/extrinsic_calibration/2026-06-26_iter25_board_height_assumption/`
+
 ## 関連
 
 - [全天球カメラ + LiDAR 色付き点群メモ](../omni_lidar_camera.md)（手法・実測・落とし穴の正本）
