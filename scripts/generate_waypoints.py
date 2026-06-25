@@ -868,6 +868,12 @@ def main():
     # practically the same goal. Merge them in post-processing.
     ap.add_argument('--dedupe-min-separation', type=float, default=0.3,
                     help='merge consecutive waypoints closer than this [m] (0 disables)')
+    # Grid モードでも疎な分布を実現する Adaptive NMS (ANMS 系の簡易版)。
+    # 既定値 0.6 は spacing 1.5m との比 0.4 で、 1.5m × 0.4 = 0.6m を最小間隔とする。
+    # これは Nav2 の xy_goal_tolerance (0.25m) を 2 倍以上超える距離で「実質同じゴール」
+    # にならない設計。 0 で無効。
+    ap.add_argument('--grid-nms-separation-ratio', type=float, default=0.4,
+                    help='grid NMS で最小許容距離 = spacing * ratio。0 で無効 (既定 0.4)')
     # 屋外のように LiDAR が通行止めの向こう側を free として広く観測する地図では、
     # 探索対象外の free セルまで巡回点にすると Nav2 が区画外へ向かう。0 以下なら無制限。
     ap.add_argument('--limit-radius', type=float, default=0.0,
@@ -1007,7 +1013,31 @@ def main():
             d = dist_cells[cy, cx]
             if key not in best_in_cell or d > best_in_cell[key][2]:
                 best_in_cell[key] = (int(cx), int(cy), float(d))
-        pts_cell = [(c[0], c[1]) for c in best_in_cell.values()]
+        # NMS: grid 境界付近で隣 grid と近接する WP ペアを統合する。 grid モード単独だと
+        # 「各 1.5m 四方に最大 1 点」だが、境界がたまたま壁近くだと隣との距離が 0.1m
+        # 程度になることがある（iter1 で確認した 5cm ペア問題の根因の一つ）。
+        # 距離変換が大きい (壁から遠い) ものを優先して残し、min_separation 未満の近接候補は
+        # 捨てる。 min_separation = spacing * grid_nms_separation_ratio。 0 で無効。
+        nms_ratio = float(args.grid_nms_separation_ratio)
+        if nms_ratio > 0.0:
+            cells = sorted(best_in_cell.values(), key=lambda c: -c[2])
+            min_sep_cells2 = (args.spacing * nms_ratio / res) ** 2
+            kept = []
+            for cx, cy, _d in cells:
+                ok = True
+                for kx, ky in kept:
+                    if (cx - kx) ** 2 + (cy - ky) ** 2 < min_sep_cells2:
+                        ok = False
+                        break
+                if ok:
+                    kept.append((cx, cy))
+            before = len(best_in_cell)
+            pts_cell = kept
+            if len(pts_cell) < before:
+                print(f'  grid NMS: {before} -> {len(pts_cell)} '
+                      f'(min_separation={args.spacing*nms_ratio:.2f}m)')
+        else:
+            pts_cell = [(c[0], c[1]) for c in best_in_cell.values()]
     pts_cell, added_viewpoints = _append_object_viewpoints(
         pts_cell, occ, connectable, dist_cells, res,
         args.object_viewpoints, args.view_clearance,
