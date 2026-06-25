@@ -117,7 +117,9 @@ path length 比は改善するが odom aligned と進行性が悪化したため
 - 品質評価では `mode:=realtime` を使う。`fast` は軽量な起動確認用。fast で問題が出たら realtime で再確認する。
 - `webots_waypoint_nav.launch.py` の既定 `mode` は `fast` なので、評価時は明示的に `mode:=realtime` を渡す。
 - 屋内 `indoor.wbt` の合格確認は `slam:=True` で行う。2026-06-20 の認識併走フル巡回では
-  `reached=22/22 missed=[]` を確認済み。
+  `reached=22/22 missed=[]` を確認済み。 2026-06-26 のライブ巡回テスト (iter1+iter5 で WP を
+  19→8 に削減、 generate_waypoints.py に dedupe + grid NMS 追加後) は `reached=8/8 missed=[]`
+  (約 6 分完走、 recovery 多発なし)。 旧 19 WP の `reached=13/19` から完走率改善を実証。
 - `slam:=False map_file:=outputs/mapping_indoor/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
   モードは `reached=22/22 missed=[]` を維持している。自己位置評価の要点は次に集約する。
 
