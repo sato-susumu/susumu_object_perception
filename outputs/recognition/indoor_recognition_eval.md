@@ -2,40 +2,44 @@
 
 ## Inputs
 
-- world: `webots_worlds/indoor.wbt`
-- map: `maps/indoor.yaml`
-- db: `/tmp/indoor_object_memory_pruned.sqlite3`
+- world: `/home/taro/ros2_ws/src/susumu_object_perception/webots_worlds/indoor.wbt`
+- map: `/home/taro/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/indoor.yaml`
+- db: `/home/taro/.ros/object_memory.sqlite3`
 - robot_world_xy: [6.36, 0.0]
 - min_existence: 0.5
 - min_hits: 2
 - ignored_types: []
 - match_distance_m: 1.0
+- expected_map_support_dist_m: 0.55
 
 ## Summary
 
 | metric | value |
 |---|---:|
 | expected_count | 9 |
-| detection_count | 7 |
-| correct_count | 5 |
+| detection_count | 4 |
+| correct_count | 3 |
 | wrong_label_count | 0 |
-| missed_without_near_detection_count | 4 |
-| extra_detection_count | 2 |
-| class_aware_false_positive_count | 2 |
-| class_aware_false_negative_count | 4 |
-| precision | 0.714 |
-| recall | 0.556 |
-| f1 | 0.625 |
+| missed_count | 6 |
+| missed_with_near_detection_count | 0 |
+| missed_without_near_detection_count | 6 |
+| missed_with_near_label_detection_count | 0 |
+| expected_with_map_support_count | 9 |
+| missed_with_map_support_count | 6 |
+| extra_detection_count | 1 |
+| class_aware_false_positive_count | 1 |
+| class_aware_false_negative_count | 6 |
+| precision | 0.750 |
+| recall | 0.333 |
+| f1 | 0.462 |
 
 ## Correct Matches
 
-| expected | accepted | detection | det_label | dist_m | exist | hits |
-|---|---|---|---|---:|---:|---:|
-| PottedTree[3] PottedTree `PottedTree` (2.81, -1.70) | potted plant, vase | #23 (2.66, -1.48) | potted plant | 0.26 | 1.00 | 19 |
-| PottedTree[1] PottedTree `potted tree(5)` (0.64, -4.00) | potted plant, vase | #2 (1.11, -3.71) | potted plant | 0.55 | 1.00 | 10 |
-| Armchair[1] Armchair `Armchair` (1.26, 1.03) | chair | #18 (1.25, 1.67) | chair | 0.64 | 0.51 | 2 |
-| PottedTree[2] PottedTree `potted tree(8)` (-0.56, 3.30) | potted plant, vase | #1 (0.09, 3.05) | potted plant | 0.70 | 1.00 | 16 |
-| Sofa[1] Sofa `Sofa` (2.64, -0.52) | couch, sofa | #11 (3.31, -1.13) | couch | 0.91 | 1.00 | 8 |
+| expected | accepted | map_occ_m | detection | det_label | dist_m | exist | hits |
+|---|---|---:|---|---|---:|---:|---:|
+| PottedTree[3] PottedTree `PottedTree` (2.81, -1.70) | potted plant, vase | 0.04 | #3 (3.37, -1.47) | potted plant | 0.60 | 0.90 | 3 |
+| PottedTree[2] PottedTree `potted tree(8)` (-0.56, 3.30) | potted plant, vase | 0.06 | #4 (0.29, 3.33) | potted plant | 0.85 | 0.80 | 11 |
+| Sofa[1] Sofa `Sofa` (2.64, -0.52) | couch, sofa | 0.25 | #5 (3.48, -0.87) | couch | 0.91 | 0.51 | 2 |
 
 ## Wrong Label Near Ground Truth
 
@@ -43,19 +47,20 @@ None.
 
 ## Missed Ground Truth
 
-| expected | accepted | map_xy | world_xy |
-|---|---|---:|---:|
-| Fridge[1] Fridge `Fridge` | refrigerator, fridge | (-0.66, 4.64) | (5.70, 4.64) |
-| PottedTree[4] PottedTree `potted tree(3)` | potted plant, vase | (-0.76, -4.50) | (5.60, -4.50) |
-| Table[1] Table `Table` | dining table, table | (1.34, -0.52) | (7.70, -0.52) |
-| BunchOfSunFlowers[1] BunchOfSunFlowers `BunchOfSunFlowers` | potted plant, vase | (1.32, -0.52) | (7.68, -0.52) |
+| expected | accepted | map_xy | world_xy | map_occ_m | map_support | nearest_any | nearest_label |
+|---|---|---:|---:|---:|---|---|---|
+| PottedTree[1] PottedTree `potted tree(5)` | potted plant, vase | (0.64, -4.00) | (7.00, -4.00) | 0.06 | True | #3 potted plant 3.72m label-ok | #3 potted plant 3.72m label-ok |
+| Fridge[1] Fridge `Fridge` | refrigerator, fridge | (-0.66, 4.64) | (5.70, 4.64) | 0.32 | True | #4 potted plant 1.62m |  |
+| Armchair[1] Armchair `Armchair` | chair | (1.26, 1.03) | (7.62, 1.03) | 0.15 | True | #6 dining table 1.73m |  |
+| PottedTree[4] PottedTree `potted tree(3)` | potted plant, vase | (-0.76, -4.50) | (5.60, -4.50) | 0.16 | True | #3 potted plant 5.12m label-ok | #3 potted plant 5.12m label-ok |
+| Table[1] Table `Table` | dining table, table | (1.34, -0.52) | (7.70, -0.52) | 0.06 | True | #5 couch 2.17m | #6 dining table 2.37m label-ok |
+| BunchOfSunFlowers[1] BunchOfSunFlowers `BunchOfSunFlowers` | potted plant, vase | (1.32, -0.52) | (7.68, -0.52) | 0.04 | True | #5 couch 2.19m | #3 potted plant 2.26m label-ok |
 
 ## Extra Detections
 
 | detection | label | map_xy | exist | hits |
 |---|---|---:|---:|---:|
-| #3 | dining table | (3.25, -1.13) | 1.00 | 24 |
-| #15 | dining table | (3.12, 4.10) | 0.90 | 3 |
+| #6 | dining table | (2.98, 1.19) | 1.00 | 12 |
 
 ## Skipped World Objects
 

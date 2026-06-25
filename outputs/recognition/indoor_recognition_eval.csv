@@ -1,12 +1,11 @@
-status,expected_id,expected_type,expected_name,expected_labels,expected_x,expected_y,detection_id,detection_class,detection_x,detection_y,distance_m,existence,hits
-correct,PottedTree[3],PottedTree,PottedTree,potted plant;vase,2.8099999999999996,-1.7,23,potted plant,2.659656770025685,-1.482774278098149,0.26417816157829915,0.999,19
-correct,PottedTree[1],PottedTree,potted tree(5),potted plant;vase,0.6399999999999997,-4.0,2,potted plant,1.105200207057763,-3.7091905071877522,0.5486177118507044,0.999,10
-correct,Armchair[1],Armchair,Armchair,chair,1.2599999999999998,1.03,18,chair,1.2451320230225509,1.672004171978639,0.6421763103520557,0.5104900000000001,2
-correct,PottedTree[2],PottedTree,potted tree(8),potted plant;vase,-0.5600000000000005,3.3,1,potted plant,0.09014457686744523,3.0466033572733613,0.6977806456009523,0.999,16
-correct,Sofa[1],Sofa,Sofa,couch;sofa,2.6399999999999997,-0.518,11,couch,3.306446110601843,-1.1303892633654569,0.9050806749796458,0.999,8
-missed,Fridge[1],Fridge,Fridge,refrigerator;fridge,-0.6600000000000001,4.64,,,,,,,
-missed,PottedTree[4],PottedTree,potted tree(3),potted plant;vase,-0.7600000000000007,-4.5,,,,,,,
-missed,Table[1],Table,Table,dining table;table,1.3399999999999999,-0.52,,,,,,,
-missed,BunchOfSunFlowers[1],BunchOfSunFlowers,BunchOfSunFlowers,potted plant;vase,1.3199999999999994,-0.52,,,,,,,
-extra,,,,,,,3,dining table,3.2471606865211324,-1.1322542665607216,,0.999,24
-extra,,,,,,,15,dining table,3.1240152621911905,4.1006711581492015,,0.896678966789668,3
+status,expected_id,expected_type,expected_name,expected_labels,expected_x,expected_y,expected_nearest_map_occupied_m,expected_has_map_support,detection_id,detection_class,detection_x,detection_y,distance_m,existence,hits,nearest_detection_id,nearest_detection_class,nearest_detection_distance_m,nearest_detection_label_match,nearest_label_detection_id,nearest_label_detection_class,nearest_label_detection_distance_m
+correct,PottedTree[3],PottedTree,PottedTree,potted plant;vase,2.8099999999999996,-1.7,0.03535522148013115,True,3,potted plant,3.367670851693493,-1.4710730270370296,0.6028302727787772,0.896678966789668,3,,,,,,,
+correct,PottedTree[2],PottedTree,potted tree(8),potted plant;vase,-0.5600000000000005,3.3,0.060415178537368774,True,4,potted plant,0.28972518555571025,3.3334894034133162,0.8503848723423217,0.8043478260869574,11,,,,,,,
+correct,Sofa[1],Sofa,Sofa,couch;sofa,2.6399999999999997,-0.518,0.24509985744953156,True,5,couch,3.477922661872811,-0.8689473511349601,0.9084483642721048,0.5104900000000001,2,,,,,,,
+missed,PottedTree[1],PottedTree,potted tree(5),potted plant;vase,0.6399999999999997,-4.0,0.060415275394916534,True,,,,,,,,3,potted plant,3.7196316900679776,True,3,potted plant,3.7196316900679776
+missed,Fridge[1],Fridge,Fridge,refrigerator;fridge,-0.6600000000000001,4.64,0.315039724111557,True,,,,,,,,4,potted plant,1.6152237823509534,False,,,
+missed,Armchair[1],Armchair,Armchair,chair,1.2599999999999998,1.03,0.14713937044143677,True,,,,,,,,6,dining table,1.729450599835288,False,,,
+missed,PottedTree[4],PottedTree,potted tree(3),potted plant;vase,-0.7600000000000007,-4.5,0.15700316429138184,True,,,,,,,,3,potted plant,5.119771993698812,True,3,potted plant,5.119771993698812
+missed,Table[1],Table,Table,dining table;table,1.3399999999999999,-0.52,0.05522681027650833,True,,,,,,,,5,couch,2.1662127231676562,False,6,dining table,2.372363130300214
+missed,BunchOfSunFlowers[1],BunchOfSunFlowers,BunchOfSunFlowers,potted plant;vase,1.3199999999999994,-0.52,0.035355422645807266,True,,,,,,,,5,couch,2.1859539035598043,False,3,potted plant,2.2577634551990906
+extra,,,,,,,,,6,dining table,2.9818010422182377,1.192482455320036,,0.999,12,,,,,,,

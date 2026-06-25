@@ -1,29 +1,35 @@
 {
   "inputs": {
-    "wbt": "webots_worlds/indoor.wbt",
-    "map": "maps/indoor.yaml",
-    "db": "/tmp/indoor_object_memory_pruned.sqlite3",
+    "wbt": "/home/taro/ros2_ws/src/susumu_object_perception/webots_worlds/indoor.wbt",
+    "map": "/home/taro/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/indoor.yaml",
+    "db": "/home/taro/.ros/object_memory.sqlite3",
     "robot_world_xy": [
       6.36,
       0.0
     ],
     "min_existence": 0.5,
     "min_hits": 2,
-    "ignored_types": []
+    "ignored_types": [],
+    "expected_map_support_dist_m": 0.55
   },
   "summary": {
     "expected_count": 9,
-    "detection_count": 7,
-    "correct_count": 5,
+    "detection_count": 4,
+    "correct_count": 3,
     "wrong_label_count": 0,
-    "missed_without_near_detection_count": 4,
-    "extra_detection_count": 2,
-    "class_aware_false_positive_count": 2,
-    "class_aware_false_negative_count": 4,
-    "precision": 0.7142857142857143,
-    "recall": 0.5555555555555556,
-    "f1": 0.6250000000000001,
-    "match_distance_m": 1.0
+    "missed_count": 6,
+    "missed_with_near_detection_count": 0,
+    "missed_without_near_detection_count": 6,
+    "missed_with_near_label_detection_count": 0,
+    "extra_detection_count": 1,
+    "class_aware_false_positive_count": 1,
+    "class_aware_false_negative_count": 6,
+    "precision": 0.75,
+    "recall": 0.3333333333333333,
+    "f1": 0.46153846153846156,
+    "match_distance_m": 1.0,
+    "expected_with_map_support_count": 9,
+    "missed_with_map_support_count": 6
   },
   "correct": [
     {
@@ -38,79 +44,24 @@
         "accepted_labels": [
           "potted plant",
           "vase"
-        ]
+        ],
+        "nearest_map_occupied_m": 0.03535522148013115,
+        "has_map_support": true
       },
       "detection": {
-        "did": 23,
+        "did": 3,
         "class_name": "potted plant",
-        "x": 2.659656770025685,
-        "y": -1.482774278098149,
+        "x": 3.367670851693493,
+        "y": -1.4710730270370296,
         "z": 1.0,
-        "size_x": 0.5886399934591414,
-        "size_y": 0.35806668121963603,
-        "size_z": 1.6999999999999997,
-        "existence": 0.999,
-        "hits": 19,
-        "last_seen": 201.12
-      },
-      "distance_m": 0.26417816157829915
-    },
-    {
-      "expected": {
-        "eid": "PottedTree[1]",
-        "wbt_type": "PottedTree",
-        "name": "potted tree(5)",
-        "world_x": 7.0,
-        "world_y": -4.0,
-        "map_x": 0.6399999999999997,
-        "map_y": -4.0,
-        "accepted_labels": [
-          "potted plant",
-          "vase"
-        ]
-      },
-      "detection": {
-        "did": 2,
-        "class_name": "potted plant",
-        "x": 1.105200207057763,
-        "y": -3.7091905071877522,
-        "z": 1.0,
-        "size_x": 0.6,
-        "size_y": 0.6,
+        "size_x": 0.3845564126968384,
+        "size_y": 0.4347798824310303,
         "size_z": 1.7,
-        "existence": 0.999,
-        "hits": 10,
-        "last_seen": 152.34
+        "existence": 0.896678966789668,
+        "hits": 3,
+        "last_seen": 115.76
       },
-      "distance_m": 0.5486177118507044
-    },
-    {
-      "expected": {
-        "eid": "Armchair[1]",
-        "wbt_type": "Armchair",
-        "name": "Armchair",
-        "world_x": 7.62,
-        "world_y": 1.03,
-        "map_x": 1.2599999999999998,
-        "map_y": 1.03,
-        "accepted_labels": [
-          "chair"
-        ]
-      },
-      "detection": {
-        "did": 18,
-        "class_name": "chair",
-        "x": 1.2451320230225509,
-        "y": 1.672004171978639,
-        "z": 1.0,
-        "size_x": 0.7554284947290447,
-        "size_y": 0.7231130713477825,
-        "size_z": 1.7,
-        "existence": 0.5104900000000001,
-        "hits": 2,
-        "last_seen": 132.12
-      },
-      "distance_m": 0.6421763103520557
+      "distance_m": 0.6028302727787772
     },
     {
       "expected": {
@@ -124,22 +75,24 @@
         "accepted_labels": [
           "potted plant",
           "vase"
-        ]
+        ],
+        "nearest_map_occupied_m": 0.060415178537368774,
+        "has_map_support": true
       },
       "detection": {
-        "did": 1,
+        "did": 4,
         "class_name": "potted plant",
-        "x": 0.09014457686744523,
-        "y": 3.0466033572733613,
+        "x": 0.28972518555571025,
+        "y": 3.3334894034133162,
         "z": 1.0,
-        "size_x": 0.25538879678823356,
-        "size_y": 0.27377114736765806,
+        "size_x": 0.4166340030468847,
+        "size_y": 0.21819166744146035,
         "size_z": 1.7,
-        "existence": 0.999,
-        "hits": 16,
-        "last_seen": 108.44
+        "existence": 0.8043478260869574,
+        "hits": 11,
+        "last_seen": 126.76
       },
-      "distance_m": 0.6977806456009523
+      "distance_m": 0.8503848723423217
     },
     {
       "expected": {
@@ -153,26 +106,81 @@
         "accepted_labels": [
           "couch",
           "sofa"
-        ]
+        ],
+        "nearest_map_occupied_m": 0.24509985744953156,
+        "has_map_support": true
       },
       "detection": {
-        "did": 11,
+        "did": 5,
         "class_name": "couch",
-        "x": 3.306446110601843,
-        "y": -1.1303892633654569,
+        "x": 3.477922661872811,
+        "y": -0.8689473511349601,
         "z": 1.0,
-        "size_x": 0.9836735044890768,
-        "size_y": 0.8928183311539017,
+        "size_x": 0.8247850698299235,
+        "size_y": 0.8950721773484522,
         "size_z": 1.7,
-        "existence": 0.999,
-        "hits": 8,
-        "last_seen": 140.56
+        "existence": 0.5104900000000001,
+        "hits": 2,
+        "last_seen": 131.479999999
       },
-      "distance_m": 0.9050806749796458
+      "distance_m": 0.9084483642721048
     }
   ],
   "wrong_label": [],
   "missed": [
+    {
+      "eid": "PottedTree[1]",
+      "wbt_type": "PottedTree",
+      "name": "potted tree(5)",
+      "world_x": 7.0,
+      "world_y": -4.0,
+      "map_x": 0.6399999999999997,
+      "map_y": -4.0,
+      "accepted_labels": [
+        "potted plant",
+        "vase"
+      ],
+      "nearest_map_occupied_m": 0.060415275394916534,
+      "has_map_support": true,
+      "nearest_detection": {
+        "distance_m": 3.7196316900679776,
+        "within_match_distance": false,
+        "label_match": true,
+        "detection": {
+          "did": 3,
+          "class_name": "potted plant",
+          "x": 3.367670851693493,
+          "y": -1.4710730270370296,
+          "z": 1.0,
+          "size_x": 0.3845564126968384,
+          "size_y": 0.4347798824310303,
+          "size_z": 1.7,
+          "existence": 0.896678966789668,
+          "hits": 3,
+          "last_seen": 115.76
+        }
+      },
+      "nearest_label_detection": {
+        "distance_m": 3.7196316900679776,
+        "within_match_distance": false,
+        "label_match": true,
+        "detection": {
+          "did": 3,
+          "class_name": "potted plant",
+          "x": 3.367670851693493,
+          "y": -1.4710730270370296,
+          "z": 1.0,
+          "size_x": 0.3845564126968384,
+          "size_y": 0.4347798824310303,
+          "size_z": 1.7,
+          "existence": 0.896678966789668,
+          "hits": 3,
+          "last_seen": 115.76
+        }
+      },
+      "has_near_detection": false,
+      "has_near_label_detection": false
+    },
     {
       "eid": "Fridge[1]",
       "wbt_type": "Fridge",
@@ -184,7 +192,65 @@
       "accepted_labels": [
         "refrigerator",
         "fridge"
-      ]
+      ],
+      "nearest_map_occupied_m": 0.315039724111557,
+      "has_map_support": true,
+      "nearest_detection": {
+        "distance_m": 1.6152237823509534,
+        "within_match_distance": false,
+        "label_match": false,
+        "detection": {
+          "did": 4,
+          "class_name": "potted plant",
+          "x": 0.28972518555571025,
+          "y": 3.3334894034133162,
+          "z": 1.0,
+          "size_x": 0.4166340030468847,
+          "size_y": 0.21819166744146035,
+          "size_z": 1.7,
+          "existence": 0.8043478260869574,
+          "hits": 11,
+          "last_seen": 126.76
+        }
+      },
+      "nearest_label_detection": null,
+      "has_near_detection": false,
+      "has_near_label_detection": false
+    },
+    {
+      "eid": "Armchair[1]",
+      "wbt_type": "Armchair",
+      "name": "Armchair",
+      "world_x": 7.62,
+      "world_y": 1.03,
+      "map_x": 1.2599999999999998,
+      "map_y": 1.03,
+      "accepted_labels": [
+        "chair"
+      ],
+      "nearest_map_occupied_m": 0.14713937044143677,
+      "has_map_support": true,
+      "nearest_detection": {
+        "distance_m": 1.729450599835288,
+        "within_match_distance": false,
+        "label_match": false,
+        "detection": {
+          "did": 6,
+          "class_name": "dining table",
+          "x": 2.9818010422182377,
+          "y": 1.192482455320036,
+          "z": 1.0,
+          "size_x": 0.4493544891075776,
+          "size_y": 0.7609345780488947,
+          "size_z": 1.7,
+          "existence": 0.999,
+          "hits": 12,
+          "last_seen": 129.8
+        }
+      },
+      "nearest_label_detection": null,
+      "has_near_detection": false,
+      "has_near_label_detection": false
     },
     {
       "eid": "PottedTree[4]",
@@ -197,7 +263,47 @@
       "accepted_labels": [
         "potted plant",
         "vase"
-      ]
+      ],
+      "nearest_map_occupied_m": 0.15700316429138184,
+      "has_map_support": true,
+      "nearest_detection": {
+        "distance_m": 5.119771993698812,
+        "within_match_distance": false,
+        "label_match": true,
+        "detection": {
+          "did": 3,
+          "class_name": "potted plant",
+          "x": 3.367670851693493,
+          "y": -1.4710730270370296,
+          "z": 1.0,
+          "size_x": 0.3845564126968384,
+          "size_y": 0.4347798824310303,
+          "size_z": 1.7,
+          "existence": 0.896678966789668,
+          "hits": 3,
+          "last_seen": 115.76
+        }
+      },
+      "nearest_label_detection": {
+        "distance_m": 5.119771993698812,
+        "within_match_distance": false,
+        "label_match": true,
+        "detection": {
+          "did": 3,
+          "class_name": "potted plant",
+          "x": 3.367670851693493,
+          "y": -1.4710730270370296,
+          "z": 1.0,
+          "size_x": 0.3845564126968384,
+          "size_y": 0.4347798824310303,
+          "size_z": 1.7,
+          "existence": 0.896678966789668,
+          "hits": 3,
+          "last_seen": 115.76
+        }
+      },
+      "has_near_detection": false,
+      "has_near_label_detection": false
     },
     {
       "eid": "Table[1]",
@@ -210,7 +316,47 @@
       "accepted_labels": [
         "dining table",
         "table"
-      ]
+      ],
+      "nearest_map_occupied_m": 0.05522681027650833,
+      "has_map_support": true,
+      "nearest_detection": {
+        "distance_m": 2.1662127231676562,
+        "within_match_distance": false,
+        "label_match": false,
+        "detection": {
+          "did": 5,
+          "class_name": "couch",
+          "x": 3.477922661872811,
+          "y": -0.8689473511349601,
+          "z": 1.0,
+          "size_x": 0.8247850698299235,
+          "size_y": 0.8950721773484522,
+          "size_z": 1.7,
+          "existence": 0.5104900000000001,
+          "hits": 2,
+          "last_seen": 131.479999999
+        }
+      },
+      "nearest_label_detection": {
+        "distance_m": 2.372363130300214,
+        "within_match_distance": false,
+        "label_match": true,
+        "detection": {
+          "did": 6,
+          "class_name": "dining table",
+          "x": 2.9818010422182377,
+          "y": 1.192482455320036,
+          "z": 1.0,
+          "size_x": 0.4493544891075776,
+          "size_y": 0.7609345780488947,
+          "size_z": 1.7,
+          "existence": 0.999,
+          "hits": 12,
+          "last_seen": 129.8
+        }
+      },
+      "has_near_detection": false,
+      "has_near_label_detection": false
     },
     {
       "eid": "BunchOfSunFlowers[1]",
@@ -223,35 +369,62 @@
       "accepted_labels": [
         "potted plant",
         "vase"
-      ]
+      ],
+      "nearest_map_occupied_m": 0.035355422645807266,
+      "has_map_support": true,
+      "nearest_detection": {
+        "distance_m": 2.1859539035598043,
+        "within_match_distance": false,
+        "label_match": false,
+        "detection": {
+          "did": 5,
+          "class_name": "couch",
+          "x": 3.477922661872811,
+          "y": -0.8689473511349601,
+          "z": 1.0,
+          "size_x": 0.8247850698299235,
+          "size_y": 0.8950721773484522,
+          "size_z": 1.7,
+          "existence": 0.5104900000000001,
+          "hits": 2,
+          "last_seen": 131.479999999
+        }
+      },
+      "nearest_label_detection": {
+        "distance_m": 2.2577634551990906,
+        "within_match_distance": false,
+        "label_match": true,
+        "detection": {
+          "did": 3,
+          "class_name": "potted plant",
+          "x": 3.367670851693493,
+          "y": -1.4710730270370296,
+          "z": 1.0,
+          "size_x": 0.3845564126968384,
+          "size_y": 0.4347798824310303,
+          "size_z": 1.7,
+          "existence": 0.896678966789668,
+          "hits": 3,
+          "last_seen": 115.76
+        }
+      },
+      "has_near_detection": false,
+      "has_near_label_detection": false
     }
   ],
   "extra": [
     {
-      "did": 3,
+      "did": 6,
       "class_name": "dining table",
-      "x": 3.2471606865211324,
-      "y": -1.1322542665607216,
+      "x": 2.9818010422182377,
+      "y": 1.192482455320036,
       "z": 1.0,
-      "size_x": 0.9122646092733224,
-      "size_y": 0.9948080254306335,
+      "size_x": 0.4493544891075776,
+      "size_y": 0.7609345780488947,
       "size_z": 1.7,
       "existence": 0.999,
-      "hits": 24,
-      "last_seen": 140.24
-    },
-    {
-      "did": 15,
-      "class_name": "dining table",
-      "x": 3.1240152621911905,
-      "y": 4.1006711581492015,
-      "z": 1.0,
-      "size_x": 0.6,
-      "size_y": 0.6,
-      "size_z": 1.7,
-      "existence": 0.896678966789668,
-      "hits": 3,
-      "last_seen": 109.52
+      "hits": 12,
+      "last_seen": 129.8
     }
   ],
   "skipped_world_objects": [
