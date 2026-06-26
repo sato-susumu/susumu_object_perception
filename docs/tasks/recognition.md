@@ -49,6 +49,7 @@ perception は残る。Webots 系 launch では `object_yolo_weights:=...` で
 | semantic DB | `require_fine_class:=True`、`require_map_support:=True`、`static_class_geometry_filter:=True` |
 | map support | 既定 `0.45m`、class 別 `plant=0.55,table=0.55` |
 | 座席統合 | `chair,couch` を互換統合、優先順 `chair,couch` |
+| Bayes 忘却 (iter95) | `object_memory_delete_thresh` / `object_memory_miss_tp` / `object_memory_miss_fp` を launch arg として露出 (既定はノード default = 0.25 / 0.2 / 0.6)。 巡回中に DB が空になる時は `object_memory_delete_thresh:=0.10` に下げて存続を許す (memory `feedback_recog_db_empty_issue` 参照) |
 
 ## 最終成果物
 

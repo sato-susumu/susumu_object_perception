@@ -108,6 +108,9 @@ def generate_launch_description():
     use_image_recognition = LaunchConfiguration('image_recognition', default=True)
     tl_method = LaunchConfiguration('traffic_light_method')
     tl_weights = LaunchConfiguration('traffic_light_weights')
+    om_delete_thresh = LaunchConfiguration('object_memory_delete_thresh')
+    om_miss_tp = LaunchConfiguration('object_memory_miss_tp')
+    om_miss_fp = LaunchConfiguration('object_memory_miss_fp')
     object_yolo_weights = LaunchConfiguration('object_yolo_weights')
     object_yolo_imgsz = LaunchConfiguration('object_yolo_imgsz')
     object_yolo_conf = LaunchConfiguration('object_yolo_conf')
@@ -573,6 +576,9 @@ def generate_launch_description():
             'static_cross_class_merge_dist': 0.75,
             'static_compatible_class_groups': 'chair,couch',
             'static_merge_class_priority': 'chair,couch',
+            'delete_thresh': ParameterValue(om_delete_thresh, value_type=float),
+            'miss_tp': ParameterValue(om_miss_tp, value_type=float),
+            'miss_fp': ParameterValue(om_miss_fp, value_type=float),
         }],
         condition=launch.conditions.IfCondition(use_image_recognition))
 
@@ -661,6 +667,19 @@ def generate_launch_description():
             'traffic_light_weights', default_value='yolov8n.pt',
             description=('traffic_light_method:=yolo のときに使う重み。 '
                          '相対パスは ultralytics デフォルト探索パスを使用')),
+        DeclareLaunchArgument(
+            'object_memory_delete_thresh', default_value='0.25',
+            description=('object_memory の Bayes 削除しきい値 (既定 0.25=Dengler et al.)。 '
+                         '巡回中に DB が空になる時は 0.05〜0.10 に下げて存続を許す '
+                         '(memory feedback_recog_db_empty_issue 参照)')),
+        DeclareLaunchArgument(
+            'object_memory_miss_tp', default_value='0.2',
+            description=('object_memory の miss 観測時の TP 確率 (既定 0.2)。 '
+                         '上げると減衰が緩む')),
+        DeclareLaunchArgument(
+            'object_memory_miss_fp', default_value='0.6',
+            description=('object_memory の miss 観測時の FP 確率 (既定 0.6)。 '
+                         '下げると減衰が緩む')),
         DeclareLaunchArgument(
             'object_yolo_weights', default_value='yolov8s-seg.pt',
             description='object_classifier_node.py の YOLO weight。認識比較では yolov8m-seg.pt 等へ差し替え可能'),
