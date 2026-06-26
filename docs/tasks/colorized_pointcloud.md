@@ -12,7 +12,7 @@
 | 点群出力 | `/perception/colorized_points` |
 | 蓄積地図 | `/slam/colorized_points_map` または `/slam/glim_colorized_points_map` |
 | 保存 | `/slam/save_colorized_map` (`std_srvs/Trigger`) |
-| 出力（最終） | `outputs/colorized_pointcloud/colorized_pointcloud_<world>_apriltag_calib_final.ply` 等の名前固定 PLY（採用版） |
+| 出力（最終） | `outputs/colorized_pointcloud/colorized_pointcloud_<world>_apriltag_calib_final.ply` 等の名前固定 PLY（採用版）、 `colorized_pointcloud_<world>_apriltag_calib_final_check.png` (XY 俯瞰 + XZ 側面の検査画像、 ブレ・壁二重化・床下散乱を一目確認、 iter31 で `run_all_tasks.sh` が自動生成) |
 | 出力（中間） | `experiments/colorized_pointcloud/<YYYY-MM-DD>_<label>/` または `experiments/colorized_pointcloud/intermediate/`（タイムスタンプ付き `colorized_map_<ts>.ply`、`*_check.png` 等。gitignore） |
 
 ## 実行

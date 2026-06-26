@@ -171,6 +171,16 @@ run_color() {
     cp -f "$LATEST" "$PKG/outputs/colorized_pointcloud/colorized_pointcloud_${NAME}_apriltag_calib_final.ply"
     echo "[$(date -Iseconds)] color $NAME saved as final" | tee -a "$LOG"
   fi
+  # === ユーザー指示「評価できることは必ず PNG 生成」 への対応 (iter31) ===
+  # 採用 PLY を check_colorized_cloud.py で可視化 (XY top-view + XZ side-view)。
+  # ブレ・壁の二重化・床下散乱を一目確認できる成果物として outputs/ に置く。
+  local FINAL_PLY="$PKG/outputs/colorized_pointcloud/colorized_pointcloud_${NAME}_apriltag_calib_final.ply"
+  local CHECK_PNG="$PKG/outputs/colorized_pointcloud/colorized_pointcloud_${NAME}_apriltag_calib_final_check.png"
+  if [[ -f "$FINAL_PLY" ]]; then
+    echo "[$(date -Iseconds)] rendering colorized check PNG -> $CHECK_PNG" | tee -a "$LOG"
+    python3 "$PKG/scripts/check_colorized_cloud.py" "$FINAL_PLY" --out "$CHECK_PNG" \
+      >> "$LOG" 2>&1 || echo "  -> colorized PNG render failed" | tee -a "$LOG"
+  fi
 }
 
 run_calib() {
