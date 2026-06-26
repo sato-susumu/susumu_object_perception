@@ -178,6 +178,34 @@ ros2 run susumu_object_perception evaluate_recognition_vs_world.py \
 2. Fridge 形状、壁近傍、高さ、map support を事前条件に使い、候補 track を絞った上で TP/FP を測る。
 3. Webots Fridge 専用の synthetic positive/negative crop 生成を比較候補にする。
 
+### iter30 (2026-06-26) の missed 分析
+
+iter27 の indoor ライブ巡回で expected=9 detections=4 (recall=0.333) の内訳を
+eval CSV で分析:
+
+| missed | 位置 | 漏れ理由 |
+|---|---|---|
+| PottedTree[1] | (0.64, -4.0) | **WP 配置範囲外** (y_min=-3.83、 地図南端の clearance 不足) |
+| PottedTree[4] | (-0.76, -4.5) | 同上 |
+| Fridge[1] | (-0.66, 4.64) | クラス誤分類 (近傍に potted plant 検出、 Fridge 認識せず) |
+| Armchair[1] | (1.26, 1.03) | クラス誤分類 (近傍に dining table) |
+| Table[1] | (1.34, -0.52) | クラス誤分類 (近傍 couch、 ただし couch も真値 (2.64, -0.52) と距離 0.91m あり微妙) |
+| BunchOfSunFlowers[1] | (1.32, -0.52) | Table[1] と同位置 (テーブル上の花瓶)、 segmentation で couch 領域に含まれる |
+
+**構造的原因 2 系統**:
+
+(A) **WP カバレッジ外** (PottedTree[1], [4]): 地図南端の壁付近 (clearance < 0.4m)
+で WP 配置不可。 `--view-clearance` 等の wp 追加実験ルートは過去 recognition F1
+悪化で未採用済み (docs 同章「未採用」)。 → 短期改善困難。
+
+(B) **クラス誤分類** (Fridge, Armchair, Table, BunchOfSunFlowers): YOLO の confusion で
+expected と異なる class が割り当て。 同位置の物体 (Table 上の花瓶 → couch クラス)
+が segment 共有して single object として扱われる問題も含む。
+→ iter14 で class-specific conf 改善済み、 残り改善は YOLO 重みの限界に近い。
+
+短期改善余地が薄い領域 = 学習データ拡張 / custom classifier 等の中長期改修が
+必要 (上記「次に見る低成績箇所」 と一致)。
+
 ## 合格基準
 
 1. **LiDAR 検出・追跡が成立している**
