@@ -56,7 +56,8 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 | マッピング（屋外） | [`docs/tasks/mapping_outdoor.md`](docs/tasks/mapping_outdoor.md)（**現状未対応**） |
 | ウェイポイント生成 | [`docs/tasks/waypoint_generation.md`](docs/tasks/waypoint_generation.md) |
 | 巡回ナビ | [`docs/tasks/waypoint_navigation.md`](docs/tasks/waypoint_navigation.md) |
-| 認識 | [`docs/tasks/recognition.md`](docs/tasks/recognition.md) |
+| 認識 (物体) | [`docs/tasks/recognition.md`](docs/tasks/recognition.md) |
+| 認識 (信号) | [`docs/traffic_light_recognition.md`](docs/traffic_light_recognition.md) (※ `docs/tasks/` ではなく `docs/` 直下) |
 | カラー点群出力 | [`docs/tasks/colorized_pointcloud.md`](docs/tasks/colorized_pointcloud.md) |
 | 外部キャリブレーション | [`docs/tasks/extrinsic_calibration.md`](docs/tasks/extrinsic_calibration.md) |
 
