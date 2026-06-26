@@ -784,18 +784,28 @@ class FrontierExploreNode(Node):
         x = tf.transform.translation.x
         y = tf.transform.translation.y
         radius = max(0.3, self.step_detector_blacklist_radius)
-        self._step_hazards.append((x, y, radius))
-        # 上限制御 (古い hazard は捨てる)
-        self._step_hazards = self._step_hazards[-40:]
+        # 既存 hazard の半径内であれば新規追加せず、 ログだけに留める。
+        # iter28 ライブで同一位置 62 回連続追加を観測したため。 hazard リスト数を
+        # ノイズで埋めず、 「ロボットが詰まって動けない状態」 を肥大化させない。
+        merged = False
+        for hx, hy, hr in self._step_hazards:
+            if math.hypot(x - hx, y - hy) <= max(hr, radius):
+                merged = True
+                break
+        if not merged:
+            self._step_hazards.append((x, y, radius))
+            # 上限制御 (古い hazard は捨てる)
+            self._step_hazards = self._step_hazards[-40:]
         # 進行中の goal もキャンセル
         if self._last_goal is not None:
             self._blacklist.add(self._blkey(*self._last_goal))
         if self._active_goal_xy is not None:
             self._blacklist.add(self._blkey(*self._active_goal_xy))
+        action = 'blacklist' if not merged else 'merged with existing hazard'
         self._publish_status(
             f'step_detector event={event_type} '
             f'(tilt_deg={payload.get("tilt_deg", "?")}); '
-            f'blacklist around ({x:.2f}, {y:.2f}) r={radius:.2f}m '
+            f'{action} around ({x:.2f}, {y:.2f}) r={radius:.2f}m '
             f'and cancel current goal')
         try:
             self._cancel_active_nav_for_watchdog()
