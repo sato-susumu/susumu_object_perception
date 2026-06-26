@@ -415,17 +415,26 @@ class FrontierExploreNode(Node):
         x = tf.transform.translation.x
         y = tf.transform.translation.y
         radius = max(0.2, self.yaw_watchdog_blacklist_radius)
-        self._yaw_hazards.append((x, y, radius))
-        # 古い hazard で候補が過剰に詰まらないよう上限を持つ。
-        self._yaw_hazards = self._yaw_hazards[-40:]
+        # iter49: 既存 yaw_hazard の半径内なら新規追加せず重複抑止 (iter29 で step_hazard
+        # に適用したのと同 pattern)。 同一位置 (-6.94, -2.63) で 6 回連発した実機観察を踏襲。
+        merged = False
+        for hx, hy, hr in self._yaw_hazards:
+            if math.hypot(x - hx, y - hy) <= max(hr, radius):
+                merged = True
+                break
+        if not merged:
+            self._yaw_hazards.append((x, y, radius))
+            # 古い hazard で候補が過剰に詰まらないよう上限を持つ。
+            self._yaw_hazards = self._yaw_hazards[-40:]
         if self._last_goal is not None:
             self._blacklist.add(self._blkey(*self._last_goal))
         if self._active_goal_xy is not None:
             self._blacklist.add(self._blkey(*self._active_goal_xy))
+        action = 'blacklist' if not merged else 'merged with existing hazard'
         self._publish_status(
             f'yaw watchdog: error={yaw_error_deg:.1f}deg > '
             f'{self.yaw_watchdog_max_error_deg:.1f}deg; '
-            f'cancel current goal and blacklist around ({x:.2f}, {y:.2f})')
+            f'cancel current goal and {action} around ({x:.2f}, {y:.2f})')
         self._cancel_active_nav_for_watchdog()
 
     def _cancel_active_nav_for_watchdog(self):
