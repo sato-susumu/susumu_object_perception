@@ -92,6 +92,16 @@ Python ノードはファイル名で起動する（console_scripts ではない
 → ノードを増やすときは CMakeLists の `install(PROGRAMS ...)` に**ファイルを追加し、
 かつソースに実行ビット(`chmod +x`)を立てる**こと（忘れると `No executable found`）。
 
+**全タスク一括実行** (mapping → waypoint → 巡回 → 認識 → カラー点群 → calib を順に回し、 各 `outputs/<task>/` を再生成):
+
+```bash
+bash scripts/run_all_tasks.sh          # 全部
+bash scripts/run_all_tasks.sh wp       # ウェイポイント生成から
+bash scripts/run_all_tasks.sh recog    # 認識から
+```
+
+`run_all_tasks.sh` は source ツリー前提 (内部で `cd $PKG` してから outputs/ や scripts/ を相対参照) で、 **`ros2 run` 経由では実行できない** (CMakeLists install 未登録、 install 配下に outputs/ が無い)。 直接 `bash scripts/...` で叩く。 Webots GUI が必要、 所要時間 60〜90 分目安。
+
 ## アーキテクチャ / データフロー
 
 エントリは `launch/simulation.launch.py`。取り込まれる部品 launch は `launch/include/`。
