@@ -206,6 +206,16 @@ run_calib() {
   killall_webots
   echo "[$(date -Iseconds)] calib done" | tee -a "$LOG"
   cat "$PKG/outputs/extrinsic_calibration/calib.json" 2>/dev/null | head -5 | tee -a "$LOG"
+  # calib 結果サマリー PNG を生成 (iter33 追加、 ユーザー指示「PNG 必須」 対応)。
+  # bar chart で真値 vs 推定値 + テーブルで数値 (RMS/RPY/quaternion) を可視化。
+  local CALIB_JSON="$PKG/outputs/extrinsic_calibration/calib.json"
+  local CALIB_PNG="$PKG/outputs/extrinsic_calibration/calib_summary.png"
+  if [[ -f "$CALIB_JSON" ]]; then
+    echo "[$(date -Iseconds)] rendering calib summary PNG -> $CALIB_PNG" | tee -a "$LOG"
+    python3 "$PKG/scripts/visualize_calib_result.py" \
+      --calib "$CALIB_JSON" --out "$CALIB_PNG" \
+      >> "$LOG" 2>&1 || echo "  -> calib PNG render failed" | tee -a "$LOG"
+  fi
 }
 
 START=${1:-mapping}

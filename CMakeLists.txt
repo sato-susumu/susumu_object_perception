@@ -128,6 +128,7 @@ install(PROGRAMS
   scripts/check_waypoints.py
   scripts/visualize_patrol_result.py
   scripts/visualize_step_events.py
+  scripts/visualize_calib_result.py
   scripts/direct_calib_to_tf.py
   scripts/validate_colorized_pointcloud_quality.py
   scripts/generate_waypoints.py
