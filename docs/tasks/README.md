@@ -77,7 +77,8 @@ experiments/                                # 中間成果物（汚れ場・giti
 | `outputs/recognition/<world>_recognition_overlay.png` | 認識 | 認識レビュー（地図に物体ラベルを重ね。run_all_tasks.sh が認識タスク末尾で必ず生成） |
 | `outputs/recognition/<world>_recognition_eval.{md,json,csv,png}`、`outputs/recognition/<world>_recognition_eval_ignore_table_sofa.{md,json,csv}` | 認識 | 採用/未採用判断（world 真値との照合。PNG も run_all_tasks.sh が必ず生成） |
 | `outputs/colorized_pointcloud/colorized_pointcloud_<world>_apriltag_calib_final.ply`、`colorized_pointcloud_<world>_goal_run_final.ply` 等 | カラー点群出力 | 点群レビュー、外部可視化。中間 / 試験版は `experiments/colorized_pointcloud/legacy/` |
-| `outputs/extrinsic_calibration/calib.json` | 外部キャリブレーション | `omni_calibration_json:=` で TF 置換（色付き点群・物体クロップ） |
+| `outputs/extrinsic_calibration/calib.json` | 外部キャリブレーション | `omni_calibration_json:=` で TF 置換（色付き点群・物体クロップ）。 `calib_summary.png` (iter33 で追加) で結果可視化 |
+| `outputs/traffic_light_recognition/<world>_traffic_annotated.png`、 `_traffic_stats.json` (iter62 で追加) | 認識 (信号) | 全天球パノラマに ROI 重畳した PNG と 20s 統計 JSON。 webots_city.launch.py で生成 |
 
 `*.pgm` はすべて commit 対象にする。保存地図は YAML だけでは後段が再現できないため、`.yaml` と `.pgm`
 をペアで扱う。確認用 PNG / overlay PNG は再生成可能なので追跡しない（`.gitignore` で `outputs/**/*.png` を除外。
