@@ -9,7 +9,7 @@
 |---|---|
 | 入力 | `webots_worlds/village_square_trimmed.wbt` 等の屋外 world、3D LiDAR、必要なら GPS |
 | 実行 | `launch/webots_outdoor_mapping.launch.py`、`scripts/evaluate_glim_map_variants.py`、`scripts/check_map_vs_world.py` |
-| 出力（最終） | `outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml` / `.pgm`、`outputs/mapping_outdoor/<world>_gt.yaml` / `.pgm`（評価専用）（契約名・git 追跡） |
+| 出力（最終） | `outputs/mapping_outdoor/village_square_trimmed_glim2d.yaml` / `.pgm`、`outputs/mapping_outdoor/<world>_gt.yaml` / `.pgm`（評価専用）、 `outputs/mapping_outdoor/<world>_gt_preview.png` (`generate_webots_ground_truth_map.py --preview` が出す真値地図のレビュー画像、 iter37 で contracts に追加)（契約名・git 追跡） |
 | 出力（中間） | `experiments/mapping_outdoor/<YYYY-MM-DD>_<label>/`（cycleNN snapshot/promote/variants/monitor/risk/yaw 等の比較ログ）、`experiments/mapping_outdoor/glim/`（GLIM TUM/PLY 中間版）。gitignore |
 | 主な確認 | `scripts/check_map_vs_world.py`、`scripts/eval_map_quality.py` |
 
