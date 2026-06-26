@@ -1368,10 +1368,41 @@ class FrontierExploreNode(Node):
         """
         if not self.world_file:
             return
-        if not os.path.exists(self.world_file):
+        # webots_ros2_driver は world ファイルを `/tmp/tmpXXX_world_with_URDF_robot.wbt`
+        # にコピーしてその一時パスを LaunchConfiguration に書き戻すため、 launch で
+        # `webots_worlds/` + LaunchConfiguration('world') を組み立てると
+        # `webots_worlds//tmp/tmpXXX_world_with_URDF_robot.wbt` のような無効な
+        # パスになる。 そのパターンを検出して `webots_worlds/<original>.wbt` に
+        # 戻す (iter43 で追加)。
+        world_file = self.world_file
+        if '_world_with_URDF_robot.wbt' in world_file:
             self._publish_status(
-                f'vs_world skip: world file missing ({self.world_file})')
+                f'vs_world: webots tmp path detected, attempting world '
+                f'reconstruction ({world_file})')
+            # /tmp/tmpXXX_world_with_URDF_robot.wbt -> webots_worlds の中で
+            # 元の wbt 名を逆引きできない (内容比較が必要) ので、 map_save_path
+            # の basename から推定する (mapping launch は map_name と world 名を
+            # 一致させる規約があるため)。
+            base = os.path.basename(self.map_save_path)
+            if base.endswith(('.yaml', '.yml')):
+                base = os.path.splitext(base)[0]
+            candidate = os.path.expanduser(
+                f'~/ros2_ws/src/susumu_object_perception/webots_worlds/{base}.wbt')
+            if os.path.exists(candidate):
+                self._publish_status(
+                    f'vs_world: using reconstructed world file ({candidate})')
+                world_file = candidate
+            else:
+                self._publish_status(
+                    f'vs_world skip: cannot reconstruct world from tmp path '
+                    f'(tried {candidate})')
+                return
+        if not os.path.exists(world_file):
+            self._publish_status(
+                f'vs_world skip: world file missing ({world_file})')
             return
+        # 以降のロジックは reconstruction 後の world_file を使う
+        self.world_file = world_file
         if not self.vs_world_script or not os.path.exists(self.vs_world_script):
             self._publish_status(
                 f'vs_world skip: script missing ({self.vs_world_script})')
