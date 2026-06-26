@@ -82,7 +82,13 @@ outputs/**/*.png
 # colorized_pointcloud_mapper が omni camera + LiDAR fusion で作る色付き点群地図。
 # /slam/save_colorized_map サービスで outputs/colorized_pointcloud/<world>_colored.ply に保存する。
 # 各自の環境で再生成する前提（数MB〜。プロジェクト内に置くが追跡しない）。
-outputs/colorized_pointcloud/
+# ディレクトリ全体 ignore は使わず、 ファイル種別で制御 (PNG だけ contracts に置けるように)。
+outputs/colorized_pointcloud/*.ply
+outputs/colorized_pointcloud/*.json
+outputs/colorized_pointcloud/*.csv
+outputs/colorized_pointcloud/*.txt
+# 例外: 検査用 PNG (XY 俯瞰 + XZ 側面) は contracts として置く (~200KB)。
+!outputs/colorized_pointcloud/*_check.png
 
 # ===== 中間成果物（実験ログ・cycle 系・検証中の地図/CSV/JSON/MD） =====
 # 整理: 最終成果物は outputs/<task>/ にタスク別フォルダで契約名固定、
