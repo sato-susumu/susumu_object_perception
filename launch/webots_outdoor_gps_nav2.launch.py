@@ -108,7 +108,8 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'waypoints',
             default_value=os.path.join(
-                pkg, 'maps', 'outdoor_gps_smoke_waypoints.yaml')),
+                pkg, 'outputs', 'waypoint_generation',
+                'outdoor_gps_smoke_waypoints.yaml')),
         DeclareLaunchArgument(
             'output_prefix',
             default_value='/tmp/outdoor_nav2_gps_nav'),
