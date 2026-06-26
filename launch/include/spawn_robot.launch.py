@@ -24,17 +24,29 @@ def generate_launch_description():
     yaw = LaunchConfiguration('yaw')
     entity = LaunchConfiguration('entity_name')
 
-    declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
+    declare_use_sim_time = DeclareLaunchArgument(
+        'use_sim_time', default_value='True',
+        description='シミュレーション時刻を使う (Gazebo 経由なので既定 True)')
     declare_lidar_model = DeclareLaunchArgument(
         'lidar_model',
         default_value='mid360',
         description='3D LiDAR model: mid360 (default) or vlp16')
-    declare_x = DeclareLaunchArgument('x_pose', default_value='0.0')
-    declare_y = DeclareLaunchArgument('y_pose', default_value='0.0')
-    declare_z = DeclareLaunchArgument('z_pose', default_value='0.05')
-    declare_yaw = DeclareLaunchArgument('yaw', default_value='0.0')
+    declare_x = DeclareLaunchArgument(
+        'x_pose', default_value='0.0',
+        description='ロボット初期 spawn 位置の x[m]')
+    declare_y = DeclareLaunchArgument(
+        'y_pose', default_value='0.0',
+        description='ロボット初期 spawn 位置の y[m]')
+    declare_z = DeclareLaunchArgument(
+        'z_pose', default_value='0.05',
+        description='ロボット初期 spawn 位置の z[m] (床+5cm で SDF めり込み回避)')
+    declare_yaw = DeclareLaunchArgument(
+        'yaw', default_value='0.0',
+        description='ロボット初期 spawn 向き yaw[rad]')
     # HuNav プラグインが追跡する robot_name と一致させること（既定 'turtlebot3'）。
-    declare_entity = DeclareLaunchArgument('entity_name', default_value='turtlebot3')
+    declare_entity = DeclareLaunchArgument(
+        'entity_name', default_value='turtlebot3',
+        description='Gazebo spawn entity 名。 HuNav の robot_name と一致必須 (両方 turtlebot3)')
 
     xacro_file = PythonExpression([
         "'", os.path.join(pkg, 'urdf', 'turtlebot3_waffle_vlp16.urdf.xacro'),

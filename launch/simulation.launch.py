@@ -42,7 +42,9 @@ def generate_launch_description():
     tl_method = LaunchConfiguration('traffic_light_method')
     tl_weights = LaunchConfiguration('traffic_light_weights')
 
-    declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
+    declare_use_sim_time = DeclareLaunchArgument(
+        'use_sim_time', default_value='True',
+        description='シミュレーション時刻を使う (Gazebo 経由なので既定 True)')
     declare_use_nav2 = DeclareLaunchArgument('use_nav2', default_value='True',
         description='Nav2 スタックを起動する')
     declare_use_perception = DeclareLaunchArgument('use_perception', default_value='True',
@@ -67,9 +69,15 @@ def generate_launch_description():
         default_value=os.path.join(susumu_pkg, 'config', 'nav2_params.yaml'),
         description='Nav2 パラメータ yaml のフルパス（3D-LiDAR 障害物回避）')
     # ロボットの spawn 姿勢。house マップ上の空きスペースに置くこと。
-    declare_x = DeclareLaunchArgument('x_pose', default_value='0.0')
-    declare_y = DeclareLaunchArgument('y_pose', default_value='0.0')
-    declare_yaw = DeclareLaunchArgument('yaw', default_value='0.0')
+    declare_x = DeclareLaunchArgument(
+        'x_pose', default_value='0.0',
+        description='ロボット初期 spawn 位置の x[m]')
+    declare_y = DeclareLaunchArgument(
+        'y_pose', default_value='0.0',
+        description='ロボット初期 spawn 位置の y[m]')
+    declare_yaw = DeclareLaunchArgument(
+        'yaw', default_value='0.0',
+        description='ロボット初期 spawn 向き yaw[rad]')
     declare_lidar_model = DeclareLaunchArgument(
         'lidar_model',
         default_value='mid360',
