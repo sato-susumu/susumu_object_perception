@@ -301,6 +301,7 @@ ros2 launch susumu_object_perception simulation.launch.py --show-args   # launch
 | **LiDAR で人が検出されない（perception の検出が壁/什器ばかり）** | Gazebo Classic の `<actor>` は既定で `<collision>` を持たず、LiDAR がメッシュを貫通する。`hunav_gazebo_world_generator` の `use_collision:=true` で `agentN_body` という並列モデル（円柱 collision）を world に注入できる | `hunav_house.launch.py` で `use_collision=true` を渡す（現行は対処済み） |
 | GUI(tkinter) が出ない | ヘッドレス環境で `tk` import 失敗（ノードは error ログを出して終了） | `gui:=false` で外すか X 環境で実行 |
 | 消したはずの旧ファイルが install に残る | `colcon build --symlink-install` は削除ファイルを install から消さない | `rm -rf build/susumu_object_perception install/susumu_object_perception` してから再ビルド |
+| launch arg を追加したのに上層 launch から渡しても効かない | ROS 2 launch の `IncludeLaunchDescription` は `launch_arguments` で明示渡しした arg のみ伝搬 (LaunchConfiguration scope は include 境界で区切られる)。 webots_simulation に追加しても webots_nav / webots_waypoint_nav 経由では伝わらない (iter94/95 で発生、 iter107/108 で解消) | **launch arg 追加 checklist**: (1) ノード source の declare_parameter 設定、 (2) 直接起動 launch の DeclareLaunchArgument + ノード parameters 渡し、 (3) include chain 上層全部に LaunchConfiguration + DeclareLaunchArgument + launch_arguments pass-through 同期、 (4) `ros2 run susumu_object_perception validate_launches.py` で全 18 launch parse 健全性確認、 (5) docs/launch.md「主な引数」 表に追記 (該当する場合) |
 
 ## 動作確認の作法（このリポジトリ）
 
