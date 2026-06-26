@@ -89,7 +89,11 @@ flowchart LR
 | 認識 | [autoware_perception.md](docs/autoware_perception.md) | LiDAR perception と prediction costmap |
 | 認識 | [traffic_light_recognition.md](docs/traffic_light_recognition.md) | 全天球信号認識 |
 | センサ | [omni_lidar_camera.md](docs/omni_lidar_camera.md) | 全天球カメラ、色付き点群、キャリブレーション |
+| センサ | [mid360_lidar_research.md](docs/mid360_lidar_research.md) | MID-360 LiDAR の調査記録 |
+| 認識 | [semantic_object_memory.md](docs/semantic_object_memory.md) | object_memory ノード設計 (SQLite 永続化、 自然語クエリ) |
 | ナビ | [nav2_tuning.md](docs/nav2_tuning.md) | Nav2 パラメータの現在値と調整履歴 |
+| 環境 | [webots_simulation.md](docs/webots_simulation.md) | Webots 起動手順、 罠、 mode/realtime 等 |
+| 検討 | [autoware_hd_map_research.md](docs/autoware_hd_map_research.md) | Autoware 全面採用と HD 地図のコスト調査 |
 | 構築 | [SETUP.md](SETUP.md) | 構築の詳細手順・ハマりどころ |
 | 作業規約 | [AGENTS.md](AGENTS.md) | AI エージェント / 新規参加者向け作業ガイド |
 
