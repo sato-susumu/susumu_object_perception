@@ -50,6 +50,12 @@ ros2 launch susumu_object_perception webots_calibration.launch.py \
   omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
 # 色付き点群を PLY 保存
 ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
+
+# キャリブ結果のサマリ PNG を生成 (iter33 で追加、 run_all_tasks.sh は自動実行)
+# 真値 vs 推定値 bar chart + 数値テーブル (RMS / RPY / quaternion / 各軸 diff)
+ros2 run susumu_object_perception visualize_calib_result.py \
+  --calib outputs/extrinsic_calibration/calib.json \
+  --out outputs/extrinsic_calibration/calib_summary.png
 ```
 
 ## 合格基準
