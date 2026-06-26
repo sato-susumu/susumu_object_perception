@@ -285,6 +285,10 @@ gz sdf -k models/turtlebot3_waffle_3d/model.sdf
 xacro urdf/turtlebot3_waffle_3d.urdf.xacro > /dev/null
 python3 -c "import yaml; yaml.safe_load(open('config/nav2_params.yaml'))"
 ros2 launch susumu_object_perception simulation.launch.py --show-args   # launch記述のパース確認
+
+# 自動化基盤 (iter99/110 で導入)
+ros2 run susumu_object_perception validate_launches.py    # 全 18 launch の parse 健全性 (18/18 PASS が期待値)
+ros2 run susumu_object_perception validate_contracts.py   # outputs/ 配下 contracts 配置と AGENTS 8 タスクとの照合
 ```
 
 ## やりがちな失敗
