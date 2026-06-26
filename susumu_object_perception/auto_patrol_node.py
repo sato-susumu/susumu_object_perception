@@ -181,10 +181,16 @@ class AutoPatrolNode(Node):
             return
         if self._bootstrap_tries >= self.bootstrap_max_tries:
             # これ以上回っても育たない。緩く再試行に切り替える。
-            self._publish_status(
-                'bootstrap exhausted; retrying plan with current map')
+            # 同じステータス連発を抑止 (iter39): 既に exhaust 状態になっていれば
+            # ログを出さない (再試行は続けるが状態は遷移していないため)。
+            if not getattr(self, '_bootstrap_exhaust_logged', False):
+                self._publish_status(
+                    'bootstrap exhausted; retrying plan with current map')
+                self._bootstrap_exhaust_logged = True
             self.create_timer(2.0, self._retry_start_once)
             return
+        # 別状態に遷移したらフラグを下げる (次に exhaust に入ったら再度ログを出せる)
+        self._bootstrap_exhaust_logged = False
         if not self._spin_client.wait_for_server(timeout_sec=5.0):
             self._publish_status('spin server unavailable; retrying')
             self.create_timer(3.0, self._retry_start_once)
