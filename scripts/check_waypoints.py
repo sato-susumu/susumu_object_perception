@@ -39,13 +39,12 @@ def main():
     res = float(meta['resolution'])
     ox, oy = meta['origin'][0], meta['origin'][1]
     occ_t = float(meta.get('occupied_thresh', 0.65))
-    free_t = float(meta.get('free_thresh', 0.25))
     import os
     pgm = os.path.join(os.path.dirname(args.map), meta['image'])
     img = cv2.imread(pgm, cv2.IMREAD_GRAYSCALE)
     h, w = img.shape
-    # map_server trinary: 205(unknown) は p=0.196 で free_t 未満になり free に誤分類される。
-    # generate_waypoints.py と同じく free は「明確に白(>=250)」に限定する。
+    # map_server trinary: 205(unknown) は p=0.196 で meta['free_thresh'](0.25) 未満になり
+    # free に誤分類される。 generate_waypoints.py と同じく free は「明確に白(>=250)」に限定する。
     p = (255.0 - img.astype(np.float32)) / 255.0
     occ = p >= occ_t
     free = (img >= 250) & ~occ

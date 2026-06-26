@@ -204,7 +204,6 @@ def _foreground_blockers(view_x, view_y, target, all_targets, args):
 
 
 def _candidate_viewpoints(grid, route_mask, target, all_targets, args):
-    min_clear_cells = args.clearance / grid.resolution
     angle_step = math.radians(args.angle_step_deg)
     radii = np.arange(args.min_radius, args.max_radius + 1.0e-9,
                       args.radius_step)

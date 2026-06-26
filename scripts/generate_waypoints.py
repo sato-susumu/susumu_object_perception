@@ -74,7 +74,7 @@ def load_pgm(path):
                     tok += c
         w = int(read_token())
         h = int(read_token())
-        maxv = int(read_token())
+        read_token()  # consume maxv (P5/P2 ヘッダ消費、 8bit 前提)
         if magic == b'P5':
             data = np.frombuffer(f.read(w * h), dtype=np.uint8)
         else:  # P2
@@ -912,14 +912,13 @@ def main():
     res = float(meta['resolution'])
     ox, oy = meta['origin'][0], meta['origin'][1]
     occ_thresh = float(meta.get('occupied_thresh', 0.65))
-    free_thresh = float(meta.get('free_thresh', 0.25))
     pgm_path = os.path.join(os.path.dirname(args.map), meta['image'])
 
     img = load_pgm(pgm_path)
     h, w = img.shape
     # map_server 流: trinary。occ=黒(0 付近), free=白(254/255), unknown=205。
-    # 占有確率 p = (255 - value)/255。p>=occ_thresh が占有、p<=free_thresh が空き。
-    # ただし unknown(205)は p=0.196 で free_thresh(0.25)未満になり free に誤分類される。
+    # 占有確率 p = (255 - value)/255。p>=occ_thresh が占有、p<=meta['free_thresh'] が空き。
+    # ただし unknown(205)は p=0.196 で meta['free_thresh'](既定 0.25)未満になり free に誤分類される。
     # map_server の trinary 規約どおり「205 は unknown」を厳守するため、free は
     # 「明確に白(>=250)」に限定する。これを外すと地図端の unknown 帯が free 扱いされ、
     # 距離変換が地図境界を壁とみなさず、ウェイポイントが unknown 領域（PNG では地図端の

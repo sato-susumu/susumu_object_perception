@@ -64,7 +64,7 @@ CELL_CLASSES = ('occupied', 'free', 'unknown', 'outside')
 
 def load_pgm(path):
     with open(path, 'rb') as f:
-        magic = f.readline().strip()
+        f.readline()  # consume magic line (P5/P2 — width/height parsing below ignores it)
 
         def rt():
             tok = b''
@@ -561,7 +561,6 @@ def main():
                              lw=lw, alpha=alpha))
 
     for obj in objs:
-        typ = obj['type']
         tx, ty = obj['xy']
         s = obj['size']
         yaw = obj['yaw']

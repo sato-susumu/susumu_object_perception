@@ -28,7 +28,7 @@ from scipy import ndimage
 
 def load_pgm(path):
     with open(path, 'rb') as f:
-        magic = f.readline().strip()
+        f.readline()  # consume magic line (P5/P2 — width/height parsing below ignores it)
 
         def rt():
             tok = b''
