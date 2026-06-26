@@ -56,7 +56,14 @@ def main():
     def to_px(mx, my):
         return ((mx - ox) / res - 0.5, h - 1 - ((my - oy) / res - 0.5))
 
-    fig, ax = plt.subplots(figsize=(w / 50.0, h / 50.0), dpi=120)
+    # render_recognition_overlay.py と同パターンで自動拡大 (小さい地図でも文字を読める
+    # サイズに)。 ユーザー指示「認識は地図上に結果表示、 小さければ自動拡大」 を巡回
+    # 可視化にも適用 (iter40)。 既存固定スケール w/50, h/50 inch だと 200x100 cell で
+    # 4x2 inch しか無く、 ラベル/legend が小さくなる。
+    scale = max(1.0, 520.0 / max(w, h))
+    fig_w = max(7.0, (w * scale) / 80.0)
+    fig_h = max(7.0, (h * scale) / 80.0)
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=120)
     ax.imshow(img, cmap='gray', vmin=0, vmax=255, origin='upper')
 
     xs_line, ys_line = [], []
