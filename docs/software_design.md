@@ -88,6 +88,7 @@ flowchart LR
 | `launch/simulation.launch.py` | 全部入り（下記すべて + RViz2 + GUI）。エントリポイント | ○ |
 | `launch/include/hunav_house.launch.py` | Gazebo（既定 cafe world）+ HuNavSim 歩行者5人 | ○ |
 | `launch/include/spawn_robot.launch.py` | 3D-LiDAR TurtleBot3 を spawn + robot_state_publisher | ○（要 Gazebo 起動済み） |
+| `launch/include/autoware_perception.launch.py` | Autoware perception パイプライン (crop_box → ground_filter → euclidean_cluster) を 1 component_container にまとめ、 自作補完ノード (shape_estimation / object_tracker / prediction / marker / etc) を起動。 詳細は 8 章 | — (上層 launch から include 専用) |
 | `launch/include/test_robot_empty.launch.py` | 空 world + ロボット単体（3D LiDAR / TF 確認用）。`simulation` からは include されない検証専用 | ○ |
 
 ### 起動タイムライン
