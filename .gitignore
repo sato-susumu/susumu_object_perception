@@ -75,6 +75,9 @@ webots_worlds/*.wbproj
 # ただし契約 PNG（outputs/recognition/indoor_recognition_overlay.png 等）は個別に追跡する。
 outputs/**/*.png
 !outputs/recognition/indoor_recognition_overlay.png
+# 認識タスクの評価 + 巡回品質 PNG (iter27 で生成、 ユーザー指示「PNG 必須」 対応)。
+!outputs/recognition/*_recognition_eval.png
+!outputs/recognition/*_recognition_patrol_result.png
 !outputs/waypoint_generation/*.png
 !outputs/mapping_indoor/*_vs_world.png
 !outputs/mapping_indoor/*_eval.png
