@@ -132,7 +132,9 @@ path length 比は改善するが odom aligned と進行性が悪化したため
   19→8 に削減、 generate_waypoints.py に dedupe + grid NMS 追加後) は `reached=8/8 missed=[]`
   (約 6 分完走、 recovery 多発なし)。 旧 19 WP の `reached=13/19` から完走率改善を実証。
 - `slam:=False map_file:=outputs/mapping_indoor/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
-  モードは `reached=22/22 missed=[]` を維持している。自己位置評価の要点は次に集約する。
+  モードは過去 `reached=22/22 missed=[]` を維持していた (22 WP 時代)。 iter46 で indoor_waypoints.yaml が
+  9 WP に縮小されてからは `reached=9/9 missed=[]` (iter119 で SLAM 巡回モードで実測、 `outputs/waypoint_generation/indoor_patrol_result.png`)。
+  自己位置評価の要点は次に集約する。
 
   | 区分 | 要点 |
   |---|---|
