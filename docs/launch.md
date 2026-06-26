@@ -132,6 +132,10 @@ ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
 | `perception` | `True` | simulation/outdoor/indoor | Autoware perception を起動（3D LiDAR `/lidar/points/point_cloud` 入力） |
 | `omni_perception` | `True` | webots_nav 等 | 全天球色付き点群/全天球クロップ補助を起動する |
 | `image_recognition` | 入口による | webots_simulation/outdoor/indoor/nav/city/waypoint/SLAM 等 | YOLO 物体分類 + 全天球信号認識を起動する。通常入口は `True`、巡回/色付き点群/キャリブレーション系は既定 `False` |
+| `traffic_light_method` | `classic` | webots_simulation/nav/waypoint_nav/simulation | 信号認識バックエンド (iter94 追加、 iter108 chain 横展開)。 `classic` (HSV+円形度、 学習不要) または `yolo` (YOLOv8、 `traffic_light_weights` 必須、 初期化失敗で FATAL 終了) |
+| `traffic_light_weights` | `yolov8n.pt` | webots_simulation/nav/waypoint_nav/simulation | `traffic_light_method:=yolo` のときに使う重み。 相対パスは ultralytics デフォルト探索 |
+| `object_memory_delete_thresh` | `0.25` | webots_simulation/nav/waypoint_nav | object_memory の Bayes 削除しきい値 (iter95 追加、 iter107 chain 横展開)。 巡回中に DB が空になる時は `0.05〜0.10` に下げる |
+| `object_memory_miss_tp` / `miss_fp` | `0.2` / `0.6` | webots_simulation/nav/waypoint_nav | object_memory の miss 観測時 TP/FP 確率。 `miss_tp` 上げ or `miss_fp` 下げで減衰が緩む |
 | `colored_slam` | `True` | webots_simulation/nav | `/perception/colorized_points` を SLAM/odom 座標へ蓄積し `/slam/colorized_points_map` を出す |
 | `rviz` | `True` | simulation/outdoor/indoor | RViz2 を起動 |
 | `mode` | `realtime` | webots 全般 | Webots 起動モード（realtime / fast / pause） |
