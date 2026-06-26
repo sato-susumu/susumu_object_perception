@@ -130,12 +130,24 @@ def generate_launch_description():
             description='Outdoor waypoint YAML in outputs/waypoint_generation/ or an absolute path. '
                         'NOTE (iter88): default value points to a not-yet-existing file. '
                         'Pass waypoints:=<your_waypoints>.yaml explicitly.'),
-        DeclareLaunchArgument('mode', default_value='realtime'),
-        DeclareLaunchArgument('rviz', default_value='True'),
-        DeclareLaunchArgument('loop', default_value='False'),
-        DeclareLaunchArgument('perception', default_value='False'),
-        DeclareLaunchArgument('omni_perception', default_value='False'),
-        DeclareLaunchArgument('image_recognition', default_value='False'),
+        DeclareLaunchArgument(
+            'mode', default_value='realtime',
+            description='Webots 起動モード（realtime / fast / pause）。 屋外巡回は realtime 推奨'),
+        DeclareLaunchArgument(
+            'rviz', default_value='True',
+            description='RViz2 を起動する'),
+        DeclareLaunchArgument(
+            'loop', default_value='False',
+            description='巡回完走後にもう一周する。 屋外既定 False = 1 周で停止'),
+        DeclareLaunchArgument(
+            'perception', default_value='False',
+            description='Autoware perception (LiDAR 検出・追跡・予測) を起動する。 屋外 patrol 既定 False'),
+        DeclareLaunchArgument(
+            'omni_perception', default_value='False',
+            description='全天球色付き点群 / 全天球クロップ補助を起動する。 屋外 patrol 既定 False'),
+        DeclareLaunchArgument(
+            'image_recognition', default_value='False',
+            description='YOLO 物体分類 + 全天球信号認識を起動する。 屋外 patrol 既定 False (CPU 節約)'),
         DeclareLaunchArgument(
             'nav_params_file',
             default_value='nav2_params_webots_explore_outdoor.yaml',
