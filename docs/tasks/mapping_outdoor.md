@@ -3,6 +3,12 @@
 このページは README のタスク一覧「マッピング（屋外）」の詳細ページ。屋内マッピングは別タスクで
 [`mapping_indoor.md`](mapping_indoor.md) を参照。
 
+> **現状未対応** (README.md / AGENTS.md と整合): 特徴の少ない広域屋外世界は両立する
+> SLAM 設定が無く、 採用済み地図はまだ無い。 本ページは将来の最終形に向けた「目標」 と
+> 実験中の探索 (GLIM 3D mapping → 2D 変換 等) を記述する。 採用版が無い間、
+> `outputs/mapping_outdoor/` には `_gt.yaml/.pgm/_preview.png` (真値、 評価用) のみが
+> contracts として置かれる。
+
 ## 入出力
 
 | 項目 | 内容 |
