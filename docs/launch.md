@@ -104,11 +104,11 @@ ros2 run susumu_object_perception check_map_vs_world.py \
 
 # 保存地図から巡回ウェイポイントを生成（屋外は上の --waypoints-out で同時生成）
 ros2 run susumu_object_perception generate_waypoints.py \
-  --map outputs/mapping_outdoor/city.yaml --out outputs/waypoint_generation/city_waypoints.yaml --spacing 1.5 --clearance 0.4
+  --map outputs/mapping_indoor/indoor.yaml --out outputs/waypoint_generation/indoor_waypoints.yaml --spacing 1.5 --clearance 0.4
 
-# ウェイポイントに沿って Nav2 で巡回
+# ウェイポイントに沿って Nav2 で巡回 (iter89 で default ペアを indoor.wbt + indoor_waypoints.yaml に変更)
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
-  world:=city_robot.wbt waypoints:=city_waypoints.yaml mode:=realtime \
+  world:=indoor.wbt waypoints:=indoor_waypoints.yaml mode:=realtime \
   perception:=True omni_perception:=True image_recognition:=True
 ros2 launch susumu_object_perception webots_outdoor_waypoint_nav.launch.py \
   world:=village_square_trimmed.wbt \
