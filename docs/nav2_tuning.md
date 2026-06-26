@@ -116,6 +116,7 @@ flowchart LR
 | **予測コストマップ層** | **`predicted_layer`（自作 `susumu_object_perception::PredictedCostmapLayer`）** | perception 連携。`prediction_node` の予測 OccupancyGrid `/perception/predicted_costmap`(map) を `max` 合成で costmap に乗せる。人の**現在位置**（全トラック）と**進路先**（移動トラック）の両方をこの層が担う（STVL 廃止後の唯一の動的障害物層） |
 | `predicted_layer` 入力 | `/perception/predicted_costmap` | prediction が毎フレーム作り直す予測格子。現在位置（全トラック）+ 最有力予測パス（移動トラック、近傍2s、confidence しきい無し＝移動なら必ず焼く）。点列は**線分補間**で繋ぎ（飛び石防止）、人幅+方向ズレ吸収ぶん **8 セル円盤膨張** |
 | `predicted_layer.occupied_threshold` | 50 | 予測格子のこの値以上のセルを LETHAL で焼く |
+| `transform_tolerance` (local_costmap) | **patrol 0.5** / **explore 0.2** | TF lookup の許容遅延 [s]。 patrol 専用 (`nav2_params_webots_patrol.yaml`) は 0.5 に上げて SLAM の `map→odom` TF 遅延 (`Transform data too old`) で controller が abort するのを防ぐ。 マッピング (`nav2_params_webots_explore.yaml`) は 0.2 のまま (frontier 探索中の地図変化に応じる)。 iter5 で patrol 18/18 完走実現の鍵 |
 
 ### プランナ（`planner_server` / `GridBased`）
 
