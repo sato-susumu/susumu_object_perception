@@ -254,11 +254,15 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument(
-            'world', default_value='city_robot.wbt',
-            description='ナビするワールド（city_robot.wbt / outdoor.wbt / indoor.wbt）'),
+            'world', default_value='indoor.wbt',
+            description='ナビするワールド（indoor.wbt / break_room.wbt / city_robot.wbt / outdoor.wbt）。 '
+                        'iter89 で default を city_robot から indoor に変更 (city_waypoints.yaml が '
+                        'contracts から legacy に移動されたため、 動く default ペアにする)'),
         DeclareLaunchArgument(
-            'waypoints', default_value='city_waypoints.yaml',
-            description='outputs/waypoint_generation/ 配下のウェイポイント yaml ファイル名、または絶対パス'),
+            'waypoints', default_value='indoor_waypoints.yaml',
+            description='outputs/waypoint_generation/ 配下のウェイポイント yaml ファイル名、または絶対パス。 '
+                        'iter89 で default を city_waypoints.yaml → indoor_waypoints.yaml に変更 '
+                        '(city_waypoints.yaml は experiments/waypoint_generation/legacy/ に移動済み)'),
         DeclareLaunchArgument(
             'mode', default_value='fast',
             description='Webots 起動モード（realtime / fast / pause）'),
