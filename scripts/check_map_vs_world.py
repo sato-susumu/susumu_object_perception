@@ -542,7 +542,13 @@ def main():
         py = (my - oy) / res  # PGM は上下反転だが imshow origin=lower で合わせる
         return px, py
 
-    fig, ax = plt.subplots(figsize=(w / 40, h / 40))
+    # 自動拡大 (iter41): 固定スケール `figsize=(w/40, h/40)` だと indoor (200x100 cell)
+    # で 5x2.5 inch しか無く、 ラベルや真値境界が小さくなる。 render_recognition_overlay.py
+    # 同パターンで小さい地図でも読めるサイズへ拡大。 ユーザー指示「小さければ自動拡大」。
+    scale = max(1.0, 520.0 / max(w, h))
+    fig_w = max(7.0, (w * scale) / 80.0)
+    fig_h = max(7.0, (h * scale) / 80.0)
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     # PGM(map_server規約)は img[0] が画像最上行＝map y 最大。world点の py は origin からの
     # 上方向距離 (my-oy)/res なので、PGM をそのまま origin='lower' で出すと上下が反転する
     # （break_room で 180度ズレて見えた原因）。img を上下反転して y 向きを world と一致させる。
