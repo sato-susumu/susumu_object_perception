@@ -1,0 +1,203 @@
+{
+  "summary": {
+    "reason": "complete",
+    "waypoints_file": "/home/taro/ros2_ws/install/susumu_object_perception/share/susumu_object_perception/outputs/waypoint_generation/indoor_waypoints.yaml",
+    "frame_id": "map",
+    "total": 9,
+    "reached_count": 9,
+    "missed_count": 0,
+    "missed": [],
+    "pending": [],
+    "goal_timeout_sec": 60.0,
+    "mission_timeout_sec": 0.0,
+    "safe_pose_guard": false,
+    "safe_pose_recovery_count": 0,
+    "wall_elapsed_sec": 122.871,
+    "loop": false
+  },
+  "waypoints": [
+    {
+      "index": 0,
+      "x": -0.125,
+      "y": 0.015,
+      "yaw": null
+    },
+    {
+      "index": 1,
+      "x": -0.125,
+      "y": 2.015,
+      "yaw": null
+    },
+    {
+      "index": 2,
+      "x": 1.325,
+      "y": 3.165,
+      "yaw": null
+    },
+    {
+      "index": 3,
+      "x": 3.075,
+      "y": 3.115,
+      "yaw": null
+    },
+    {
+      "index": 4,
+      "x": 2.725,
+      "y": 2.015,
+      "yaw": null
+    },
+    {
+      "index": 5,
+      "x": 0.275,
+      "y": -2.335,
+      "yaw": null
+    },
+    {
+      "index": 6,
+      "x": 1.575,
+      "y": -2.335,
+      "yaw": null
+    },
+    {
+      "index": 7,
+      "x": 1.925,
+      "y": -3.985,
+      "yaw": null
+    },
+    {
+      "index": 8,
+      "x": 3.075,
+      "y": -3.485,
+      "yaw": null
+    }
+  ],
+  "results": [
+    {
+      "lap": 0,
+      "index": 0,
+      "x": -0.125,
+      "y": 0.015,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 0.074,
+      "wall_elapsed_sec": 0.827,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.173
+    },
+    {
+      "lap": 0,
+      "index": 1,
+      "x": -0.125,
+      "y": 2.015,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 16.363,
+      "wall_elapsed_sec": 17.191,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.046
+    },
+    {
+      "lap": 0,
+      "index": 2,
+      "x": 1.325,
+      "y": 3.165,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 12.662,
+      "wall_elapsed_sec": 29.853,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.039
+    },
+    {
+      "lap": 0,
+      "index": 3,
+      "x": 3.075,
+      "y": 3.115,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 7.861,
+      "wall_elapsed_sec": 37.715,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.289
+    },
+    {
+      "lap": 0,
+      "index": 4,
+      "x": 2.725,
+      "y": 2.015,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 13.072,
+      "wall_elapsed_sec": 50.787,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.072
+    },
+    {
+      "lap": 0,
+      "index": 5,
+      "x": 0.275,
+      "y": -2.335,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 41.973,
+      "wall_elapsed_sec": 92.762,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.049
+    },
+    {
+      "lap": 0,
+      "index": 6,
+      "x": 1.575,
+      "y": -2.335,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 5.664,
+      "wall_elapsed_sec": 98.427,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.268
+    },
+    {
+      "lap": 0,
+      "index": 7,
+      "x": 1.925,
+      "y": -3.985,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 13.873,
+      "wall_elapsed_sec": 112.302,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.058
+    },
+    {
+      "lap": 0,
+      "index": 8,
+      "x": 3.075,
+      "y": -3.485,
+      "yaw": null,
+      "result": "reached",
+      "reason": "succeeded",
+      "action_status": 4,
+      "duration_sec": 10.564,
+      "wall_elapsed_sec": 122.867,
+      "nav_recoveries": 0,
+      "nav_distance_remaining_m": 0.063
+    }
+  ],
+  "safe_pose_recoveries": []
+}
