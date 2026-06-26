@@ -36,6 +36,14 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
   perception:=True omni_perception:=True image_recognition:=True
 ```
 
+巡回後に PNG 可視化を手動で再生成する (run_all_tasks.sh は自動実行):
+```bash
+ros2 run susumu_object_perception visualize_patrol_result.py \
+  --map outputs/mapping_indoor/<world>.yaml \
+  --report /path/to/report.json \
+  --out outputs/waypoint_generation/<world>_patrol_result.png
+```
+
 `waypoints` は `outputs/waypoint_generation/` 配下のファイル名で渡す。絶対パスではなく `city_waypoints.yaml` のように指定する。
 既定は `slam:=True` で、巡回しながら `/map` を作り Nav2 の static layer に渡す。既存地図を使う
 実験用に `slam:=False map_file:=<yaml>` も渡せる。Nav2 パラメータを差し替える場合は
