@@ -30,6 +30,14 @@
 ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt \
   perception:=False rviz:=false nav:=False slam:=False mode:=fast
 
+# (iter94) launch 引数で classic / yolo を切替えて起動できる。
+# simulation.launch.py / webots_simulation.launch.py 共通で:
+#   traffic_light_method:=classic  ... 学習不要、 既定
+#   traffic_light_method:=yolo traffic_light_weights:=<path>/yolov8n.pt ... YOLO 検出
+ros2 launch susumu_object_perception webots_simulation.launch.py world:=outdoor.wbt \
+  perception:=False rviz:=false nav:=False slam:=False mode:=fast \
+  traffic_light_method:=yolo
+
 # (A) classic バックエンド（学習不要・既定 omni）。Webots 色プロファイルを渡す
 ros2 run susumu_object_perception traffic_light_detector_node.py --ros-args \
   --params-file install/susumu_object_perception/share/susumu_object_perception/config/traffic_light_webots.param.yaml

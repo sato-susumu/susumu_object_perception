@@ -106,6 +106,8 @@ def generate_launch_description():
     # 画像認識（LiDAR 検出物体の YOLO 分類 + 全天球信号認識）。YOLO は CPU 負荷が高いが
     # 間引き（トラック ID キャッシュ + レート上限）があるので既定 ON。重いとき image_recognition:=False。
     use_image_recognition = LaunchConfiguration('image_recognition', default=True)
+    tl_method = LaunchConfiguration('traffic_light_method')
+    tl_weights = LaunchConfiguration('traffic_light_weights')
     object_yolo_weights = LaunchConfiguration('object_yolo_weights')
     object_yolo_imgsz = LaunchConfiguration('object_yolo_imgsz')
     object_yolo_conf = LaunchConfiguration('object_yolo_conf')
@@ -518,6 +520,8 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'omni_mode': True,
             'input_image': '/omni_camera/image_raw/image_color',
+            'method': tl_method,
+            'yolo.weights': tl_weights,
         }],
         condition=launch.conditions.IfCondition(use_image_recognition))
 
@@ -649,6 +653,14 @@ def generate_launch_description():
             'image_recognition', default_value='True',
             description=('画像認識（LiDAR検出物体のYOLO分類 + 全天球信号認識）を起動する。'
                          'YOLOはCPU負荷が高いが間引きありで既定ON。重いときは False')),
+        DeclareLaunchArgument(
+            'traffic_light_method', default_value='classic',
+            description=('信号認識バックエンド: classic (HSV+円形度、 学習不要、 既定) または '
+                         'yolo (YOLOv8、 traffic_light_weights 必須。 初期化失敗で FATAL 終了)')),
+        DeclareLaunchArgument(
+            'traffic_light_weights', default_value='yolov8n.pt',
+            description=('traffic_light_method:=yolo のときに使う重み。 '
+                         '相対パスは ultralytics デフォルト探索パスを使用')),
         DeclareLaunchArgument(
             'object_yolo_weights', default_value='yolov8s-seg.pt',
             description='object_classifier_node.py の YOLO weight。認識比較では yolov8m-seg.pt 等へ差し替え可能'),

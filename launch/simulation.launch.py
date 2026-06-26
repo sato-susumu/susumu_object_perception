@@ -39,6 +39,8 @@ def generate_launch_description():
     y_pose = LaunchConfiguration('y_pose')
     yaw = LaunchConfiguration('yaw')
     lidar_model = LaunchConfiguration('lidar_model')
+    tl_method = LaunchConfiguration('traffic_light_method')
+    tl_weights = LaunchConfiguration('traffic_light_weights')
 
     declare_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='True')
     declare_use_nav2 = DeclareLaunchArgument('use_nav2', default_value='True',
@@ -72,6 +74,15 @@ def generate_launch_description():
         'lidar_model',
         default_value='mid360',
         description='3D LiDAR model: mid360 (default) or vlp16')
+    declare_tl_method = DeclareLaunchArgument(
+        'traffic_light_method',
+        default_value='classic',
+        description=('信号認識バックエンド: classic (HSV+円形度、 学習不要、 既定) または '
+                     'yolo (YOLOv8、 traffic_light_weights が必要。 初期化失敗で FATAL 終了)'))
+    declare_tl_weights = DeclareLaunchArgument(
+        'traffic_light_weights',
+        default_value='yolov8n.pt',
+        description='traffic_light_method:=yolo のときに使う重み (相対パスは ultralytics デフォルト探索)')
 
     lidar_points_topic = '/lidar/points'
     lidar_frame = 'lidar_link'
@@ -191,6 +202,8 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time, 'omni_mode': True,
             'input_image': '/omni_camera/image_raw',
+            'method': tl_method,
+            'yolo.weights': tl_weights,
         }],
         condition=IfCondition(use_image_recognition))
     traffic_light_localizer = Node(
@@ -274,7 +287,8 @@ def generate_launch_description():
     for a in (declare_use_sim_time, declare_use_nav2, declare_use_perception,
               declare_use_image_recognition, declare_use_semantic_memory,
               declare_use_rviz, declare_gui, declare_map, declare_params,
-              declare_x, declare_y, declare_yaw, declare_lidar_model):
+              declare_x, declare_y, declare_yaw, declare_lidar_model,
+              declare_tl_method, declare_tl_weights):
         ld.add_action(a)
 
     ld.add_action(hunav_world)
