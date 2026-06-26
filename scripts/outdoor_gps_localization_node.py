@@ -7,7 +7,6 @@ standard ``map -> odom -> base_footprint`` chain without SLAM or AMCL.
 """
 
 import math
-import os
 
 import rclpy
 from geometry_msgs.msg import PointStamped, TransformStamped, Vector3Stamped

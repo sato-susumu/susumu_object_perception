@@ -5,7 +5,6 @@ import argparse
 from collections import Counter
 import csv
 import json
-import math
 import os
 
 import cv2

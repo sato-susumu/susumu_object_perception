@@ -22,7 +22,6 @@ import argparse
 import json
 import os
 
-import numpy as np
 import yaml
 import cv2
 import matplotlib

@@ -24,8 +24,6 @@ import json
 import os
 import re
 from collections import Counter
-
-import numpy as np
 import yaml
 import cv2
 import matplotlib

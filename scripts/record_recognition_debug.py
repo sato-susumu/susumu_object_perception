@@ -11,7 +11,7 @@ diagnostics into target-oriented reports so a debug waypoint run can answer:
 """
 
 import argparse
-from collections import Counter, defaultdict, deque
+from collections import Counter, deque
 import csv
 import json
 import math
