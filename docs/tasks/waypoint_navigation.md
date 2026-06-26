@@ -134,6 +134,9 @@ path length 比は改善するが odom aligned と進行性が悪化したため
 - `slam:=False map_file:=outputs/mapping_indoor/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
   モードは過去 `reached=22/22 missed=[]` を維持していた (22 WP 時代)。 iter46 で indoor_waypoints.yaml が
   9 WP に縮小されてからは `reached=9/9 missed=[]` (iter119 で SLAM 巡回モードで実測、 `outputs/waypoint_generation/indoor_patrol_result.png`)。
+- `break_room.wbt` (19 WP) の `slam:=True` 巡回も iter126 で `reached=19/19 missed=[]` を実証
+  (約 5.4 分完走、 recovery 0、 一発成功、 WP duration mean=17.1s)。 成果物は
+  `outputs/waypoint_generation/break_room_patrol_{report.json,csv,md, result.png}` に配置。
   自己位置評価の要点は次に集約する。
 
   | 区分 | 要点 |
