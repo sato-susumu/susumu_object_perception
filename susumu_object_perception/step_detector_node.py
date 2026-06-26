@@ -82,6 +82,9 @@ class StepDetectorNode(Node):
         # 加速度 z 急変判定 [m/s^2]。 短時間に重力 (9.81) からこの値以上ズレたら
         # 「段差通過」 イベント。
         self.declare_parameter('accel_z_jolt_threshold', 4.0)
+        # accel_jolt 発火後のクールダウン [s]。 1 つの段差通過 (~0.1s) で IMU 連続フレーム
+        # に閾値超え az が乗り続けると毎フレーム emit するため抑止。 iter56 で追加。
+        self.declare_parameter('accel_jolt_cooldown_sec', 2.0)
         # 警告ログ周期 [s]。
         self.declare_parameter('warn_period_sec', 3.0)
 
@@ -103,6 +106,8 @@ class StepDetectorNode(Node):
             self.get_parameter('stuck_cooldown_sec').value)
         self.jolt_threshold = float(
             self.get_parameter('accel_z_jolt_threshold').value)
+        self.accel_jolt_cooldown_sec = float(
+            self.get_parameter('accel_jolt_cooldown_sec').value)
         self.warn_period_sec = float(
             self.get_parameter('warn_period_sec').value)
 
@@ -114,6 +119,7 @@ class StepDetectorNode(Node):
         self._cmd_vel_samples = deque(maxlen=200)
         self._odom_samples = deque(maxlen=200)
         self._last_stuck_fire_t = 0.0
+        self._last_jolt_fire_t = 0.0
 
         # Publisher / Subscriber
         self.pub_status = self.create_publisher(
@@ -154,16 +160,21 @@ class StepDetectorNode(Node):
         f = Float32()
         f.data = math.degrees(tilt)
         self.pub_tilt.publish(f)
-        # 加速度 z (gravity 含む) ジョルト検知
+        # 加速度 z (gravity 含む) ジョルト検知 + cooldown (iter56)。
+        # IMU 100-200 Hz で閾値超え az が連続フレームに乗ると毎フレーム emit する
+        # ため抑止 (1 つの段差通過 ~0.1s で 10-20 件発火する問題)。
         az = msg.linear_acceleration.z
         if abs(az - 9.81) >= self.jolt_threshold:
-            self._emit_event('accel_jolt', {
-                'accel_z': az,
-                'deviation_from_g': az - 9.81,
-            })
-            self.get_logger().info(
-                f'step_detector: accel_z jolt {az:.2f} m/s^2 (Δ from g='
-                f'{az - 9.81:+.2f})')
+            now_jolt = self._now_sec()
+            if now_jolt - self._last_jolt_fire_t >= self.accel_jolt_cooldown_sec:
+                self._last_jolt_fire_t = now_jolt
+                self._emit_event('accel_jolt', {
+                    'accel_z': az,
+                    'deviation_from_g': az - 9.81,
+                })
+                self.get_logger().info(
+                    f'step_detector: accel_z jolt {az:.2f} m/s^2 (Δ from g='
+                    f'{az - 9.81:+.2f})')
         # 傾き判定
         now = self._now_sec()
         if tilt >= self.tilt_warn:
