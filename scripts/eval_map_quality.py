@@ -93,10 +93,45 @@ def evaluate(map_yaml, connect_clearance):
         wall_rate=wall_rate, main_rate=main_rate, n_components=big)
 
 
+def render_png(map_yaml, r, verdict, out_png):
+    """地図 PGM を読み込み、 統計をタイトルに付した PNG を出力。
+
+    matplotlib に依存するが、 import は呼び出し時のみ (CLI で --png-dir 指定時に限る)。
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    meta = yaml.safe_load(open(map_yaml))
+    pgm_path = os.path.join(os.path.dirname(map_yaml), meta['image'])
+    img = load_pgm(pgm_path)
+    h, w = img.shape
+    res = float(meta['resolution'])
+    aspect = h / max(w, 1)
+    fig_w = 10.0
+    fig_h = max(4.0, fig_w * aspect)
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    ax.imshow(img, cmap='gray', vmin=0, vmax=255, origin='upper')
+    total = r['free'] + r['occ'] + r['unk']
+    unk_pct = 100.0 * r['unk'] / max(total, 1)
+    ax.set_title(
+        f'{r["world"]}.pgm  shape={w*res:.1f}x{h*res:.1f}m  '
+        f'wall={r["wall_rate"]:.1f}%  main_conn={r["main_rate"]:.0f}%  '
+        f'unknown={unk_pct:.0f}%\nverdict: {verdict}',
+        fontsize=11)
+    ax.set_xlabel('x [cell]')
+    ax.set_ylabel('y [cell]')
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(os.path.abspath(out_png)) or '.', exist_ok=True)
+    fig.savefig(out_png, dpi=100, bbox_inches='tight')
+    plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('maps', nargs='+', help='地図 yaml のパス（複数可）')
     ap.add_argument('--connect-clearance', type=float, default=0.3)
+    ap.add_argument('--png-dir', default='',
+                    help='指定すると <world>_eval.png を出力 (各 map の品質を視覚化)')
     args = ap.parse_args()
 
     print(f'{"world":12s} {"寸法[m]":10s} {"壁率%":>6s} '
@@ -125,6 +160,13 @@ def main():
         print(f'{r["world"]:12s} {r["size_m"]:10s} {r["wall_rate"]:6.1f} '
               f'{r["main_rate"]:12.0f} {r["n_components"]:8d} {r["unk"]:8d}  '
               f'{verdict}')
+        if args.png_dir:
+            out_png = os.path.join(args.png_dir, f'{r["world"]}_eval.png')
+            try:
+                render_png(mp, r, verdict, out_png)
+                print(f'  -> PNG: {out_png}')
+            except Exception as e:
+                print(f'  -> PNG render failed: {e}')
     print('-' * 78)
     print('最大連結成分%: free のうち最大の通行可能領域が占める割合（高いほど良い、'
           '低い=斜めノイズ等で分断）。連結片数: 意味ある大きさの連結成分数（少ないほど良い）。')

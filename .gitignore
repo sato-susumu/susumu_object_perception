@@ -77,6 +77,7 @@ outputs/**/*.png
 !outputs/recognition/indoor_recognition_overlay.png
 !outputs/waypoint_generation/*.png
 !outputs/mapping_indoor/*_vs_world.png
+!outputs/mapping_indoor/*_eval.png
 
 # ===== 色付き点群 PLY (大容量バイナリ、リポジトリに含めない) =====
 # colorized_pointcloud_mapper が omni camera + LiDAR fusion で作る色付き点群地図。

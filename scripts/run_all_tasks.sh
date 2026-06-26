@@ -51,6 +51,16 @@ run_mapping() {
   echo "[$(date -Iseconds)] mapping $NAME done exit=$?" | tee -a "$LOG"
   killall_webots
   ls -la "$PKG/outputs/mapping_indoor/$NAME".{pgm,yaml} 2>&1 | tee -a "$LOG"
+  # eval PNG 生成 (iter32 追加、 ユーザー指示「評価できることは必ず PNG」 対応)。
+  # vs_world.png は wbt 真値必要 (cafe など Gazebo world は不可) のため、 内部品質
+  # eval PNG を常に出して contracts に置く。
+  local MAP_YAML="$PKG/outputs/mapping_indoor/${NAME}.yaml"
+  if [[ -f "$MAP_YAML" ]]; then
+    echo "[$(date -Iseconds)] rendering mapping eval PNG -> ${NAME}_eval.png" | tee -a "$LOG"
+    python3 "$PKG/scripts/eval_map_quality.py" "$MAP_YAML" \
+      --png-dir "$PKG/outputs/mapping_indoor/" \
+      >> "$LOG" 2>&1 || echo "  -> mapping eval PNG failed" | tee -a "$LOG"
+  fi
 }
 
 run_wp() {
