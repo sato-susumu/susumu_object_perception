@@ -286,7 +286,37 @@ bbox + 色ラベル + 信頼度を重畳した注釈画像 `/perception/traffic_
 （`sensor_msgs/Image`）を出す。RViz の Image Display で確認できる。信号は地図無しでは 3D
 位置を持たないため、LiDAR perception の MarkerArray ではなく画像注釈で可視化する。
 
-## 設計判断の根拠（調査）
+## ライブ動作確認 (iter36、 2026-06-26)
+
+`webots_city.launch.py mode:=realtime` で classic backend のライブ動作を確認した。
+
+実行: city_robot.wbt (ロボット原点、 GenericTrafficLight @ (4.5, 0)、 周辺に PottedTree x4 と
+SimpleBuilding x2)。 全 traffic_light_* ノード起動成功、 5 トピック (`rois`, `signals`,
+`poses`, `markers`, `image_annotated`) が publish される。
+
+20s 統計 (TrafficSignalArray subscribe):
+
+| 指標 | 値 |
+|---|---|
+| frames | 47 (= ~2.4 Hz) |
+| unique signal IDs (方位 ID) | 2 |
+| color hist (1=red/2=yellow/3=green) | red 21 / yellow 8 / green 18 |
+| shape hist (circle=1) | 47 全て circle |
+| status hist (`SOLID_ON`=2) | 47 全て solid |
+| confidence | mean=0.61 median=0.60 min=0.57 max=0.64 |
+
+観察:
+- **同じ信号 (の方位 ID) で frame ごとに色判定が揺れる** (red 21 / green 18 / yellow 8)。
+  これは classic backend の HSV 円形度判定の精度限界。 docs の YOLO + 灯位置判定推奨
+  (`method:=yolo position_aware:=true`) が改善余地。
+- confidence は mean=0.61 と安定だが特に高くはない。 classic では本質的な改善は難しく
+  YOLO への切替えが王道。
+- 信号自体は安定検知できている (47/47 frames で何か検出)、 false negative は無い。
+
+判定: 起動・トピック出力・基本検知は OK。 **精度面では yolo backend が次の最適化目標**。
+ライブログは scratchpad に保存。
+
+
 
 - **Autoware は地図前提**: 認識は `map_based_detector`（HD 地図の信号位置を
   camera_info で画像投影し ROI 生成）→ `fine_detector`（YOLOX-s で精緻化）→
