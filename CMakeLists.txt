@@ -126,6 +126,7 @@ install(PROGRAMS
   scripts/generate_apriltag_textures.py
   scripts/check_colorized_cloud.py
   scripts/check_waypoints.py
+  scripts/clear_tables.py
   scripts/visualize_patrol_result.py
   scripts/visualize_step_events.py
   scripts/visualize_calib_result.py
