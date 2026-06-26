@@ -2,8 +2,8 @@
   "summary": {
     "threshold_m": 0.5,
     "samples": 93,
-    "inside": 93,
-    "near_occupied": 88,
+    "inside": 79,
+    "near_occupied": 75,
     "by_kind": {
       "obstacle": {
         "objects": 4,
@@ -21,7 +21,7 @@
           "outside": 0
         },
         "near_ratio_inside": 1.0,
-        "mean_distance_to_occupied_m": 0.15506406047441662,
+        "mean_distance_to_occupied_m": 0.15140289523924844,
         "max_distance_to_occupied_m": 0.45
       },
       "wall": {
@@ -29,22 +29,22 @@
         "objects_inside": 17,
         "objects_near_any": 17,
         "object_near_any_ratio_inside": 1.0,
-        "mean_object_coverage_inside": 0.9411764705882353,
+        "mean_object_coverage_inside": 0.9215686274509803,
         "samples": 85,
-        "inside": 85,
-        "near_occupied": 80,
+        "inside": 71,
+        "near_occupied": 67,
         "cell_counts": {
-          "occupied": 30,
-          "free": 7,
-          "unknown": 48,
-          "outside": 0
+          "occupied": 34,
+          "free": 8,
+          "unknown": 29,
+          "outside": 14
         },
-        "near_ratio_inside": 0.9411764705882353,
-        "mean_distance_to_occupied_m": 0.1504108373216413,
-        "max_distance_to_occupied_m": 0.7106335201775948
+        "near_ratio_inside": 0.9436619718309859,
+        "mean_distance_to_occupied_m": 0.13967306311086963,
+        "max_distance_to_occupied_m": 0.6946221994724903
       }
     },
-    "near_ratio_inside": 0.946236559139785
+    "near_ratio_inside": 0.9493670886075949
   },
   "objects": [
     {
@@ -57,13 +57,13 @@
       "near_occupied": 5,
       "coverage_inside": 1.0,
       "cell_counts": {
-        "occupied": 1,
-        "free": 2,
+        "occupied": 2,
+        "free": 1,
         "unknown": 2,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.1591930648342735,
-      "max_distance_to_occupied_m": 0.36055512754639896
+      "mean_distance_to_occupied_m": 0.1593266717077912,
+      "max_distance_to_occupied_m": 0.3905124837953327
     },
     {
       "object_index": 2,
@@ -80,8 +80,8 @@
         "unknown": 2,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.12216116701979804,
-      "max_distance_to_occupied_m": 0.29154759474226505
+      "mean_distance_to_occupied_m": 0.1706225774829855,
+      "max_distance_to_occupied_m": 0.40311288741492746
     },
     {
       "object_index": 3,
@@ -98,12 +98,30 @@
         "unknown": 5,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.26417345777997153,
-      "max_distance_to_occupied_m": 0.38078865529319544
+      "mean_distance_to_occupied_m": 0.31832719429096473,
+      "max_distance_to_occupied_m": 0.40311288741492746
     },
     {
       "object_index": 4,
       "object_name": "wall(3)",
+      "type": "Wall",
+      "kind": "wall",
+      "samples": 5,
+      "inside": 5,
+      "near_occupied": 5,
+      "coverage_inside": 1.0,
+      "cell_counts": {
+        "occupied": 2,
+        "free": 3,
+        "unknown": 0,
+        "outside": 0
+      },
+      "mean_distance_to_occupied_m": 0.030000000000000006,
+      "max_distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 5,
+      "object_name": "wall(4)",
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
@@ -117,24 +135,6 @@
         "outside": 0
       },
       "mean_distance_to_occupied_m": 0.02,
-      "max_distance_to_occupied_m": 0.05
-    },
-    {
-      "object_index": 5,
-      "object_name": "wall(4)",
-      "type": "Wall",
-      "kind": "wall",
-      "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
-      "coverage_inside": 1.0,
-      "cell_counts": {
-        "occupied": 4,
-        "free": 1,
-        "unknown": 0,
-        "outside": 0
-      },
-      "mean_distance_to_occupied_m": 0.01,
       "max_distance_to_occupied_m": 0.05
     },
     {
@@ -197,17 +197,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
+      "inside": 3,
+      "near_occupied": 3,
       "coverage_inside": 1.0,
       "cell_counts": {
         "occupied": 1,
         "free": 0,
-        "unknown": 4,
-        "outside": 0
+        "unknown": 2,
+        "outside": 2
       },
-      "mean_distance_to_occupied_m": 0.10123105625617661,
-      "max_distance_to_occupied_m": 0.20615528128088303
+      "mean_distance_to_occupied_m": 0.05000000000000001,
+      "max_distance_to_occupied_m": 0.1
     },
     {
       "object_index": 10,
@@ -215,17 +215,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
-      "coverage_inside": 1.0,
+      "inside": 3,
+      "near_occupied": 2,
+      "coverage_inside": 0.6666666666666666,
       "cell_counts": {
         "occupied": 0,
         "free": 0,
-        "unknown": 5,
-        "outside": 0
+        "unknown": 3,
+        "outside": 2
       },
-      "mean_distance_to_occupied_m": 0.18433978400210183,
-      "max_distance_to_occupied_m": 0.25
+      "mean_distance_to_occupied_m": 0.3546451081536853,
+      "max_distance_to_occupied_m": 0.552268050859363
     },
     {
       "object_index": 11,
@@ -233,17 +233,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 2,
-      "coverage_inside": 0.4,
+      "inside": 3,
+      "near_occupied": 1,
+      "coverage_inside": 0.3333333333333333,
       "cell_counts": {
         "occupied": 0,
         "free": 0,
-        "unknown": 5,
-        "outside": 0
+        "unknown": 3,
+        "outside": 2
       },
-      "mean_distance_to_occupied_m": 0.5452466519228701,
-      "max_distance_to_occupied_m": 0.7106335201775948
+      "mean_distance_to_occupied_m": 0.5858930504255832,
+      "max_distance_to_occupied_m": 0.6946221994724903
     },
     {
       "object_index": 12,
@@ -251,17 +251,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
+      "inside": 3,
       "near_occupied": 3,
-      "coverage_inside": 0.6,
+      "coverage_inside": 1.0,
       "cell_counts": {
         "occupied": 0,
         "free": 0,
-        "unknown": 5,
-        "outside": 0
+        "unknown": 3,
+        "outside": 2
       },
-      "mean_distance_to_occupied_m": 0.4713761666023945,
-      "max_distance_to_occupied_m": 0.5590169943749475
+      "mean_distance_to_occupied_m": 0.46414763002993503,
+      "max_distance_to_occupied_m": 0.49244289008980524
     },
     {
       "object_index": 13,
@@ -269,17 +269,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
-      "coverage_inside": 1.0,
+      "inside": 3,
+      "near_occupied": 2,
+      "coverage_inside": 0.6666666666666666,
       "cell_counts": {
         "occupied": 0,
         "free": 0,
-        "unknown": 5,
-        "outside": 0
+        "unknown": 3,
+        "outside": 2
       },
-      "mean_distance_to_occupied_m": 0.13580388135673632,
-      "max_distance_to_occupied_m": 0.18027756377319948
+      "mean_distance_to_occupied_m": 0.40378263254514174,
+      "max_distance_to_occupied_m": 0.6020797289396148
     },
     {
       "object_index": 14,
@@ -287,17 +287,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
+      "inside": 3,
+      "near_occupied": 3,
       "coverage_inside": 1.0,
       "cell_counts": {
         "occupied": 0,
         "free": 0,
-        "unknown": 5,
-        "outside": 0
+        "unknown": 3,
+        "outside": 2
       },
-      "mean_distance_to_occupied_m": 0.26138557195189577,
-      "max_distance_to_occupied_m": 0.447213595499958
+      "mean_distance_to_occupied_m": 0.18333333333333335,
+      "max_distance_to_occupied_m": 0.35000000000000003
     },
     {
       "object_index": 15,
@@ -305,17 +305,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
+      "inside": 3,
+      "near_occupied": 3,
       "coverage_inside": 1.0,
       "cell_counts": {
-        "occupied": 1,
+        "occupied": 3,
         "free": 0,
-        "unknown": 4,
-        "outside": 0
+        "unknown": 0,
+        "outside": 2
       },
-      "mean_distance_to_occupied_m": 0.20793129711795263,
-      "max_distance_to_occupied_m": 0.49244289008980524
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
     },
     {
       "object_index": 16,
@@ -327,12 +327,12 @@
       "near_occupied": 5,
       "coverage_inside": 1.0,
       "cell_counts": {
-        "occupied": 1,
+        "occupied": 4,
         "free": 0,
-        "unknown": 4,
+        "unknown": 1,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.04,
+      "mean_distance_to_occupied_m": 0.01,
       "max_distance_to_occupied_m": 0.05
     },
     {
@@ -350,8 +350,8 @@
         "unknown": 2,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.024142135623730954,
-      "max_distance_to_occupied_m": 0.07071067811865477
+      "mean_distance_to_occupied_m": 0.04,
+      "max_distance_to_occupied_m": 0.1
     },
     {
       "object_index": 18,
@@ -386,8 +386,8 @@
         "unknown": 1,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.05,
-      "max_distance_to_occupied_m": 0.05
+      "mean_distance_to_occupied_m": 0.07071067811865477,
+      "max_distance_to_occupied_m": 0.07071067811865477
     },
     {
       "object_index": 20,
@@ -404,8 +404,8 @@
         "unknown": 1,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.15000000000000002,
-      "max_distance_to_occupied_m": 0.15000000000000002
+      "mean_distance_to_occupied_m": 0.1,
+      "max_distance_to_occupied_m": 0.1
     },
     {
       "object_index": 21,
@@ -437,8 +437,8 @@
         -2.5
       ],
       "pixel_xy": [
-        70.1,
-        8.799999999999999
+        70.5,
+        7.599999999999998
       ],
       "inside_map": true,
       "cell_value": 205,
@@ -455,13 +455,13 @@
         -2.5
       ],
       "pixel_xy": [
-        71.1,
-        8.799999999999999
+        71.5,
+        7.599999999999998
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.36055512754639896
+      "distance_to_occupied_m": 0.3905124837953327
     },
     {
       "object_index": 1,
@@ -473,8 +473,8 @@
         2.5
       ],
       "pixel_xy": [
-        71.1,
-        108.79999999999998
+        71.5,
+        107.6
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -491,13 +491,13 @@
         2.5
       ],
       "pixel_xy": [
-        70.1,
-        108.79999999999998
+        70.5,
+        107.6
       ],
       "inside_map": true,
       "cell_value": 254,
       "cell_class": "free",
-      "distance_to_occupied_m": 0.05
+      "distance_to_occupied_m": 0.07071067811865477
     },
     {
       "object_index": 1,
@@ -509,13 +509,13 @@
         0.0
       ],
       "pixel_xy": [
-        70.6,
-        58.8
+        71.0,
+        57.599999999999994
       ],
       "inside_map": true,
-      "cell_value": 254,
-      "cell_class": "free",
-      "distance_to_occupied_m": 0.05
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
     },
     {
       "object_index": 2,
@@ -527,13 +527,13 @@
         -2.545
       ],
       "pixel_xy": [
-        176.1,
-        7.9
+        176.49999999999997,
+        6.699999999999999
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.29154759474226505
+      "distance_to_occupied_m": 0.4
     },
     {
       "object_index": 2,
@@ -545,13 +545,13 @@
         -2.545
       ],
       "pixel_xy": [
-        177.1,
-        7.9
+        177.5,
+        6.699999999999999
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.2692582403567252
+      "distance_to_occupied_m": 0.40311288741492746
     },
     {
       "object_index": 2,
@@ -563,8 +563,8 @@
         1.005
       ],
       "pixel_xy": [
-        177.1,
-        78.89999999999999
+        177.5,
+        77.69999999999999
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -581,8 +581,8 @@
         1.005
       ],
       "pixel_xy": [
-        176.1,
-        78.89999999999999
+        176.49999999999997,
+        77.69999999999999
       ],
       "inside_map": true,
       "cell_value": 254,
@@ -599,8 +599,8 @@
         -0.77
       ],
       "pixel_xy": [
-        176.6,
-        43.4
+        176.99999999999997,
+        42.199999999999996
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -617,13 +617,13 @@
         -2.54499017417618
       ],
       "pixel_xy": [
-        177.1000018362416,
-        7.900196516476399
+        177.5000018362416,
+        6.700196516476398
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.2692582403567252
+      "distance_to_occupied_m": 0.40311288741492746
     },
     {
       "object_index": 3,
@@ -635,13 +635,13 @@
         -2.4949901741765173
       ],
       "pixel_xy": [
-        177.0999981630365,
-        8.900196516469654
+        177.4999981630365,
+        7.700196516469653
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.223606797749979
+      "distance_to_occupied_m": 0.35000000000000003
     },
     {
       "object_index": 3,
@@ -653,8 +653,8 @@
         -2.49500982582382
       ],
       "pixel_xy": [
-        70.09999816375837,
-        8.899803483523598
+        70.49999816375838,
+        7.699803483523597
       ],
       "inside_map": true,
       "cell_value": 205,
@@ -671,13 +671,13 @@
         -2.545009825823483
       ],
       "pixel_xy": [
-        70.10000183696347,
-        7.899803483530343
+        70.50000183696348,
+        6.699803483530342
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.38078865529319544
+      "distance_to_occupied_m": 0.40311288741492746
     },
     {
       "object_index": 3,
@@ -689,13 +689,13 @@
         -2.52
       ],
       "pixel_xy": [
-        123.6,
-        8.399999999999999
+        124.0,
+        7.1999999999999975
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.1118033988749895
+      "distance_to_occupied_m": 0.1
     },
     {
       "object_index": 4,
@@ -707,8 +707,8 @@
         2.4990037650353996
       ],
       "pixel_xy": [
-        111.10000183646423,
-        108.78007530070799
+        111.50000183646426,
+        107.58007530070799
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -725,13 +725,13 @@
         2.5490037650350623
       ],
       "pixel_xy": [
-        111.09999816325913,
-        109.78007530070124
+        111.49999816325916,
+        108.58007530070125
       ],
       "inside_map": true,
-      "cell_value": 0,
-      "cell_class": "occupied",
-      "distance_to_occupied_m": 0.0
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.05
     },
     {
       "object_index": 4,
@@ -743,8 +743,8 @@
         2.5489962349646005
       ],
       "pixel_xy": [
-        70.09999816353574,
-        109.77992469929201
+        70.49999816353575,
+        108.57992469929201
       ],
       "inside_map": true,
       "cell_value": 254,
@@ -761,8 +761,8 @@
         2.4989962349649377
       ],
       "pixel_xy": [
-        70.10000183674084,
-        108.77992469929875
+        70.50000183674085,
+        107.57992469929874
       ],
       "inside_map": true,
       "cell_value": 254,
@@ -779,8 +779,8 @@
         2.524
       ],
       "pixel_xy": [
-        90.59999999999998,
-        109.28
+        91.00000000000001,
+        108.08
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -797,8 +797,8 @@
         3.5500000663379843
       ],
       "pixel_xy": [
-        111.09997346410029,
-        129.80000132675968
+        111.4999734641003,
+        128.60000132675967
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -815,8 +815,8 @@
         3.5499999336584946
       ],
       "pixel_xy": [
-        110.09997346410381,
-        129.79999867316988
+        110.49997346410382,
+        128.5999986731699
       ],
       "inside_map": true,
       "cell_value": 254,
@@ -833,13 +833,13 @@
         2.5499999336620154
       ],
       "pixel_xy": [
-        110.10002653589967,
-        109.7999986732403
+        110.5000265358997,
+        108.59999867324031
       ],
       "inside_map": true,
-      "cell_value": 0,
-      "cell_class": "occupied",
-      "distance_to_occupied_m": 0.0
+      "cell_value": 254,
+      "cell_class": "free",
+      "distance_to_occupied_m": 0.05
     },
     {
       "object_index": 5,
@@ -851,8 +851,8 @@
         2.550000066341505
       ],
       "pixel_xy": [
-        111.10002653589618,
-        109.8000013268301
+        111.50002653589617,
+        108.60000132683008
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -869,8 +869,8 @@
         3.05
       ],
       "pixel_xy": [
-        110.59999999999998,
-        119.8
+        111.00000000000001,
+        118.6
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -887,8 +887,8 @@
         3.5500000663379843
       ],
       "pixel_xy": [
-        132.0999734641003,
-        129.80000132675968
+        132.49997346410032,
+        128.60000132675967
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -905,8 +905,8 @@
         3.5499999336584946
       ],
       "pixel_xy": [
-        131.0999734641038,
-        129.79999867316988
+        131.49997346410382,
+        128.5999986731699
       ],
       "inside_map": true,
       "cell_value": 254,
@@ -923,8 +923,8 @@
         2.5499999336620154
       ],
       "pixel_xy": [
-        131.10002653589967,
-        109.7999986732403
+        131.5000265358997,
+        108.59999867324031
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -941,8 +941,8 @@
         2.550000066341505
       ],
       "pixel_xy": [
-        132.10002653589618,
-        109.8000013268301
+        132.50002653589618,
+        108.60000132683008
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -959,8 +959,8 @@
         3.05
       ],
       "pixel_xy": [
-        131.6,
-        119.8
+        132.0,
+        118.6
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -977,8 +977,8 @@
         2.499005509807824
       ],
       "pixel_xy": [
-        191.12000183640012,
-        108.78011019615649
+        191.52000183640016,
+        107.58011019615647
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -995,8 +995,8 @@
         2.549005509807486
       ],
       "pixel_xy": [
-        191.11999816319502,
-        109.7801101961497
+        191.51999816319505,
+        108.58011019614972
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1013,8 +1013,8 @@
         2.548994490192176
       ],
       "pixel_xy": [
-        131.11999816359983,
-        109.77988980384353
+        131.51999816359984,
+        108.57988980384351
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1031,8 +1031,8 @@
         2.498994490192514
       ],
       "pixel_xy": [
-        131.12000183680493,
-        108.77988980385027
+        131.52000183680494,
+        107.57988980385026
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1049,8 +1049,8 @@
         2.524
       ],
       "pixel_xy": [
-        161.11999999999998,
-        109.28
+        161.52,
+        108.08
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1067,8 +1067,8 @@
         0.9540012856219549
       ],
       "pixel_xy": [
-        191.1200018365553,
-        77.88002571243909
+        191.5200018365553,
+        76.68002571243909
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1085,8 +1085,8 @@
         1.0040012856216174
       ],
       "pixel_xy": [
-        191.1199981633502,
-        78.88002571243234
+        191.5199981633502,
+        77.68002571243234
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1103,8 +1103,8 @@
         1.003998714378045
       ],
       "pixel_xy": [
-        177.11999816344465,
-        78.8799742875609
+        177.51999816344465,
+        77.6799742875609
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1121,8 +1121,8 @@
         0.9539987143783825
       ],
       "pixel_xy": [
-        177.12000183664975,
-        77.87997428756765
+        177.52000183664975,
+        76.67997428756765
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1139,8 +1139,8 @@
         0.979
       ],
       "pixel_xy": [
-        184.11999999999998,
-        78.38
+        184.51999999999998,
+        77.17999999999999
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1157,13 +1157,13 @@
         -2.93
       ],
       "pixel_xy": [
-        -0.40000000000000924,
-        0.19999999999999574
+        0.0,
+        -1.0000000000000053
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.20615528128088303
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 9,
@@ -1175,13 +1175,13 @@
         -2.93
       ],
       "pixel_xy": [
-        0.8000000000000007,
-        0.19999999999999574
+        1.20000000000001,
+        -1.0000000000000053
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.2
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 9,
@@ -1193,31 +1193,31 @@
         4.7700000000000005
       ],
       "pixel_xy": [
-        0.8000000000000007,
-        154.20000000000002
-      ],
-      "inside_map": true,
-      "cell_value": 0,
-      "cell_class": "occupied",
-      "distance_to_occupied_m": 0.0
-    },
-    {
-      "object_index": 9,
-      "object_name": "wall(A)",
-      "type": "Wall",
-      "kind": "wall",
-      "world_xy": [
-        -6.2,
-        4.7700000000000005
-      ],
-      "pixel_xy": [
-        -0.40000000000000924,
-        154.20000000000002
+        1.20000000000001,
+        153.0
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
       "distance_to_occupied_m": 0.05
+    },
+    {
+      "object_index": 9,
+      "object_name": "wall(A)",
+      "type": "Wall",
+      "kind": "wall",
+      "world_xy": [
+        -6.2,
+        4.7700000000000005
+      ],
+      "pixel_xy": [
+        0.0,
+        153.0
+      ],
+      "inside_map": true,
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.1
     },
     {
       "object_index": 9,
@@ -1229,13 +1229,13 @@
         0.92
       ],
       "pixel_xy": [
-        0.19999999999999574,
-        77.19999999999999
+        0.600000000000005,
+        75.99999999999999
       ],
       "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
     },
     {
       "object_index": 10,
@@ -1247,13 +1247,13 @@
         -2.869999204139132
       ],
       "pixel_xy": [
-        0.8000023876149776,
-        1.4000159172173632
+        1.2000023876149868,
+        0.20001591721736212
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.15000000000000002
+      "distance_to_occupied_m": 0.552268050859363
     },
     {
       "object_index": 10,
@@ -1265,13 +1265,13 @@
         -2.9299992041386567
       ],
       "pixel_xy": [
-        0.7999976124483332,
-        0.20001591722686562
+        1.1999976124483425,
+        -0.9999840827731354
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.2
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 10,
@@ -1283,13 +1283,13 @@
         -2.930000795860868
       ],
       "pixel_xy": [
-        8.799997612384995,
-        0.19998408278263824
+        9.199997612385005,
+        -1.0000159172173628
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.18027756377319948
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 10,
@@ -1301,13 +1301,13 @@
         -2.870000795861343
       ],
       "pixel_xy": [
-        8.80000238755164,
-        1.3999840827731358
+        9.200002387551649,
+        0.19998408277313473
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.14142135623730953
+      "distance_to_occupied_m": 0.158113883008419
     },
     {
       "object_index": 10,
@@ -1319,13 +1319,13 @@
         -2.9
       ],
       "pixel_xy": [
-        4.7999999999999865,
-        0.8000000000000007
+        5.199999999999996,
+        -0.40000000000000036
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.25
+      "distance_to_occupied_m": 0.3535533905932738
     },
     {
       "object_index": 11,
@@ -1337,13 +1337,13 @@
         -2.869999204139132
       ],
       "pixel_xy": [
-        62.80000238761499,
-        1.4000159172173632
+        63.200002387614994,
+        0.20001591721736212
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.38078865529319544
+      "distance_to_occupied_m": 0.4609772228646444
     },
     {
       "object_index": 11,
@@ -1355,13 +1355,13 @@
         -2.9299992041386567
       ],
       "pixel_xy": [
-        62.79999761244835,
-        0.20001591722686562
+        63.19999761244836,
+        -0.9999840827731354
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.40311288741492746
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 11,
@@ -1373,13 +1373,13 @@
         -2.930000795860868
       ],
       "pixel_xy": [
-        70.799997612385,
-        0.19998408278263824
+        71.199997612385,
+        -1.0000159172173628
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.7106335201775948
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 11,
@@ -1391,13 +1391,13 @@
         -2.870000795861343
       ],
       "pixel_xy": [
-        70.80000238755164,
-        1.3999840827731358
+        71.20000238755165,
+        0.19998408277313473
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.6726812023536856
+      "distance_to_occupied_m": 0.6946221994724903
     },
     {
       "object_index": 11,
@@ -1409,13 +1409,13 @@
         -2.9
       ],
       "pixel_xy": [
-        66.8,
-        0.8000000000000007
+        67.2,
+        -0.40000000000000036
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.5590169943749475
+      "distance_to_occupied_m": 0.6020797289396148
     },
     {
       "object_index": 12,
@@ -1427,13 +1427,13 @@
         -2.869999204139132
       ],
       "pixel_xy": [
-        124.80000238761498,
-        1.4000159172173632
+        125.20000238761499,
+        0.20001591721736212
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.40311288741492746
+      "distance_to_occupied_m": 0.45
     },
     {
       "object_index": 12,
@@ -1445,13 +1445,13 @@
         -2.9299992041386567
       ],
       "pixel_xy": [
-        124.79999761244835,
-        0.20001591722686562
+        125.19999761244836,
+        -0.9999840827731354
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.45276925690687087
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 12,
@@ -1463,13 +1463,13 @@
         -2.930000795860868
       ],
       "pixel_xy": [
-        132.799997612385,
-        0.19998408278263824
+        133.199997612385,
+        -1.0000159172173628
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.5590169943749475
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 12,
@@ -1481,13 +1481,13 @@
         -2.870000795861343
       ],
       "pixel_xy": [
-        132.80000238755164,
-        1.3999840827731358
+        133.20000238755165,
+        0.19998408277313473
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.5147815070493501
+      "distance_to_occupied_m": 0.49244289008980524
     },
     {
       "object_index": 12,
@@ -1499,13 +1499,13 @@
         -2.9
       ],
       "pixel_xy": [
-        128.79999999999998,
-        0.8000000000000007
+        129.2,
+        -0.40000000000000036
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.42720018726587655
+      "distance_to_occupied_m": 0.45
     },
     {
       "object_index": 13,
@@ -1517,13 +1517,13 @@
         -2.869999204139132
       ],
       "pixel_xy": [
-        186.60000238761498,
-        1.4000159172173632
+        187.00000238761496,
+        0.20001591721736212
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.07071067811865477
+      "distance_to_occupied_m": 0.6020797289396148
     },
     {
       "object_index": 13,
@@ -1535,13 +1535,13 @@
         -2.9299992041386567
       ],
       "pixel_xy": [
-        186.59999761244833,
-        0.20001591722686562
+        186.99999761244834,
+        -0.9999840827731354
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.1118033988749895
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 13,
@@ -1553,13 +1553,13 @@
         -2.930000795860868
       ],
       "pixel_xy": [
-        194.59999761238498,
-        0.19998408278263824
+        194.99999761238502,
+        -1.0000159172173628
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.18027756377319948
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 13,
@@ -1571,13 +1571,13 @@
         -2.870000795861343
       ],
       "pixel_xy": [
-        194.60000238755163,
-        1.3999840827731358
+        195.00000238755163,
+        0.19998408277313473
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.158113883008419
+      "distance_to_occupied_m": 0.20615528128088303
     },
     {
       "object_index": 13,
@@ -1589,13 +1589,13 @@
         -2.9
       ],
       "pixel_xy": [
-        190.59999999999997,
-        0.8000000000000007
+        191.0,
+        -0.40000000000000036
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.158113883008419
+      "distance_to_occupied_m": 0.40311288741492746
     },
     {
       "object_index": 14,
@@ -1607,13 +1607,13 @@
         -2.869999204139132
       ],
       "pixel_xy": [
-        248.600002387615,
-        1.4000159172173632
+        249.00000238761498,
+        0.20001591721736212
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.07071067811865477
+      "distance_to_occupied_m": 0.05
     },
     {
       "object_index": 14,
@@ -1625,13 +1625,13 @@
         -2.9299992041386567
       ],
       "pixel_xy": [
-        248.59999761244836,
-        0.20001591722686562
+        248.99999761244834,
+        -0.9999840827731354
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.1118033988749895
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 14,
@@ -1643,13 +1643,13 @@
         -2.930000795860868
       ],
       "pixel_xy": [
-        256.599997612385,
-        0.19998408278263824
+        256.999997612385,
+        -1.0000159172173628
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.447213595499958
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 14,
@@ -1661,13 +1661,13 @@
         -2.870000795861343
       ],
       "pixel_xy": [
-        256.6000023875516,
-        1.3999840827731358
+        257.00000238755166,
+        0.19998408277313473
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.42720018726587655
+      "distance_to_occupied_m": 0.35000000000000003
     },
     {
       "object_index": 14,
@@ -1679,13 +1679,13 @@
         -2.9
       ],
       "pixel_xy": [
-        252.59999999999997,
-        0.8000000000000007
+        253.0,
+        -0.40000000000000036
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.25
+      "distance_to_occupied_m": 0.15000000000000002
     },
     {
       "object_index": 15,
@@ -1697,13 +1697,13 @@
         -2.93
       ],
       "pixel_xy": [
-        256.59999999999997,
-        0.19999999999999574
+        257.0,
+        -1.0000000000000053
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.447213595499958
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 15,
@@ -1715,13 +1715,13 @@
         -2.93
       ],
       "pixel_xy": [
-        257.8,
-        0.19999999999999574
+        258.2,
+        -1.0000000000000053
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.49244289008980524
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 15,
@@ -1733,13 +1733,13 @@
         4.7700000000000005
       ],
       "pixel_xy": [
-        257.8,
-        154.20000000000002
+        258.2,
+        153.0
       ],
       "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
     },
     {
       "object_index": 15,
@@ -1751,8 +1751,8 @@
         4.7700000000000005
       ],
       "pixel_xy": [
-        256.59999999999997,
-        154.20000000000002
+        257.0,
+        153.0
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1769,13 +1769,13 @@
         0.92
       ],
       "pixel_xy": [
-        257.2,
-        77.19999999999999
+        257.59999999999997,
+        75.99999999999999
       ],
       "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
     },
     {
       "object_index": 16,
@@ -1787,8 +1787,8 @@
         4.8300123358469005
       ],
       "pixel_xy": [
-        133.6000023880742,
-        155.400246716938
+        134.00000238807417,
+        154.200246716938
       ],
       "inside_map": true,
       "cell_value": 205,
@@ -1805,8 +1805,8 @@
         4.770012335847376
       ],
       "pixel_xy": [
-        133.59999761290754,
-        154.2002467169475
+        133.99999761290758,
+        153.00024671694752
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1823,13 +1823,13 @@
         4.769987664153099
       ],
       "pixel_xy": [
-        257.5999976119258,
-        154.19975328306197
+        257.9999976119258,
+        152.99975328306198
       ],
       "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
     },
     {
       "object_index": 16,
@@ -1841,13 +1841,13 @@
         4.829987664152624
       ],
       "pixel_xy": [
-        257.6000023870924,
-        155.39975328305246
+        258.0000023870924,
+        154.19975328305247
       ],
       "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
     },
     {
       "object_index": 16,
@@ -1859,13 +1859,13 @@
         4.8
       ],
       "pixel_xy": [
-        195.59999999999997,
-        154.79999999999998
+        196.0,
+        153.6
       ],
       "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "cell_value": 0,
+      "cell_class": "occupied",
+      "distance_to_occupied_m": 0.0
     },
     {
       "object_index": 17,
@@ -1877,13 +1877,13 @@
         4.830011341020518
       ],
       "pixel_xy": [
-        -0.3999976119654036,
-        155.40022682041035
+        2.388034605615985e-06,
+        154.20022682041036
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.07071067811865477
+      "distance_to_occupied_m": 0.1
     },
     {
       "object_index": 17,
@@ -1895,13 +1895,13 @@
         4.770011341020994
       ],
       "pixel_xy": [
-        -0.4000023871320302,
-        154.20022682041989
+        -2.3871320209423175e-06,
+        153.00022682041987
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "distance_to_occupied_m": 0.1
     },
     {
       "object_index": 17,
@@ -1913,8 +1913,8 @@
         4.769988658979481
       ],
       "pixel_xy": [
-        113.59999761196538,
-        154.1997731795896
+        113.9999976119654,
+        152.99977317958962
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1931,8 +1931,8 @@
         4.829988658979006
       ],
       "pixel_xy": [
-        113.60000238713201,
-        155.3997731795801
+        114.00000238713201,
+        154.1997731795801
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1949,8 +1949,8 @@
         4.8
       ],
       "pixel_xy": [
-        56.59999999999999,
-        154.79999999999998
+        57.0,
+        153.6
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1967,8 +1967,8 @@
         -2.15
       ],
       "pixel_xy": [
-        171.19999999999996,
-        15.8
+        171.6,
+        14.6
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -1985,13 +1985,13 @@
         1.42
       ],
       "pixel_xy": [
-        248.2,
-        87.19999999999999
+        248.6,
+        85.99999999999999
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "distance_to_occupied_m": 0.07071067811865477
     },
     {
       "object_index": 20,
@@ -2003,13 +2003,13 @@
         -2.17
       ],
       "pixel_xy": [
-        7.999999999999989,
-        15.4
+        8.399999999999999,
+        14.2
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.15000000000000002
+      "distance_to_occupied_m": 0.1
     },
     {
       "object_index": 21,
@@ -2021,8 +2021,8 @@
         -2.499997098166282
       ],
       "pixel_xy": [
-        103.60001836591891,
-        8.800058036674363
+        104.00001836591893,
+        7.600058036674362
       ],
       "inside_map": true,
       "cell_value": 205,
@@ -2039,8 +2039,8 @@
         -1.9999970981696549
       ],
       "pixel_xy": [
-        103.59998163386787,
-        18.800058036606895
+        103.9999816338679,
+        17.600058036606896
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -2057,8 +2057,8 @@
         -2.000002901833718
       ],
       "pixel_xy": [
-        71.99998163408107,
-        18.799941963325633
+        72.39998163408107,
+        17.599941963325634
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -2075,8 +2075,8 @@
         -2.500002901830345
       ],
       "pixel_xy": [
-        72.0000183661321,
-        8.7999419633931
+        72.4000183661321,
+        7.5999419633931
       ],
       "inside_map": true,
       "cell_value": 205,
@@ -2093,8 +2093,8 @@
         -2.25
       ],
       "pixel_xy": [
-        87.79999999999998,
-        13.799999999999999
+        88.2,
+        12.599999999999998
       ],
       "inside_map": true,
       "cell_value": 205,
