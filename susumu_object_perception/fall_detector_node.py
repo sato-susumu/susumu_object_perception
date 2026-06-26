@@ -27,6 +27,8 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool, Float32
 
+from susumu_object_perception.geometry_utils import quat_to_roll_pitch
+
 
 class FallDetectorNode(Node):
 
@@ -67,14 +69,7 @@ class FallDetectorNode(Node):
             f'threshold={self.tilt_threshold}deg confirm={self.confirm_sec}s)')
 
     def _on_imu(self, msg):
-        q = msg.orientation
-        # quaternion -> roll, pitch
-        sinr = 2.0 * (q.w * q.x + q.y * q.z)
-        cosr = 1.0 - 2.0 * (q.x * q.x + q.y * q.y)
-        roll = math.atan2(sinr, cosr)
-        sinp = 2.0 * (q.w * q.y - q.z * q.x)
-        sinp = max(-1.0, min(1.0, sinp))
-        pitch = math.asin(sinp)
+        roll, pitch = quat_to_roll_pitch(msg.orientation)
         tilt = math.degrees(max(abs(roll), abs(pitch)))
 
         # 重力補助: z 加速度が小さい = 横倒し。

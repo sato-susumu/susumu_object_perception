@@ -39,18 +39,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool, Float32, String
 
-
-def quat_to_roll_pitch(q):
-    """quaternion (x,y,z,w) -> (roll, pitch) in radians."""
-    sinr_cosp = 2.0 * (q.w * q.x + q.y * q.z)
-    cosr_cosp = 1.0 - 2.0 * (q.x * q.x + q.y * q.y)
-    roll = math.atan2(sinr_cosp, cosr_cosp)
-    sinp = 2.0 * (q.w * q.y - q.z * q.x)
-    if abs(sinp) >= 1.0:
-        pitch = math.copysign(math.pi / 2.0, sinp)
-    else:
-        pitch = math.asin(sinp)
-    return roll, pitch
+from susumu_object_perception.geometry_utils import quat_to_roll_pitch
 
 
 class StepDetectorNode(Node):
