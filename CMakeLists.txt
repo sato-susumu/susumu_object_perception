@@ -141,6 +141,7 @@ install(PROGRAMS
   scripts/save_pointcloud2_to_ply.py
   scripts/save_pose_trajectory_to_tum.py
   scripts/generate_webots_ground_truth_map.py
+  scripts/validate_contracts.py
   scripts/validate_launches.py
   scripts/validate_map_assets.py
   scripts/map_progress_monitor.py
