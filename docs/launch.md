@@ -26,6 +26,7 @@
 | `webots_slam.launch.py` | — | — | — | ✅ | — | — | — | slam_toolbox を1個だけ起動する補助 |
 | `webots_city.launch.py` | Webots | ✅ | ✅ | — | ✅ | — | ✅ | **既定 `ros2:=True`: city にセンサ付き TB3 を置き ROS2 認識（LiDAR + 全天球 + YOLO 物体分類 + 信号認識）。`ros2:=False` で SUMO 車100台の眺めるデモ**※ |
 | `webots_city_patrol.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **事前 wp 無しの自動巡回**: SLAM が育てる `/map` 自由空間から `auto_patrol_node` がウェイポイントを毎周自動算出して Nav2 `FollowWaypoints` で巡回 (city_robot.wbt)。 屋外広域 world では bootstrap が exhaust することがある (iter38 実機観察)。 屋内 or 事前マップ済み world 向き |
+| `webots_calibration.launch.py` | Webots | ○ | — | — | — | ✅ | ○ | **外部キャリブレーション**: calibration.wbt (4 方位 AprilTag 36h11 パネル + 全天球カメラ + LiDAR) で AprilTag 検出 + LiDAR 平面フィット → `T_lidar_camera` を `outputs/extrinsic_calibration/calib.json` に出力。 `apriltag_calib:=True` で実行。 `colored_slam:=True omni_calibration_json:=...` で得たキャリブを使った色付き点群も同 launch で起動可能 |
 
 ※ `webots_city ros2:=False` は SUMO 制御の車を眺めるだけで ROS2 連携しない（`/scan` 等は出ない）。
 既定の `ros2:=True` は `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号 + センサ付き TB3）を
