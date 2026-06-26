@@ -149,21 +149,30 @@ def main():
         unk_ratio = r['unk'] / total if total else 0.0
         # 判定: まず unknown が多すぎる地図を NG にする（未探索＝不良）。次に連結領域が
         # 1 個（=主要空間が分断されていない）かつ最大成分が大半(>=90%)なら OK。
+        # PNG では ASCII 限定 (matplotlib の既定フォントで安定)、 端末出力では日本語可。
         if unk_ratio >= 0.30:
             verdict = f'未探索多い(unknown {unk_ratio*100:.0f}%)'
+            verdict_ascii = f'too-unexplored (unknown {unk_ratio*100:.0f}%)'
         elif r['n_components'] <= 1:
-            verdict = 'OK' if unk_ratio < 0.10 else f'OK(unknown {unk_ratio*100:.0f}%)'
+            if unk_ratio < 0.10:
+                verdict = 'OK'
+                verdict_ascii = 'OK'
+            else:
+                verdict = f'OK(unknown {unk_ratio*100:.0f}%)'
+                verdict_ascii = f'OK (unknown {unk_ratio*100:.0f}%)'
         elif r['main_rate'] >= 90:
             verdict = 'OK(微小片あり)'
+            verdict_ascii = 'OK (minor fragments)'
         else:
             verdict = f'分断あり(主要領域{r["n_components"]}個)'
+            verdict_ascii = f'fragmented ({r["n_components"]} regions)'
         print(f'{r["world"]:12s} {r["size_m"]:10s} {r["wall_rate"]:6.1f} '
               f'{r["main_rate"]:12.0f} {r["n_components"]:8d} {r["unk"]:8d}  '
               f'{verdict}')
         if args.png_dir:
             out_png = os.path.join(args.png_dir, f'{r["world"]}_eval.png')
             try:
-                render_png(mp, r, verdict, out_png)
+                render_png(mp, r, verdict_ascii, out_png)
                 print(f'  -> PNG: {out_png}')
             except Exception as e:
                 print(f'  -> PNG render failed: {e}')
