@@ -113,13 +113,31 @@ def main():
     found_subdirs = set(inv.keys())
     for task, expected in TASK_EXPECTED_SUBDIR.items():
         if expected is None:
-            # waypoint_navigation の場合: waypoint_generation 配下に patrol_result.png 期待
-            patrol_pngs = [f for f in inv.get('waypoint_generation', {}).get('png', [])
+            # waypoint_navigation の場合: waypoint_generation 配下に 4 ファイルセット期待
+            # docs/tasks/waypoint_navigation.md「最終成果物」 = patrol_report.{json,csv,md} + patrol_result.png
+            wg_files = inv.get('waypoint_generation', {})
+            patrol_pngs = [f for f in wg_files.get('png', [])
                            if 'patrol_result' in f.lower()]
-            if patrol_pngs:
-                status = f'OK ({len(patrol_pngs)} patrol_result PNG in waypoint_generation/)'
+            patrol_jsons = [f for f in wg_files.get('json', [])
+                            if 'patrol_report' in f.lower()]
+            patrol_csvs = [f for f in wg_files.get('csv', [])
+                           if 'patrol_report' in f.lower()]
+            patrol_mds = [f for f in wg_files.get('md', [])
+                          if 'patrol_report' in f.lower()]
+            missing_kinds = []
+            if not patrol_pngs:
+                missing_kinds.append('patrol_result.png')
+            if not patrol_jsons:
+                missing_kinds.append('patrol_report.json')
+            if not patrol_csvs:
+                missing_kinds.append('patrol_report.csv')
+            if not patrol_mds:
+                missing_kinds.append('patrol_report.md')
+            if not missing_kinds:
+                status = (f'OK ({len(patrol_pngs)} PNG + {len(patrol_jsons)} JSON + '
+                          f'{len(patrol_csvs)} CSV + {len(patrol_mds)} MD in waypoint_generation/)')
             else:
-                status = 'MISSING (waypoint_generation/<world>_patrol_result.png expected)'
+                status = f'MISSING ({", ".join(missing_kinds)} expected in waypoint_generation/)'
                 issues.append(f'{task}: {status}')
             print(f'  {task}: {status}')
         else:
