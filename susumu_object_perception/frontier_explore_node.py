@@ -42,7 +42,7 @@ from tf2_ros import TransformException
 
 from action_msgs.msg import GoalStatus
 from std_msgs.msg import String, ColorRGBA
-from geometry_msgs.msg import PoseStamped, Point
+from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import OccupancyGrid
 from nav2_msgs.action import NavigateToPose, Spin, ComputePathToPose
 from sensor_msgs.msg import Imu

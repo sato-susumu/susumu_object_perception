@@ -2,7 +2,6 @@
 """Colorize LiDAR points from an omnidirectional equirectangular camera image."""
 
 import math
-import struct
 
 import numpy as np
 
