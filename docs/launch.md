@@ -25,6 +25,7 @@
 | `webots_glim_colored_slam.launch.py` | Webots | ✅ | — | GLIM | ○ | — | ○ | **GLIM の補正済み 3D 座標へ色付き点群を蓄積**。`/slam/glim_colorized_points_map` |
 | `webots_slam.launch.py` | — | — | — | ✅ | — | — | — | slam_toolbox を1個だけ起動する補助 |
 | `webots_city.launch.py` | Webots | ✅ | ✅ | — | ✅ | — | ✅ | **既定 `ros2:=True`: city にセンサ付き TB3 を置き ROS2 認識（LiDAR + 全天球 + YOLO 物体分類 + 信号認識）。`ros2:=False` で SUMO 車100台の眺めるデモ**※ |
+| `webots_city_patrol.launch.py` | Webots | ✅ | ✅ | ✅ | ○ | — | ○ | **事前 wp 無しの自動巡回**: SLAM が育てる `/map` 自由空間から `auto_patrol_node` がウェイポイントを毎周自動算出して Nav2 `FollowWaypoints` で巡回 (city_robot.wbt)。 屋外広域 world では bootstrap が exhaust することがある (iter38 実機観察)。 屋内 or 事前マップ済み world 向き |
 
 ※ `webots_city ros2:=False` は SUMO 制御の車を眺めるだけで ROS2 連携しない（`/scan` 等は出ない）。
 既定の `ros2:=True` は `city_robot.wbt`（車 BmwX5 + 歩行者 Pedestrian + 信号 + センサ付き TB3）を
