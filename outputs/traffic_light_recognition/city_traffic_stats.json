@@ -1,0 +1,26 @@
+{
+  "world": "city_robot.wbt",
+  "backend": "classic",
+  "omni_views": 8,
+  "duration_sec": 20.0,
+  "frames": 48,
+  "rate_hz": 2.4,
+  "unique_signal_ids": 2,
+  "color_hist": {
+    "3": 21,
+    "2": 7,
+    "1": 20
+  },
+  "shape_hist": {
+    "1": 48
+  },
+  "status_hist": {
+    "2": 48
+  },
+  "confidence": {
+    "mean": 0.615,
+    "median": 0.603,
+    "min": 0.565,
+    "max": 0.644
+  }
+}

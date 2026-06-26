@@ -82,6 +82,7 @@ outputs/**/*.png
 !outputs/mapping_indoor/*_vs_world.png
 !outputs/mapping_indoor/*_eval.png
 !outputs/mapping_outdoor/*_gt_preview.png
+!outputs/traffic_light_recognition/*.png
 !outputs/extrinsic_calibration/*.png
 
 # ===== 色付き点群 PLY (大容量バイナリ、リポジトリに含めない) =====
