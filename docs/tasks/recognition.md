@@ -25,9 +25,9 @@ ros2 launch susumu_object_perception simulation.launch.py
 # Webots city: 車・歩行者・信号の認識
 ros2 launch susumu_object_perception webots_city.launch.py mode:=realtime
 
-# 巡回しながら認識
+# 巡回しながら認識 (iter89 で default ペアを indoor.wbt + indoor_waypoints.yaml に変更)
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
-  world:=city_robot.wbt waypoints:=city_waypoints.yaml mode:=realtime \
+  world:=indoor.wbt waypoints:=indoor_waypoints.yaml mode:=realtime \
   perception:=True omni_perception:=True image_recognition:=True
 ```
 

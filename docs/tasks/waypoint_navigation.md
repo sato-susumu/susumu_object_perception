@@ -22,8 +22,8 @@ source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/local_setup.bash
 
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
-  world:=city_robot.wbt \
-  waypoints:=city_waypoints.yaml \
+  world:=indoor.wbt \
+  waypoints:=indoor_waypoints.yaml \
   mode:=realtime \
   loop:=True
 ```
@@ -32,9 +32,11 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
 
 ```bash
 ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
-  world:=city_robot.wbt waypoints:=city_waypoints.yaml mode:=realtime \
+  world:=indoor.wbt waypoints:=indoor_waypoints.yaml mode:=realtime \
   perception:=True omni_perception:=True image_recognition:=True
 ```
+<!-- iter92: 例を indoor ペアに統一 (iter89 で default 修正、 city_waypoints.yaml は legacy) -->
+
 
 巡回後に PNG 可視化を手動で再生成する (run_all_tasks.sh は自動実行):
 ```bash
@@ -44,7 +46,7 @@ ros2 run susumu_object_perception visualize_patrol_result.py \
   --out outputs/waypoint_generation/<world>_patrol_result.png
 ```
 
-`waypoints` は `outputs/waypoint_generation/` 配下のファイル名で渡す。絶対パスではなく `city_waypoints.yaml` のように指定する。
+`waypoints` は `outputs/waypoint_generation/` 配下のファイル名で渡す。絶対パスではなく `indoor_waypoints.yaml` のように指定する。
 既定は `slam:=True` で、巡回しながら `/map` を作り Nav2 の static layer に渡す。既存地図を使う
 実験用に `slam:=False map_file:=<yaml>` も渡せる。Nav2 パラメータを差し替える場合は
 `nav_params_file:=<yaml>` を使う。

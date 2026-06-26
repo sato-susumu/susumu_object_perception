@@ -21,12 +21,14 @@ source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/local_setup.bash
 
 ros2 run susumu_object_perception generate_waypoints.py \
-  --map outputs/mapping_outdoor/city.yaml \
-  --out outputs/waypoint_generation/city_waypoints.yaml \
+  --map outputs/mapping_indoor/indoor.yaml \
+  --out outputs/waypoint_generation/indoor_waypoints.yaml \
   --spacing 1.5 \
   --clearance 0.4 \
   --connect-clearance 0.30
 ```
+<!-- iter92: 例を indoor に統一 (city.yaml は legacy 移動済み) -->
+
 
 出力 YAML は map 座標の点列。PNG は地図上にウェイポイント番号、巡回経路、配置可能領域、
 連結対象領域を重ねた確認用画像。
