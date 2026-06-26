@@ -69,6 +69,8 @@ def generate_launch_description():
         'object_memory_delete_thresh')
     object_memory_miss_tp = LaunchConfiguration('object_memory_miss_tp')
     object_memory_miss_fp = LaunchConfiguration('object_memory_miss_fp')
+    tl_method = LaunchConfiguration('traffic_light_method')
+    tl_weights = LaunchConfiguration('traffic_light_weights')
     indoor_objects = LaunchConfiguration('indoor_objects')
     use_slam = LaunchConfiguration('slam')
     map_file = LaunchConfiguration('map_file')
@@ -143,6 +145,8 @@ def generate_launch_description():
             ('object_memory_delete_thresh', object_memory_delete_thresh),
             ('object_memory_miss_tp', object_memory_miss_tp),
             ('object_memory_miss_fp', object_memory_miss_fp),
+            ('traffic_light_method', tl_method),
+            ('traffic_light_weights', tl_weights),
             ('indoor_objects', indoor_objects),
             ('slam', use_slam),
             ('map_file', map_file),
@@ -354,6 +358,14 @@ def generate_launch_description():
             'object_memory_miss_fp', default_value='0.6',
             description=('object_memory の miss 観測時の FP 確率 (既定 0.6)。 '
                          '下げると減衰が緩む')),
+        DeclareLaunchArgument(
+            'traffic_light_method', default_value='classic',
+            description=('信号認識バックエンド: classic (HSV+円形度、 学習不要、 既定) または '
+                         'yolo (YOLOv8、 traffic_light_weights 必須。 初期化失敗で FATAL 終了)')),
+        DeclareLaunchArgument(
+            'traffic_light_weights', default_value='yolov8n.pt',
+            description=('traffic_light_method:=yolo のときに使う重み。 '
+                         '相対パスは ultralytics デフォルト探索パスを使用')),
         DeclareLaunchArgument(
             'indoor_objects', default_value='False',
             description='室内物体検出（高所除外+床付近の家具を検出/識別）。室内 world で True'),
