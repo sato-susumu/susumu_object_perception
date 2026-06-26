@@ -17,15 +17,17 @@ perception の 2D 地図照合（object_tracker_node の wall_margin）は「地
   cafe.pgm.bak が無ければ現 cafe.pgm をバックアップしてから処理する。
 """
 
+import argparse
 import os
 import shutil
 import numpy as np
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-PKG = os.path.dirname(HERE)
-CAFE_DIR = os.path.join(PKG, 'outputs', 'mapping_indoor')
-PGM = os.path.join(CAFE_DIR, 'cafe.pgm')
-BAK = os.path.join(CAFE_DIR, 'cafe.pgm.bak')
+# install 経由で起動された場合 __file__ は install 配下になり source の outputs/ を
+# 解決できない。 source / install どちらでも動くように --pgm 引数を受け、 未指定
+# なら source 推定 (iter60 修正)。
+DEFAULT_HERE = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_PKG_SRC = os.path.expanduser(
+    '~/ros2_ws/src/susumu_object_perception')
 
 # cafe.yaml と一致させる。
 RES = 0.05
@@ -55,12 +57,24 @@ def read_pgm(path):
 
 
 def main():
-    # 元地図（机あり）を確保。初回は現 cafe.pgm をバックアップする。
-    if not os.path.exists(BAK):
-        shutil.copy(PGM, BAK)
-        print('backup created: ' + BAK)
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--pgm', default='',
+                    help='対象 PGM (cafe.pgm)。 未指定なら '
+                         '~/ros2_ws/src/susumu_object_perception/'
+                         'outputs/mapping_indoor/cafe.pgm を試す')
+    args = ap.parse_args()
+    pgm = args.pgm or os.path.join(DEFAULT_PKG_SRC, 'outputs',
+                                   'mapping_indoor', 'cafe.pgm')
+    bak = pgm + '.bak'
+    if not os.path.exists(pgm):
+        raise SystemExit(f'PGM not found: {pgm}')
 
-    hdr, w, h, data = read_pgm(BAK)
+    # 元地図（机あり）を確保。初回は現 cafe.pgm をバックアップする。
+    if not os.path.exists(bak):
+        shutil.copy(pgm, bak)
+        print('backup created: ' + bak)
+
+    hdr, w, h, data = read_pgm(bak)
     r = int(round(CLEAR_RADIUS_M / RES))
     before = int((data < OCC_PX_THRESH).sum())
     cleared = 0
@@ -78,12 +92,12 @@ def main():
                     cleared += 1
     after = int((data < OCC_PX_THRESH).sum())
 
-    with open(PGM, 'wb') as f:
+    with open(pgm, 'wb') as f:
         for line in hdr:
             f.write(line)
         f.write(data.tobytes())
     print('wrote %s: occupied px %d -> %d (%d px around %d tables cleared)'
-          % (PGM, before, after, cleared, len(TABLES)))
+          % (pgm, before, after, cleared, len(TABLES)))
 
 
 if __name__ == '__main__':
