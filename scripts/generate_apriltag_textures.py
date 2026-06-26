@@ -40,8 +40,10 @@ def main():
                     help='タグ本体の画素数（マージン除く）')
     ap.add_argument('--margin-ratio', type=float, default=0.25,
                     help='タグ本体に対する白マージンの比（検出の quiet zone）')
+    # `__file__` ベースのパス解決は install 配下になり source の webots_worlds/ を
+    # 見つけられないため、 source dir を直接指定 (iter61 修正、 iter60 と同 pattern)。
     ap.add_argument('--out-dir', default=os.path.join(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+        os.path.expanduser('~/ros2_ws/src/susumu_object_perception'),
         'webots_worlds', 'apriltag_textures'))
     args = ap.parse_args()
 
