@@ -1,3 +1,15 @@
+# =====================================================================
+# 重要 (iter66 で発見): このファイルは nav2_params_webots_explore.yaml と
+# 1 行 (`local_costmap.transform_tolerance`) だけ違う。 同期保証のため、
+# explore.yaml を編集したら **必ず本ファイルも同じ変更を反映** すること。
+#
+# 唯一の差分:
+#   patrol (本ファイル): transform_tolerance: 0.5  ← SLAM TF 遅延対策
+#   explore             : transform_tolerance: 0.2  ← 探索中の TF 鮮度優先
+#
+# 理由 + 履歴は docs/nav2_tuning.md「コストマップ共通」 と
+# docs/tasks/waypoint_generation.md の iter5 を参照。
+# =====================================================================
 amcl:
   ros__parameters:
     use_sim_time: False
