@@ -687,6 +687,24 @@ class ObjectMemoryNode(Node):
         見えるはず = センサ原点から visible_range 以内、かつ間に壁(occupied)が無い。
         それ以外（遠い・遮蔽）は negative にカウントせず存在確率を維持する
         （LTC-Mapping の遮蔽 vs 不在の区別の簡易版）。
+
+        ## 既知の挙動 (iter53-57 観察)
+
+        既定値 (visible_range=8.0m, miss_tp=0.2, miss_fp=0.6, delete_thresh=0.25) で、
+        `existence=0.5` の物体が 1 回 miss すると `new_exist = 0.5*0.2 / (0.5*0.2 +
+        0.5*0.6) = 0.25` で delete_thresh と同等。 2 フレーム連続 miss で削除。
+
+        巡回中に物体の見え隠れが速いと忘却が加速し、 ライブ認識評価で DB=0 件に
+        なる事例あり (iter53 観察、 iter27 では同条件で 4 件取れた、 = 確率事象)。
+
+        緩和候補 (launch から渡す):
+        - `delete_thresh: 0.10` (半分以下に下げて余裕を増やす)
+        - `miss_fp: 0.4` (非検出時の判断を緩やかに)
+        - `visible_range: 5.0m` (遠物体を「見える」 判定から除外)
+
+        ただし複合影響あり (false positive 増、 ghost object 発生等)。 複数 launch
+        run で分散測定してから採用検討すること。 詳細は
+        docs/tasks/recognition.md 「iter54-57」 セクション参照。
         """
         try:
             tf = self.tf_buffer.lookup_transform(
