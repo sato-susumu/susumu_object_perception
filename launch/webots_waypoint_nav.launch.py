@@ -65,6 +65,10 @@ def generate_launch_description():
         'object_tracker_wall_margin_moving_cells')
     object_tracker_wall_margin_static_cells = LaunchConfiguration(
         'object_tracker_wall_margin_static_cells')
+    object_memory_delete_thresh = LaunchConfiguration(
+        'object_memory_delete_thresh')
+    object_memory_miss_tp = LaunchConfiguration('object_memory_miss_tp')
+    object_memory_miss_fp = LaunchConfiguration('object_memory_miss_fp')
     indoor_objects = LaunchConfiguration('indoor_objects')
     use_slam = LaunchConfiguration('slam')
     map_file = LaunchConfiguration('map_file')
@@ -136,6 +140,9 @@ def generate_launch_description():
              object_tracker_wall_margin_moving_cells),
             ('object_tracker_wall_margin_static_cells',
              object_tracker_wall_margin_static_cells),
+            ('object_memory_delete_thresh', object_memory_delete_thresh),
+            ('object_memory_miss_tp', object_memory_miss_tp),
+            ('object_memory_miss_fp', object_memory_miss_fp),
             ('indoor_objects', indoor_objects),
             ('slam', use_slam),
             ('map_file', map_file),
@@ -334,6 +341,19 @@ def generate_launch_description():
             'object_tracker_wall_margin_static_cells',
             default_value='22',
             description='object_tracker_node.py の静止track向け壁margin[cell]。既定 22'),
+        DeclareLaunchArgument(
+            'object_memory_delete_thresh', default_value='0.25',
+            description=('object_memory の Bayes 削除しきい値 (既定 0.25=Dengler et al.)。 '
+                         '巡回中に DB が空になる時は 0.05〜0.10 に下げて存続を許す '
+                         '(memory feedback_recog_db_empty_issue 参照)')),
+        DeclareLaunchArgument(
+            'object_memory_miss_tp', default_value='0.2',
+            description=('object_memory の miss 観測時の TP 確率 (既定 0.2)。 '
+                         '上げると減衰が緩む')),
+        DeclareLaunchArgument(
+            'object_memory_miss_fp', default_value='0.6',
+            description=('object_memory の miss 観測時の FP 確率 (既定 0.6)。 '
+                         '下げると減衰が緩む')),
         DeclareLaunchArgument(
             'indoor_objects', default_value='False',
             description='室内物体検出（高所除外+床付近の家具を検出/識別）。室内 world で True'),
