@@ -1,0 +1,179 @@
+{
+  "schema_version": 3,
+  "validation_passed": true,
+  "issues": [],
+  "summary": {
+    "waypoint_count": 19,
+    "min_clearance_m": 0.6103277807866851,
+    "coverage_max_m": 1.7356554957709784,
+    "route_max_geodesic_m": 4.848528135999997,
+    "route_unreachable_edges": 0,
+    "route_over_jump_edges": 0
+  },
+  "inputs": {
+    "map": "outputs/mapping_indoor/break_room.yaml",
+    "map_image": "outputs/mapping_indoor/break_room.pgm",
+    "waypoints": "outputs/waypoint_generation/break_room_waypoints.yaml",
+    "clearance_m": 0.6,
+    "connect_clearance_m": 0.3,
+    "route_clearance_m": 0.3,
+    "coverage_warn_m": 3.0,
+    "max_jump_warn_m": 8.0
+  },
+  "inputs_hash": {
+    "map_sha256": "f3e1776103ad0a564a660b445eb6b56af93d44a9e443d1a16f7e8c095fc6a95a",
+    "map_image_sha256": "e122f39e97f8187e5a4ea45f09b3538085370a23e7cda5834f0c38b187b78129",
+    "waypoints_sha256": "ffaa7c5b860803e6fa2487d0b052541f65020bbd9cb07bf717c28c5d0134672f"
+  },
+  "metrics": {
+    "waypoint_count": 19,
+    "clearance_min_m": 0.6103277807866851,
+    "clearance_mean_m": 1.0086162844584006,
+    "clearance_max_m": 1.780449381476486,
+    "near_clearance_count": 0,
+    "coverage_mean_m": 0.5723315069797795,
+    "coverage_max_m": 1.7356554957709784,
+    "thin_coverage_cells": 0,
+    "thin_coverage_percent": 0.0,
+    "route_components_total": 3,
+    "route_waypoint_off_route_count": 0,
+    "route_waypoint_component_count": 1,
+    "route_unreachable_edges": 0,
+    "route_over_jump_edges": 0,
+    "route_mean_geodesic_m": 1.947670753555555,
+    "route_max_geodesic_m": 4.848528135999997,
+    "route_max_straight_m": 4.627094120503711
+  },
+  "worst_clearances": [
+    {
+      "index": 14,
+      "clearance_m": 0.6103277807866851,
+      "x": -0.725,
+      "y": 3.595
+    },
+    {
+      "index": 8,
+      "clearance_m": 0.65,
+      "x": 4.475,
+      "y": -0.155
+    },
+    {
+      "index": 6,
+      "clearance_m": 0.7615773105863909,
+      "x": 0.775,
+      "y": -1.655
+    },
+    {
+      "index": 17,
+      "clearance_m": 0.7778174593052023,
+      "x": -5.175,
+      "y": 0.545
+    },
+    {
+      "index": 0,
+      "clearance_m": 0.7810249675906654,
+      "x": -0.575,
+      "y": 1.395
+    },
+    {
+      "index": 5,
+      "clearance_m": 0.8,
+      "x": -2.275,
+      "y": -1.655
+    },
+    {
+      "index": 3,
+      "clearance_m": 0.8500000000000001,
+      "x": -2.225,
+      "y": 1.145
+    },
+    {
+      "index": 4,
+      "clearance_m": 0.8500000000000001,
+      "x": -2.225,
+      "y": -0.155
+    }
+  ],
+  "longest_edges": [
+    {
+      "from_index": 14,
+      "to_index": 15,
+      "geodesic_m": 4.848528135999997,
+      "straight_m": 4.627094120503711,
+      "from_x": -0.725,
+      "from_y": 3.595,
+      "to_x": -5.325,
+      "to_y": 3.095
+    },
+    {
+      "from_index": 7,
+      "to_index": 8,
+      "geodesic_m": 4.528427119999994,
+      "straight_m": 3.6999999999999997,
+      "from_x": 0.775,
+      "from_y": -0.155,
+      "to_x": 4.475,
+      "to_y": -0.155
+    },
+    {
+      "from_index": 5,
+      "to_index": 6,
+      "geodesic_m": 3.0500000000000003,
+      "straight_m": 3.05,
+      "from_x": -2.275,
+      "from_y": -1.655,
+      "to_x": 0.775,
+      "to_y": -1.655
+    },
+    {
+      "from_index": 10,
+      "to_index": 11,
+      "geodesic_m": 2.51421356,
+      "straight_m": 2.2203603311174516,
+      "from_x": 3.675,
+      "from_y": 1.395,
+      "to_x": 4.975,
+      "to_y": 3.195
+    },
+    {
+      "from_index": 12,
+      "to_index": 13,
+      "geodesic_m": 2.320710678,
+      "straight_m": 2.300543414065468,
+      "from_x": 3.375,
+      "from_y": 3.145,
+      "to_x": 1.075,
+      "to_y": 3.195
+    },
+    {
+      "from_index": 15,
+      "to_index": 16,
+      "geodesic_m": 1.9949747459999998,
+      "straight_m": 1.882817038376273,
+      "from_x": -5.325,
+      "from_y": 3.095,
+      "to_x": -5.675,
+      "to_y": 1.245
+    },
+    {
+      "from_index": 13,
+      "to_index": 14,
+      "geodesic_m": 1.965685424,
+      "straight_m": 1.8439088914585773,
+      "from_x": 1.075,
+      "from_y": 3.195,
+      "to_x": -0.725,
+      "to_y": 3.595
+    },
+    {
+      "from_index": 17,
+      "to_index": 18,
+      "geodesic_m": 1.920710678,
+      "straight_m": 1.900657780874821,
+      "from_x": -5.175,
+      "from_y": 0.545,
+      "to_x": -5.225,
+      "to_y": -1.355
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 3,
+  "validation_passed": true,
+  "failures": [],
+  "summary": {
+    "frames": 51,
+    "detections": 51,
+    "unique_signal_ids": 1,
+    "top_signal_id": "0",
+    "top_signal_ratio": 1.0,
+    "dominant_color": "RED",
+    "confidence_mean": 0.6178668468606239
+  },
+  "world": "city_robot.wbt",
+  "backend": "classic",
+  "omni_views": 8,
+  "duration_sec": 20.0,
+  "frames": 51,
+  "rate_hz": 2.5498794576346295,
+  "unique_signal_ids": 1,
+  "detections": 51,
+  "signal_id_hist": {
+    "0": 51
+  },
+  "signal_id_color_hist_named": {
+    "0": {
+      "RED": 25,
+      "AMBER": 4,
+      "GREEN": 22
+    }
+  },
+  "top_signal_id": "0",
+  "top_signal_count": 51,
+  "top_signal_ratio": 1.0,
+  "color_hist_named": {
+    "RED": 25,
+    "AMBER": 4,
+    "GREEN": 22
+  },
+  "shape_hist_named": {
+    "CIRCLE": 51
+  },
+  "status_hist_named": {
+    "SOLID_ON": 51
+  },
+  "dominant_color": "RED",
+  "stop_like_count": 29,
+  "green_count": 22,
+  "stop_like_ratio": 0.5686274509803921,
+  "green_ratio": 0.43137254901960786,
+  "confidence": {
+    "mean": 0.6178668468606239,
+    "median": 0.6028316617012024,
+    "min": 0.5653668642044067,
+    "max": 0.6439676284790039
+  },
+  "criteria": {
+    "min_frames": 1,
+    "min_detections": 1,
+    "min_unique_signals": 1,
+    "max_unique_signal_ids": 8,
+    "min_confidence_mean": 0.0,
+    "min_top_signal_ratio": 0.25
+  }
+}

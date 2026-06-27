@@ -3,24 +3,35 @@
   "backend": "classic",
   "omni_views": 8,
   "duration_sec": 20.0,
-  "frames": 48,
-  "rate_hz": 2.4,
-  "unique_signal_ids": 2,
+  "elapsed_sec": 20.000945475010667,
+  "frames": 51,
+  "rate_hz": 2.5498794576346295,
+  "unique_signal_ids": 1,
+  "signal_id_hist": {
+    "0": 51
+  },
+  "signal_id_color_hist": {
+    "0": {
+      "1": 25,
+      "2": 4,
+      "3": 22
+    }
+  },
   "color_hist": {
-    "3": 21,
-    "2": 7,
-    "1": 20
+    "1": 25,
+    "2": 4,
+    "3": 22
   },
   "shape_hist": {
-    "1": 48
+    "1": 51
   },
   "status_hist": {
-    "2": 48
+    "2": 51
   },
   "confidence": {
-    "mean": 0.615,
-    "median": 0.603,
-    "min": 0.565,
-    "max": 0.644
+    "mean": 0.6178668468606239,
+    "median": 0.6028316617012024,
+    "min": 0.5653668642044067,
+    "max": 0.6439676284790039
   }
 }

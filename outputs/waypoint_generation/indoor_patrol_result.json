@@ -1,0 +1,32 @@
+{
+  "schema_version": 3,
+  "validation_passed": true,
+  "criteria": {
+    "max_missed": 0,
+    "max_struggled": 0,
+    "recovery_warn": 2
+  },
+  "failures": [],
+  "map": "outputs/mapping_indoor/indoor.yaml",
+  "report": "outputs/waypoint_generation/indoor_patrol_report.json",
+  "out": "outputs/waypoint_generation/indoor_patrol_result.png",
+  "lap": 0,
+  "total": 9,
+  "reached": 9,
+  "missed": 0,
+  "struggled": 0,
+  "completion_rate": 1.0,
+  "clean_completion_rate": 1.0,
+  "recovery_warn": 2,
+  "missed_indices": [],
+  "struggled_indices": [],
+  "reason_counts": {
+    "succeeded": 9
+  },
+  "max_nav_recoveries": 0,
+  "total_nav_recoveries": 0,
+  "safe_pose_recovery_count": 0,
+  "step_event_count": 0,
+  "duration_mean_sec": 13.567333333333332,
+  "duration_max_sec": 41.973
+}

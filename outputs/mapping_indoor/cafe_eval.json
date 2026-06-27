@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "validation_passed": true,
+  "summary": {
+    "map_count": 1,
+    "passed": 1,
+    "failed": 0
+  },
+  "connect_clearance_m": 0.3,
+  "maps": [
+    {
+      "map": "outputs/mapping_indoor/cafe.yaml",
+      "map_sha256": "3b8793fea104f196dc52189f518a4751705d568cf3cc34b188bbf67007253bf3",
+      "image": "outputs/mapping_indoor/cafe.pgm",
+      "image_sha256": "c487dc620954af767c654243319daea8f9071fd4460f9dc931615a228e2e241f",
+      "world": "cafe",
+      "wh": "193x472",
+      "width_cells": 193,
+      "height_cells": 472,
+      "resolution_m": 0.05,
+      "size_m": "9.7x23.6",
+      "size_x_m": 9.65,
+      "size_y_m": 23.6,
+      "free": 70753,
+      "occ": 3102,
+      "unk": 17241,
+      "total": 91096,
+      "unknown_rate": 18.926187757969615,
+      "wall_rate": 4.200121860402139,
+      "main_rate": 100.0,
+      "n_components": 1,
+      "verdict": "OK(unknown 19%)",
+      "verdict_ascii": "OK (unknown 19%)",
+      "validation_passed": true,
+      "eval_png": "outputs/mapping_indoor/cafe_eval.png"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "validation_passed": true,
+  "summary": {
+    "map_count": 1,
+    "passed": 1,
+    "failed": 0
+  },
+  "connect_clearance_m": 0.3,
+  "maps": [
+    {
+      "map": "outputs/mapping_indoor/indoor.yaml",
+      "map_sha256": "e908dc8c8796c0c5fbe5eb8bddc7c4dfc3587ae84e33d18c8ed1b450179781a9",
+      "image": "outputs/mapping_indoor/indoor.pgm",
+      "image_sha256": "a894e9e33265b2d81500fbf71e3ff81d683f68b4fd7c1032a3e98c34a459513b",
+      "world": "indoor",
+      "wh": "104x202",
+      "width_cells": 104,
+      "height_cells": 202,
+      "resolution_m": 0.05,
+      "size_m": "5.2x10.1",
+      "size_x_m": 5.2,
+      "size_y_m": 10.100000000000001,
+      "free": 16814,
+      "occ": 2040,
+      "unk": 2154,
+      "total": 21008,
+      "unknown_rate": 10.253236862147753,
+      "wall_rate": 10.819985149039992,
+      "main_rate": 97.91147729450086,
+      "n_components": 2,
+      "verdict": "OK(微小片あり)",
+      "verdict_ascii": "OK (minor fragments)",
+      "validation_passed": true,
+      "eval_png": "outputs/mapping_indoor/indoor_eval.png"
+    }
+  ]
+}

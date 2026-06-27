@@ -1,0 +1,32 @@
+{
+  "schema_version": 3,
+  "validation_passed": true,
+  "criteria": {
+    "max_missed": 0,
+    "max_struggled": 0,
+    "recovery_warn": 2
+  },
+  "failures": [],
+  "map": "outputs/mapping_indoor/break_room.yaml",
+  "report": "outputs/waypoint_generation/break_room_patrol_report.json",
+  "out": "outputs/waypoint_generation/break_room_patrol_result.png",
+  "lap": 0,
+  "total": 19,
+  "reached": 19,
+  "missed": 0,
+  "struggled": 0,
+  "completion_rate": 1.0,
+  "clean_completion_rate": 1.0,
+  "recovery_warn": 2,
+  "missed_indices": [],
+  "struggled_indices": [],
+  "reason_counts": {
+    "succeeded": 19
+  },
+  "max_nav_recoveries": 0,
+  "total_nav_recoveries": 0,
+  "safe_pose_recovery_count": 0,
+  "step_event_count": 0,
+  "duration_mean_sec": 17.05636842105263,
+  "duration_max_sec": 33.362
+}

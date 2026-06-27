@@ -1,0 +1,74 @@
+{
+  "schema_version": 4,
+  "validation_passed": true,
+  "failures": [],
+  "summary": {
+    "points": 7776,
+    "colored_ratio": 0.9997427983539094,
+    "below_floor_percent": 0.0,
+    "main_extent_x_m": 4.949585109949112,
+    "main_extent_y_m": 10.006465077400208,
+    "occupancy_cells_5cm_z_ge_0": 1406
+  },
+  "ply": "outputs/colorized_pointcloud/colorized_pointcloud_indoor_goal_run_final.ply",
+  "ply_sha256": "9f47da67f6ffe12d312d436c3da0970d509aca3da0bd59cf70c92c7eec1f0448",
+  "header_vertices": 7776,
+  "properties": [
+    {
+      "type": "float",
+      "name": "x"
+    },
+    {
+      "type": "float",
+      "name": "y"
+    },
+    {
+      "type": "float",
+      "name": "z"
+    },
+    {
+      "type": "uchar",
+      "name": "red"
+    },
+    {
+      "type": "uchar",
+      "name": "green"
+    },
+    {
+      "type": "uchar",
+      "name": "blue"
+    }
+  ],
+  "points": 7776,
+  "colored_count": 7774,
+  "colored_ratio": 0.9997427983539094,
+  "main_extent_x_m": 4.949585109949112,
+  "main_extent_y_m": 10.006465077400208,
+  "true_x_m": 5.0,
+  "true_y_m": 10.0,
+  "expansion_x": 0.9899170219898223,
+  "expansion_y": 1.0006465077400208,
+  "floor_z_m": -0.05,
+  "below_floor_percent": 0.0,
+  "z_min_m": 0.10006999969482422,
+  "z_max_m": 2.1989099979400635,
+  "z_std_m": 0.6075964570045471,
+  "occupancy_cells_5cm_z_ge_0": 1406,
+  "rgb_mean_255": [
+    126.7,
+    126.5,
+    150.1
+  ],
+  "rgb_std_255": [
+    26.9,
+    27.8,
+    41.5
+  ],
+  "criteria": {
+    "min_points": 1000,
+    "min_colored_ratio": 0.95,
+    "max_below_floor_percent": 1.0,
+    "max_expansion_ratio": 1.15
+  },
+  "png": "outputs/colorized_pointcloud/colorized_pointcloud_indoor_goal_run_final_check.png"
+}

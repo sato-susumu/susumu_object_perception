@@ -1,12 +1,12 @@
 schema_version: 2
-map: break_room.yaml
+map: indoor.yaml
 frame_id: map
 provenance:
   generator: generate_waypoints.py
-  map: outputs/mapping_indoor/break_room.yaml
-  map_image: outputs/mapping_indoor/break_room.pgm
-  map_sha256: f3e1776103ad0a564a660b445eb6b56af93d44a9e443d1a16f7e8c095fc6a95a
-  map_image_sha256: e122f39e97f8187e5a4ea45f09b3538085370a23e7cda5834f0c38b187b78129
+  map: outputs/mapping_indoor/indoor.yaml
+  map_image: outputs/mapping_indoor/indoor.pgm
+  map_sha256: e908dc8c8796c0c5fbe5eb8bddc7c4dfc3587ae84e33d18c8ed1b450179781a9
+  map_image_sha256: a894e9e33265b2d81500fbf71e3ff81d683f68b4fd7c1032a3e98c34a459513b
   parameters: {spacing: 1.5, candidate_mode: grid, graph_node_spacing: 0.0, graph_cover_radius: 0.0,
     clearance: 0.6, connect_clearance: 0.3, route_clearance: 0.3, edge_clearance: 0.3,
     edge_clearance_weight: 0.0, hazard_radius: 1.5, strict_hazard_file: false, require_hazards: false,
@@ -17,22 +17,12 @@ provenance:
   hazard_files: []
   hazards_used_count: 0
 waypoints:
-- [-0.575, 1.395]
-- [-0.675, 0.345]
-- [-1.275, 0.195]
-- [-2.225, 1.145]
-- [-2.225, -0.155]
-- [-2.275, -1.655]
-- [0.775, -1.655]
-- [0.775, -0.155]
-- [4.475, -0.155]
-- [4.175, 1.045]
-- [3.675, 1.395]
-- [4.975, 3.195]
-- [3.375, 3.145]
-- [1.075, 3.195]
-- [-0.725, 3.595]
-- [-5.325, 3.095]
-- [-5.675, 1.245]
-- [-5.175, 0.545]
-- [-5.225, -1.355]
+- [-0.125, 0.015]
+- [-0.125, 2.015]
+- [1.325, 3.165]
+- [3.075, 3.115]
+- [2.725, 2.015]
+- [0.275, -2.335]
+- [1.575, -2.335]
+- [1.925, -3.985]
+- [3.075, -3.485]

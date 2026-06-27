@@ -1,0 +1,431 @@
+{
+  "schema_version": 2,
+  "validation_passed": true,
+  "failures": [],
+  "criteria": {
+    "min_best_f1": 0.7,
+    "required_best_label": "ignore_table_sofa"
+  },
+  "summary": {
+    "report_count": 2,
+    "best_label": "ignore_table_sofa",
+    "best_f1": 0.7272727272727273,
+    "best_precision": 1.0,
+    "best_recall": 0.5714285714285714
+  },
+  "reports": [
+    {
+      "label": "all_targets",
+      "path": "outputs/recognition/indoor_recognition_eval.json",
+      "report_sha256": "9468b9fc768bff8e28f398bb3fef93022fe3892d7e587589b98b66b383ab5b56",
+      "failure_details": {
+        "missed": [
+          {
+            "expected_id": "PottedTree[1]",
+            "expected_name": "potted tree(5)",
+            "expected_type": "PottedTree",
+            "accepted_labels": [
+              "potted plant",
+              "vase"
+            ],
+            "map_x": 0.6399999999999997,
+            "map_y": -4.0,
+            "has_map_support": true,
+            "nearest_detection": {
+              "distance_m": 3.7196316900679776,
+              "within_match_distance": false,
+              "label_match": true,
+              "detection_id": 3,
+              "class_name": "potted plant"
+            },
+            "nearest_label_detection": {
+              "distance_m": 3.7196316900679776,
+              "within_match_distance": false,
+              "label_match": true,
+              "detection_id": 3,
+              "class_name": "potted plant"
+            }
+          },
+          {
+            "expected_id": "Fridge[1]",
+            "expected_name": "Fridge",
+            "expected_type": "Fridge",
+            "accepted_labels": [
+              "refrigerator",
+              "fridge"
+            ],
+            "map_x": -0.6600000000000001,
+            "map_y": 4.64,
+            "has_map_support": true,
+            "nearest_detection": {
+              "distance_m": 1.6152237823509534,
+              "within_match_distance": false,
+              "label_match": false,
+              "detection_id": 4,
+              "class_name": "potted plant"
+            },
+            "nearest_label_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            }
+          },
+          {
+            "expected_id": "Armchair[1]",
+            "expected_name": "Armchair",
+            "expected_type": "Armchair",
+            "accepted_labels": [
+              "chair"
+            ],
+            "map_x": 1.2599999999999998,
+            "map_y": 1.03,
+            "has_map_support": true,
+            "nearest_detection": {
+              "distance_m": 1.729450599835288,
+              "within_match_distance": false,
+              "label_match": false,
+              "detection_id": 6,
+              "class_name": "dining table"
+            },
+            "nearest_label_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            }
+          },
+          {
+            "expected_id": "PottedTree[4]",
+            "expected_name": "potted tree(3)",
+            "expected_type": "PottedTree",
+            "accepted_labels": [
+              "potted plant",
+              "vase"
+            ],
+            "map_x": -0.7600000000000007,
+            "map_y": -4.5,
+            "has_map_support": true,
+            "nearest_detection": {
+              "distance_m": 5.119771993698812,
+              "within_match_distance": false,
+              "label_match": true,
+              "detection_id": 3,
+              "class_name": "potted plant"
+            },
+            "nearest_label_detection": {
+              "distance_m": 5.119771993698812,
+              "within_match_distance": false,
+              "label_match": true,
+              "detection_id": 3,
+              "class_name": "potted plant"
+            }
+          },
+          {
+            "expected_id": "Table[1]",
+            "expected_name": "Table",
+            "expected_type": "Table",
+            "accepted_labels": [
+              "dining table",
+              "table"
+            ],
+            "map_x": 1.3399999999999999,
+            "map_y": -0.52,
+            "has_map_support": true,
+            "nearest_detection": {
+              "distance_m": 2.1662127231676562,
+              "within_match_distance": false,
+              "label_match": false,
+              "detection_id": 5,
+              "class_name": "couch"
+            },
+            "nearest_label_detection": {
+              "distance_m": 2.372363130300214,
+              "within_match_distance": false,
+              "label_match": true,
+              "detection_id": 6,
+              "class_name": "dining table"
+            }
+          },
+          {
+            "expected_id": "BunchOfSunFlowers[1]",
+            "expected_name": "BunchOfSunFlowers",
+            "expected_type": "BunchOfSunFlowers",
+            "accepted_labels": [
+              "potted plant",
+              "vase"
+            ],
+            "map_x": 1.3199999999999994,
+            "map_y": -0.52,
+            "has_map_support": true,
+            "nearest_detection": {
+              "distance_m": 2.1859539035598043,
+              "within_match_distance": false,
+              "label_match": false,
+              "detection_id": 5,
+              "class_name": "couch"
+            },
+            "nearest_label_detection": {
+              "distance_m": 2.2577634551990906,
+              "within_match_distance": false,
+              "label_match": true,
+              "detection_id": 3,
+              "class_name": "potted plant"
+            }
+          }
+        ],
+        "wrong_label": [],
+        "extra": [
+          {
+            "detection_id": 6,
+            "class_name": "dining table",
+            "x": 2.9818010422182377,
+            "y": 1.192482455320036,
+            "existence": 0.999,
+            "hits": 12
+          }
+        ],
+        "missed_type_hist": {
+          "PottedTree": 2,
+          "Fridge": 1,
+          "Armchair": 1,
+          "Table": 1,
+          "BunchOfSunFlowers": 1
+        },
+        "wrong_detected_class_hist": {},
+        "extra_class_hist": {
+          "dining table": 1
+        }
+      },
+      "expected_count": 9,
+      "detection_count": 4,
+      "correct_count": 3,
+      "wrong_label_count": 0,
+      "extra_detection_count": 1,
+      "missed_without_near_detection_count": 6,
+      "class_aware_false_positive_count": 1,
+      "class_aware_false_negative_count": 6,
+      "expected_with_map_support_count": 9,
+      "missed_with_map_support_count": 6,
+      "precision": 0.75,
+      "recall": 0.3333333333333333,
+      "f1": 0.46153846153846156
+    },
+    {
+      "label": "ignore_table_sofa",
+      "path": "outputs/recognition/indoor_recognition_eval_ignore_table_sofa.json",
+      "report_sha256": "fd4fd9ac7cb926f1e0360a39e6460076d1d0255d1f711a2c4de8681eec49a950",
+      "failure_details": {
+        "missed": [
+          {
+            "expected_id": "Fridge[1]",
+            "expected_name": "Fridge",
+            "expected_type": "Fridge",
+            "accepted_labels": [
+              "refrigerator",
+              "fridge"
+            ],
+            "map_x": -0.6600000000000001,
+            "map_y": 4.64,
+            "has_map_support": null,
+            "nearest_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            },
+            "nearest_label_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            }
+          },
+          {
+            "expected_id": "PottedTree[4]",
+            "expected_name": "potted tree(3)",
+            "expected_type": "PottedTree",
+            "accepted_labels": [
+              "potted plant",
+              "vase"
+            ],
+            "map_x": -0.7600000000000007,
+            "map_y": -4.5,
+            "has_map_support": null,
+            "nearest_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            },
+            "nearest_label_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            }
+          },
+          {
+            "expected_id": "BunchOfSunFlowers[1]",
+            "expected_name": "BunchOfSunFlowers",
+            "expected_type": "BunchOfSunFlowers",
+            "accepted_labels": [
+              "potted plant",
+              "vase"
+            ],
+            "map_x": 1.3199999999999994,
+            "map_y": -0.52,
+            "has_map_support": null,
+            "nearest_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            },
+            "nearest_label_detection": {
+              "distance_m": null,
+              "within_match_distance": null,
+              "label_match": null,
+              "detection_id": null,
+              "class_name": null
+            }
+          }
+        ],
+        "wrong_label": [],
+        "extra": [],
+        "missed_type_hist": {
+          "Fridge": 1,
+          "PottedTree": 1,
+          "BunchOfSunFlowers": 1
+        },
+        "wrong_detected_class_hist": {},
+        "extra_class_hist": {}
+      },
+      "expected_count": 7,
+      "detection_count": 4,
+      "correct_count": 4,
+      "wrong_label_count": 0,
+      "extra_detection_count": 0,
+      "missed_without_near_detection_count": 3,
+      "class_aware_false_positive_count": 0,
+      "class_aware_false_negative_count": 3,
+      "precision": 1.0,
+      "recall": 0.5714285714285714,
+      "f1": 0.7272727272727273
+    }
+  ],
+  "best_by_f1": {
+    "label": "ignore_table_sofa",
+    "path": "outputs/recognition/indoor_recognition_eval_ignore_table_sofa.json",
+    "report_sha256": "fd4fd9ac7cb926f1e0360a39e6460076d1d0255d1f711a2c4de8681eec49a950",
+    "failure_details": {
+      "missed": [
+        {
+          "expected_id": "Fridge[1]",
+          "expected_name": "Fridge",
+          "expected_type": "Fridge",
+          "accepted_labels": [
+            "refrigerator",
+            "fridge"
+          ],
+          "map_x": -0.6600000000000001,
+          "map_y": 4.64,
+          "has_map_support": null,
+          "nearest_detection": {
+            "distance_m": null,
+            "within_match_distance": null,
+            "label_match": null,
+            "detection_id": null,
+            "class_name": null
+          },
+          "nearest_label_detection": {
+            "distance_m": null,
+            "within_match_distance": null,
+            "label_match": null,
+            "detection_id": null,
+            "class_name": null
+          }
+        },
+        {
+          "expected_id": "PottedTree[4]",
+          "expected_name": "potted tree(3)",
+          "expected_type": "PottedTree",
+          "accepted_labels": [
+            "potted plant",
+            "vase"
+          ],
+          "map_x": -0.7600000000000007,
+          "map_y": -4.5,
+          "has_map_support": null,
+          "nearest_detection": {
+            "distance_m": null,
+            "within_match_distance": null,
+            "label_match": null,
+            "detection_id": null,
+            "class_name": null
+          },
+          "nearest_label_detection": {
+            "distance_m": null,
+            "within_match_distance": null,
+            "label_match": null,
+            "detection_id": null,
+            "class_name": null
+          }
+        },
+        {
+          "expected_id": "BunchOfSunFlowers[1]",
+          "expected_name": "BunchOfSunFlowers",
+          "expected_type": "BunchOfSunFlowers",
+          "accepted_labels": [
+            "potted plant",
+            "vase"
+          ],
+          "map_x": 1.3199999999999994,
+          "map_y": -0.52,
+          "has_map_support": null,
+          "nearest_detection": {
+            "distance_m": null,
+            "within_match_distance": null,
+            "label_match": null,
+            "detection_id": null,
+            "class_name": null
+          },
+          "nearest_label_detection": {
+            "distance_m": null,
+            "within_match_distance": null,
+            "label_match": null,
+            "detection_id": null,
+            "class_name": null
+          }
+        }
+      ],
+      "wrong_label": [],
+      "extra": [],
+      "missed_type_hist": {
+        "Fridge": 1,
+        "PottedTree": 1,
+        "BunchOfSunFlowers": 1
+      },
+      "wrong_detected_class_hist": {},
+      "extra_class_hist": {}
+    },
+    "expected_count": 7,
+    "detection_count": 4,
+    "correct_count": 4,
+    "wrong_label_count": 0,
+    "extra_detection_count": 0,
+    "missed_without_near_detection_count": 3,
+    "class_aware_false_positive_count": 0,
+    "class_aware_false_negative_count": 3,
+    "precision": 1.0,
+    "recall": 0.5714285714285714,
+    "f1": 0.7272727272727273
+  }
+}

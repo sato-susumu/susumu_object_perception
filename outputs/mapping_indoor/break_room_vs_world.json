@@ -2101,5 +2101,28 @@
       "cell_class": "unknown",
       "distance_to_occupied_m": 0.2
     }
-  ]
+  ],
+  "schema_version": 3,
+  "inputs": {
+    "wbt": "webots_worlds/break_room.wbt",
+    "map": "outputs/mapping_indoor/break_room.yaml",
+    "map_image": "outputs/mapping_indoor/break_room.pgm",
+    "robot_world_xy": [
+      0.5,
+      0.5
+    ],
+    "occupied_distance_threshold_m": 0.5
+  },
+  "inputs_hash": {
+    "wbt_sha256": "c33ea8de4b9834f71a42eb7acd85d48015c000f0834fd84b4da8bd32b3a3fd63",
+    "map_sha256": "f3e1776103ad0a564a660b445eb6b56af93d44a9e443d1a16f7e8c095fc6a95a",
+    "map_image_sha256": "e122f39e97f8187e5a4ea45f09b3538085370a23e7cda5834f0c38b187b78129"
+  },
+  "criteria": {
+    "min_near_ratio_inside": 0.9,
+    "min_wall_near_ratio_inside": 0.85,
+    "min_obstacle_near_ratio_inside": 0.75
+  },
+  "validation_passed": true,
+  "failures": []
 }

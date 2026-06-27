@@ -1,5 +1,21 @@
+schema_version: 2
 map: cafe.yaml
 frame_id: map
+provenance:
+  generator: generate_waypoints.py
+  map: outputs/mapping_indoor/cafe.yaml
+  map_image: outputs/mapping_indoor/cafe.pgm
+  map_sha256: 3b8793fea104f196dc52189f518a4751705d568cf3cc34b188bbf67007253bf3
+  map_image_sha256: c487dc620954af767c654243319daea8f9071fd4460f9dc931615a228e2e241f
+  parameters: {spacing: 1.5, candidate_mode: grid, graph_node_spacing: 0.0, graph_cover_radius: 0.0,
+    clearance: 0.6, connect_clearance: 0.3, route_clearance: 0.3, edge_clearance: 0.3,
+    edge_clearance_weight: 0.0, hazard_radius: 1.5, strict_hazard_file: false, require_hazards: false,
+    max_waypoints: 40, relink_long_jumps: 0.0, max_segment_length: 0.0, dedupe_min_separation: 0.3,
+    grid_nms_separation_ratio: 0.4, limit_radius: 0.0, limit_center_x: 0.0, limit_center_y: 0.0,
+    object_viewpoints: 0, view_clearance: 0.6, object_min_area: 0.005, object_max_area: 0.4,
+    viewpoint_min_separation: 0.75, view_map_border_margin: 0.25, no_png: false}
+  hazard_files: []
+  hazards_used_count: 0
 waypoints:
 - [-0.885, -0.625]
 - [-2.435, -0.575]

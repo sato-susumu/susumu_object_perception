@@ -1,0 +1,80 @@
+{
+  "schema_version": 3,
+  "validation_passed": true,
+  "failures": [],
+  "summary": {
+    "used_tag_count": 4,
+    "unique_tag_count": 4,
+    "correspondence_rms_m": 0.009604270472511498,
+    "rotation_angle_deg": 0.31688611941828737,
+    "quaternion_norm": 1.0,
+    "transform_finite": true,
+    "translation_error_m": 0.02418500267050701
+  },
+  "inputs": {
+    "calib": "outputs/extrinsic_calibration/calib.json",
+    "calib_sha256": "1866a319b51be538d168e6b598aa2321b67561b713527e330a74a22dc9438d33",
+    "ref_translation": [
+      0.0,
+      0.0,
+      0.55
+    ]
+  },
+  "criteria": {
+    "min_used_tags": 4,
+    "max_rms_m": 0.01,
+    "max_rotation_deg": 1.0,
+    "max_translation_error_m": 0.03,
+    "max_quaternion_norm_error": 0.001
+  },
+  "meta": {
+    "method": "apriltag_36h11_omni_lidar",
+    "camera_model": "equirectangular"
+  },
+  "metrics": {
+    "translation_m": [
+      -0.022975512279939762,
+      0.0071980974795178366,
+      0.5477136093242564
+    ],
+    "translation_diff_m": [
+      -0.022975512279939762,
+      0.0071980974795178366,
+      -0.0022863906757436547
+    ],
+    "translation_error_m": 0.02418500267050701,
+    "rotation_rpy_deg": [
+      -0.08395135976296501,
+      -0.26780722403394525,
+      0.14733004092122692
+    ],
+    "rotation_angle_deg": 0.31688611941828737,
+    "quaternion_xyzw": [
+      -0.0007296064023279133,
+      -0.002337996140379446,
+      0.0012839807816785727,
+      0.9999961764136389
+    ],
+    "quaternion_norm": 1.0,
+    "transform_length": 7,
+    "transform_finite": true,
+    "correspondence_rms_m": 0.009604270472511498,
+    "used_tag_ids": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "used_tag_count": 4,
+    "unique_tag_ids": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "unique_tag_count": 4,
+    "duplicate_tag_ids": [],
+    "tag_size_m": 0.6667,
+    "png": "outputs/extrinsic_calibration/calib_summary.png"
+  }
+}

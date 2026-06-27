@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "validation_passed": true,
+  "summary": {
+    "map_count": 1,
+    "passed": 1,
+    "failed": 0
+  },
+  "connect_clearance_m": 0.3,
+  "maps": [
+    {
+      "map": "outputs/mapping_indoor/break_room.yaml",
+      "map_sha256": "f3e1776103ad0a564a660b445eb6b56af93d44a9e443d1a16f7e8c095fc6a95a",
+      "image": "outputs/mapping_indoor/break_room.pgm",
+      "image_sha256": "e122f39e97f8187e5a4ea45f09b3538085370a23e7cda5834f0c38b187b78129",
+      "world": "break_room",
+      "wh": "259x155",
+      "width_cells": 259,
+      "height_cells": 155,
+      "resolution_m": 0.05,
+      "size_m": "13.0x7.8",
+      "size_x_m": 12.950000000000001,
+      "size_y_m": 7.75,
+      "free": 28511,
+      "occ": 3526,
+      "unk": 8108,
+      "total": 40145,
+      "unknown_rate": 20.196786648399552,
+      "wall_rate": 11.006024284421137,
+      "main_rate": 100.0,
+      "n_components": 1,
+      "verdict": "OK(unknown 20%)",
+      "verdict_ascii": "OK (unknown 20%)",
+      "validation_passed": true,
+      "eval_png": "outputs/mapping_indoor/break_room_eval.png"
+    }
+  ]
+}

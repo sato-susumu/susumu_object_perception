@@ -1,0 +1,264 @@
+{
+  "schema_version": 5,
+  "validation_passed": true,
+  "summary": {
+    "item_count": 3,
+    "ply_item_count": 3,
+    "unique_ply_count": 3,
+    "unique_ply_hash_count": 3,
+    "duplicate_input_name_count": 0,
+    "duplicate_file_hash_count": 0,
+    "passed": 3,
+    "failed": 0,
+    "failure_count": 0
+  },
+  "items": [
+    {
+      "kind": "ply",
+      "name": "outputs/colorized_pointcloud/colorized_pointcloud_indoor_apriltag_calib_final.ply",
+      "file_sha256": "ae7581816bb363d0656b37f36701aaf6561b09e2d41388679e671718faa14d69",
+      "file_size_bytes": 7740823,
+      "points": 211730,
+      "header_vertices": 211730,
+      "properties": [
+        {
+          "type": "float",
+          "name": "x"
+        },
+        {
+          "type": "float",
+          "name": "y"
+        },
+        {
+          "type": "float",
+          "name": "z"
+        },
+        {
+          "type": "uchar",
+          "name": "red"
+        },
+        {
+          "type": "uchar",
+          "name": "green"
+        },
+        {
+          "type": "uchar",
+          "name": "blue"
+        }
+      ],
+      "property_types": {
+        "x": "float",
+        "y": "float",
+        "z": "float",
+        "red": "uchar",
+        "green": "uchar",
+        "blue": "uchar"
+      },
+      "property_types_valid": true,
+      "property_type_failures": [],
+      "finite_ratio": 1.0,
+      "rgb_values_in_range": true,
+      "colored_ratio": 0.999012893779814,
+      "rgb_mean_255": [
+        130.3,
+        130.2,
+        155.4
+      ],
+      "rgb_std_255": [
+        27.5,
+        28.5,
+        43.8
+      ],
+      "bounds_min_m": [
+        -2.115,
+        -6.04,
+        0.1
+      ],
+      "bounds_max_m": [
+        5.517,
+        5.979,
+        2.2
+      ],
+      "criteria": {
+        "min_points": 1000,
+        "min_colored_ratio": 0.95,
+        "min_channel_std": 5.0
+      },
+      "passed": true,
+      "failures": []
+    },
+    {
+      "kind": "ply",
+      "name": "outputs/colorized_pointcloud/colorized_pointcloud_indoor_goal_run_final.ply",
+      "file_sha256": "9f47da67f6ffe12d312d436c3da0970d509aca3da0bd59cf70c92c7eec1f0448",
+      "file_size_bytes": 285314,
+      "points": 7776,
+      "header_vertices": 7776,
+      "properties": [
+        {
+          "type": "float",
+          "name": "x"
+        },
+        {
+          "type": "float",
+          "name": "y"
+        },
+        {
+          "type": "float",
+          "name": "z"
+        },
+        {
+          "type": "uchar",
+          "name": "red"
+        },
+        {
+          "type": "uchar",
+          "name": "green"
+        },
+        {
+          "type": "uchar",
+          "name": "blue"
+        }
+      ],
+      "property_types": {
+        "x": "float",
+        "y": "float",
+        "z": "float",
+        "red": "uchar",
+        "green": "uchar",
+        "blue": "uchar"
+      },
+      "property_types_valid": true,
+      "property_type_failures": [],
+      "finite_ratio": 1.0,
+      "rgb_values_in_range": true,
+      "colored_ratio": 0.9997427983539094,
+      "rgb_mean_255": [
+        126.7,
+        126.5,
+        150.1
+      ],
+      "rgb_std_255": [
+        26.9,
+        27.8,
+        41.5
+      ],
+      "bounds_min_m": [
+        -1.293,
+        -5.086,
+        0.1
+      ],
+      "bounds_max_m": [
+        3.745,
+        5.049,
+        2.199
+      ],
+      "criteria": {
+        "min_points": 1000,
+        "min_colored_ratio": 0.95,
+        "min_channel_std": 5.0
+      },
+      "passed": true,
+      "failures": []
+    },
+    {
+      "kind": "ply",
+      "name": "outputs/colorized_pointcloud/colorized_pointcloud_breakroom_apriltag_calib_final.ply",
+      "file_sha256": "46ef7d5e67e2394202db4c3e21e5321b19cdf069c781cb7f53467fee7a28d2a2",
+      "file_size_bytes": 12154644,
+      "points": 336037,
+      "header_vertices": 336037,
+      "properties": [
+        {
+          "type": "float",
+          "name": "x"
+        },
+        {
+          "type": "float",
+          "name": "y"
+        },
+        {
+          "type": "float",
+          "name": "z"
+        },
+        {
+          "type": "uchar",
+          "name": "red"
+        },
+        {
+          "type": "uchar",
+          "name": "green"
+        },
+        {
+          "type": "uchar",
+          "name": "blue"
+        }
+      ],
+      "property_types": {
+        "x": "float",
+        "y": "float",
+        "z": "float",
+        "red": "uchar",
+        "green": "uchar",
+        "blue": "uchar"
+      },
+      "property_types_valid": true,
+      "property_type_failures": [],
+      "finite_ratio": 1.0,
+      "rgb_values_in_range": true,
+      "colored_ratio": 0.9966848888664046,
+      "rgb_mean_255": [
+        165.4,
+        145.6,
+        121.2
+      ],
+      "rgb_std_255": [
+        50.7,
+        50.7,
+        48.2
+      ],
+      "bounds_min_m": [
+        -8.134,
+        -5.143,
+        0.1
+      ],
+      "bounds_max_m": [
+        7.503,
+        5.546,
+        2.2
+      ],
+      "criteria": {
+        "min_points": 1000,
+        "min_colored_ratio": 0.95,
+        "min_channel_std": 5.0
+      },
+      "passed": true,
+      "failures": []
+    }
+  ],
+  "failures": [],
+  "duplicate_input_names": [],
+  "duplicate_file_hashes": [],
+  "inputs": {
+    "cloud_topics": [],
+    "ply": [
+      "outputs/colorized_pointcloud/colorized_pointcloud_indoor_apriltag_calib_final.ply",
+      "outputs/colorized_pointcloud/colorized_pointcloud_indoor_goal_run_final.ply",
+      "outputs/colorized_pointcloud/colorized_pointcloud_breakroom_apriltag_calib_final.ply"
+    ],
+    "timeout_sec": 20.0,
+    "min_points": 1000,
+    "min_colored_ratio": 0.95,
+    "min_channel_std": 5.0,
+    "calibration_targets": false,
+    "yaw_deg": 0.0,
+    "min_target_score": 0.45
+  },
+  "inputs_hash": {
+    "ply_sha256": {
+      "outputs/colorized_pointcloud/colorized_pointcloud_indoor_apriltag_calib_final.ply": "ae7581816bb363d0656b37f36701aaf6561b09e2d41388679e671718faa14d69",
+      "outputs/colorized_pointcloud/colorized_pointcloud_indoor_goal_run_final.ply": "9f47da67f6ffe12d312d436c3da0970d509aca3da0bd59cf70c92c7eec1f0448",
+      "outputs/colorized_pointcloud/colorized_pointcloud_breakroom_apriltag_calib_final.ply": "46ef7d5e67e2394202db4c3e21e5321b19cdf069c781cb7f53467fee7a28d2a2"
+    }
+  }
+}

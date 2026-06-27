@@ -2,8 +2,8 @@
   "summary": {
     "threshold_m": 0.5,
     "samples": 34,
-    "inside": 20,
-    "near_occupied": 20,
+    "inside": 12,
+    "near_occupied": 11,
     "by_kind": {
       "obstacle": {
         "objects": 4,
@@ -21,30 +21,30 @@
           "outside": 0
         },
         "near_ratio_inside": 1.0,
-        "mean_distance_to_occupied_m": 0.058128519248411066,
-        "max_distance_to_occupied_m": 0.1118033988749895
+        "mean_distance_to_occupied_m": 0.0728553390593274,
+        "max_distance_to_occupied_m": 0.14142135623730953
       },
       "wall": {
         "objects": 6,
         "objects_inside": 5,
-        "objects_near_any": 5,
-        "object_near_any_ratio_inside": 1.0,
-        "mean_object_coverage_inside": 1.0,
+        "objects_near_any": 4,
+        "object_near_any_ratio_inside": 0.8,
+        "mean_object_coverage_inside": 0.8,
         "samples": 30,
-        "inside": 16,
-        "near_occupied": 16,
+        "inside": 8,
+        "near_occupied": 7,
         "cell_counts": {
-          "occupied": 7,
+          "occupied": 4,
           "free": 0,
-          "unknown": 9,
-          "outside": 14
+          "unknown": 4,
+          "outside": 22
         },
-        "near_ratio_inside": 1.0,
-        "mean_distance_to_occupied_m": 0.09623173131514773,
-        "max_distance_to_occupied_m": 0.45276925690687087
+        "near_ratio_inside": 0.875,
+        "mean_distance_to_occupied_m": 0.12518366478704002,
+        "max_distance_to_occupied_m": 0.8514693182963202
       }
     },
-    "near_ratio_inside": 1.0
+    "near_ratio_inside": 0.9166666666666666
   },
   "objects": [
     {
@@ -62,8 +62,8 @@
         "unknown": 1,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.05,
-      "max_distance_to_occupied_m": 0.05
+      "mean_distance_to_occupied_m": 0.1,
+      "max_distance_to_occupied_m": 0.1
     },
     {
       "object_index": 1,
@@ -80,8 +80,8 @@
         "unknown": 1,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.07071067811865477,
-      "max_distance_to_occupied_m": 0.07071067811865477
+      "mean_distance_to_occupied_m": 0.05,
+      "max_distance_to_occupied_m": 0.05
     },
     {
       "object_index": 3,
@@ -89,17 +89,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 2,
-      "near_occupied": 2,
-      "coverage_inside": 1.0,
+      "inside": 1,
+      "near_occupied": 0,
+      "coverage_inside": 0.0,
       "cell_counts": {
         "occupied": 0,
         "free": 0,
-        "unknown": 2,
-        "outside": 3
+        "unknown": 1,
+        "outside": 4
       },
-      "mean_distance_to_occupied_m": 0.2763846284534354,
-      "max_distance_to_occupied_m": 0.45276925690687087
+      "mean_distance_to_occupied_m": 0.8514693182963202,
+      "max_distance_to_occupied_m": 0.8514693182963202
     },
     {
       "object_index": 4,
@@ -107,17 +107,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 2,
-      "near_occupied": 2,
+      "inside": 1,
+      "near_occupied": 1,
       "coverage_inside": 1.0,
       "cell_counts": {
         "occupied": 1,
         "free": 0,
-        "unknown": 1,
-        "outside": 3
+        "unknown": 0,
+        "outside": 4
       },
-      "mean_distance_to_occupied_m": 0.03535533905932738,
-      "max_distance_to_occupied_m": 0.07071067811865477
+      "mean_distance_to_occupied_m": 0.0,
+      "max_distance_to_occupied_m": 0.0
     },
     {
       "object_index": 5,
@@ -161,17 +161,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
+      "inside": 2,
+      "near_occupied": 2,
       "coverage_inside": 1.0,
       "cell_counts": {
-        "occupied": 2,
+        "occupied": 0,
         "free": 0,
-        "unknown": 3,
-        "outside": 0
+        "unknown": 2,
+        "outside": 3
       },
-      "mean_distance_to_occupied_m": 0.1,
-      "max_distance_to_occupied_m": 0.2
+      "mean_distance_to_occupied_m": 0.05,
+      "max_distance_to_occupied_m": 0.05
     },
     {
       "object_index": 8,
@@ -179,17 +179,17 @@
       "type": "Wall",
       "kind": "wall",
       "samples": 5,
-      "inside": 5,
-      "near_occupied": 5,
+      "inside": 2,
+      "near_occupied": 2,
       "coverage_inside": 1.0,
       "cell_counts": {
-        "occupied": 2,
+        "occupied": 1,
         "free": 0,
-        "unknown": 3,
-        "outside": 0
+        "unknown": 1,
+        "outside": 3
       },
-      "mean_distance_to_occupied_m": 0.0832455532033676,
-      "max_distance_to_occupied_m": 0.158113883008419
+      "mean_distance_to_occupied_m": 0.025,
+      "max_distance_to_occupied_m": 0.05
     },
     {
       "object_index": 9,
@@ -224,8 +224,8 @@
         "unknown": 1,
         "outside": 0
       },
-      "mean_distance_to_occupied_m": 0.1118033988749895,
-      "max_distance_to_occupied_m": 0.1118033988749895
+      "mean_distance_to_occupied_m": 0.14142135623730953,
+      "max_distance_to_occupied_m": 0.14142135623730953
     }
   ],
   "samples": [
@@ -239,13 +239,13 @@
         -4.0
       ],
       "pixel_xy": [
-        41.8,
-        21.199999999999992
+        38.19999999999999,
+        21.400000000000006
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.05
+      "distance_to_occupied_m": 0.1
     },
     {
       "object_index": 1,
@@ -257,13 +257,13 @@
         3.3
       ],
       "pixel_xy": [
-        17.799999999999986,
-        167.2
+        14.19999999999999,
+        167.4
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.07071067811865477
+      "distance_to_occupied_m": 0.05
     },
     {
       "object_index": 3,
@@ -275,8 +275,8 @@
         5.199993366025164
       ],
       "pixel_xy": [
-        101.80000530700354,
-        205.19986732050327
+        98.20000530700355,
+        205.3998673205033
       ],
       "inside_map": false,
       "cell_value": null,
@@ -293,8 +293,8 @@
         5.200006633974131
       ],
       "pixel_xy": [
-        1.8000053073556144,
-        205.2001326794826
+        -1.7999946926443844,
+        205.4001326794826
       ],
       "inside_map": false,
       "cell_value": null,
@@ -311,13 +311,13 @@
         5.000006633974835
       ],
       "pixel_xy": [
-        1.799994692996445,
-        201.20013267949668
+        -1.8000053070035538,
+        201.4001326794967
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.1
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 3,
@@ -329,13 +329,13 @@
         4.999993366025868
       ],
       "pixel_xy": [
-        101.79999469264438,
-        201.19986732051734
+        98.19999469264438,
+        201.3998673205174
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.45276925690687087
+      "distance_to_occupied_m": 0.8514693182963202
     },
     {
       "object_index": 3,
@@ -347,8 +347,8 @@
         5.1
       ],
       "pixel_xy": [
-        51.8,
-        203.2
+        48.19999999999999,
+        203.39999999999998
       ],
       "inside_map": false,
       "cell_value": null,
@@ -365,8 +365,8 @@
         -5.199999999999999
       ],
       "pixel_xy": [
-        1.7999999999999927,
-        -2.7999999999999936
+        -1.800000000000006,
+        -2.59999999999998
       ],
       "inside_map": false,
       "cell_value": null,
@@ -383,8 +383,8 @@
         -5.199999999999999
       ],
       "pixel_xy": [
-        21.79999999999999,
-        -2.7999999999999936
+        18.199999999999992,
+        -2.59999999999998
       ],
       "inside_map": false,
       "cell_value": null,
@@ -401,8 +401,8 @@
         -5.0
       ],
       "pixel_xy": [
-        21.79999999999999,
-        1.1999999999999922
+        18.199999999999992,
+        1.4000000000000057
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -419,13 +419,13 @@
         -5.0
       ],
       "pixel_xy": [
-        1.7999999999999927,
-        1.1999999999999922
+        -1.800000000000006,
+        1.4000000000000057
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.07071067811865477
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 4,
@@ -437,8 +437,8 @@
         -5.1
       ],
       "pixel_xy": [
-        11.799999999999992,
-        -0.8000000000000007
+        8.199999999999994,
+        -0.5999999999999872
       ],
       "inside_map": false,
       "cell_value": null,
@@ -455,8 +455,8 @@
         -5.199999999999999
       ],
       "pixel_xy": [
-        41.8,
-        -2.7999999999999936
+        38.19999999999999,
+        -2.59999999999998
       ],
       "inside_map": false,
       "cell_value": null,
@@ -473,8 +473,8 @@
         -5.199999999999999
       ],
       "pixel_xy": [
-        101.8,
-        -2.7999999999999936
+        98.2,
+        -2.59999999999998
       ],
       "inside_map": false,
       "cell_value": null,
@@ -491,8 +491,8 @@
         -5.0
       ],
       "pixel_xy": [
-        101.8,
-        1.1999999999999922
+        98.2,
+        1.4000000000000057
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -509,8 +509,8 @@
         -5.0
       ],
       "pixel_xy": [
-        41.8,
-        1.1999999999999922
+        38.19999999999999,
+        1.4000000000000057
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -527,8 +527,8 @@
         -5.1
       ],
       "pixel_xy": [
-        71.8,
-        -0.8000000000000007
+        68.19999999999999,
+        -0.5999999999999872
       ],
       "inside_map": false,
       "cell_value": null,
@@ -545,8 +545,8 @@
         -5.19997649071147
       ],
       "pixel_xy": [
-        105.82430195850641,
-        -2.799529814229409
+        102.22430195850642,
+        -2.5995298142293954
       ],
       "inside_map": false,
       "cell_value": null,
@@ -563,8 +563,8 @@
         5.200023225352065
       ],
       "pixel_xy": [
-        105.77569793228726,
-        205.2004645070413
+        102.17569793228726,
+        205.4004645070413
       ],
       "inside_map": false,
       "cell_value": null,
@@ -581,8 +581,8 @@
         5.19997649071147
       ],
       "pixel_xy": [
-        101.77569804149357,
-        205.19952981422938
+        98.17569804149358,
+        205.39952981422942
       ],
       "inside_map": false,
       "cell_value": null,
@@ -599,8 +599,8 @@
         -5.200023225352065
       ],
       "pixel_xy": [
-        101.82430206771272,
-        -2.800464507041305
+        98.22430206771273,
+        -2.6004645070412913
       ],
       "inside_map": false,
       "cell_value": null,
@@ -617,8 +617,8 @@
         0.0
       ],
       "pixel_xy": [
-        103.79999999999998,
-        101.19999999999999
+        100.19999999999999,
+        101.4
       ],
       "inside_map": false,
       "cell_value": null,
@@ -635,13 +635,13 @@
         4.999976817983581
       ],
       "pixel_xy": [
-        -0.21386112342528296,
-        201.19953635967158
+        -3.8138611234252817,
+        201.3995363596716
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.2
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 7,
@@ -653,13 +653,13 @@
         -1.000023021906232
       ],
       "pixel_xy": [
-        -0.1861387698346073,
-        81.19953956187534
+        -3.786138769834606,
+        81.39953956187536
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.2
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 7,
@@ -671,13 +671,13 @@
         -0.9999768179835806
       ],
       "pixel_xy": [
-        3.8138611234252684,
-        81.20046364032838
+        0.21386112342526964,
+        81.40046364032838
       ],
       "inside_map": true,
-      "cell_value": 0,
-      "cell_class": "occupied",
-      "distance_to_occupied_m": 0.0
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
     },
     {
       "object_index": 7,
@@ -689,13 +689,13 @@
         5.000023021906232
       ],
       "pixel_xy": [
-        3.7861387698345927,
-        201.20046043812465
+        0.186138769834594,
+        201.40046043812464
       ],
       "inside_map": true,
-      "cell_value": 0,
-      "cell_class": "occupied",
-      "distance_to_occupied_m": 0.0
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
     },
     {
       "object_index": 7,
@@ -707,13 +707,13 @@
         2.0
       ],
       "pixel_xy": [
-        1.7999999999999927,
-        141.2
+        -1.800000000000006,
+        141.4
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.1
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 8,
@@ -725,13 +725,13 @@
         -2.0000231419888723
       ],
       "pixel_xy": [
-        -0.20693053502761405,
-        61.19953716022254
+        -3.806930535027613,
+        61.39953716022256
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.158113883008419
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 8,
@@ -743,13 +743,13 @@
         -5.000023061933779
       ],
       "pixel_xy": [
-        -0.19306935823227622,
-        1.199538761324419
+        -3.793069358232275,
+        1.3995387613244326
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.158113883008419
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 8,
@@ -761,8 +761,8 @@
         -4.999976858011127
       ],
       "pixel_xy": [
-        3.8069305350275995,
-        1.2004628397774475
+        0.20693053502760073,
+        1.400462839777461
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -779,13 +779,13 @@
         -1.9999769380662213
       ],
       "pixel_xy": [
-        3.7930693582322617,
-        61.200461238675565
+        0.1930693582322629,
+        61.400461238675575
       ],
       "inside_map": true,
-      "cell_value": 0,
-      "cell_class": "occupied",
-      "distance_to_occupied_m": 0.0
+      "cell_value": 205,
+      "cell_class": "unknown",
+      "distance_to_occupied_m": 0.05
     },
     {
       "object_index": 8,
@@ -797,13 +797,13 @@
         -3.5
       ],
       "pixel_xy": [
-        1.7999999999999927,
-        31.199999999999992
+        -1.800000000000006,
+        31.400000000000006
       ],
-      "inside_map": true,
-      "cell_value": 205,
-      "cell_class": "unknown",
-      "distance_to_occupied_m": 0.1
+      "inside_map": false,
+      "cell_value": null,
+      "cell_class": "outside",
+      "distance_to_occupied_m": null
     },
     {
       "object_index": 9,
@@ -815,8 +815,8 @@
         -1.7
       ],
       "pixel_xy": [
-        85.19999999999999,
-        67.19999999999999
+        81.6,
+        67.39999999999999
       ],
       "inside_map": true,
       "cell_value": 0,
@@ -833,13 +833,36 @@
         -4.5
       ],
       "pixel_xy": [
-        13.799999999999985,
-        11.199999999999992
+        10.199999999999987,
+        11.400000000000006
       ],
       "inside_map": true,
       "cell_value": 205,
       "cell_class": "unknown",
-      "distance_to_occupied_m": 0.1118033988749895
+      "distance_to_occupied_m": 0.14142135623730953
     }
-  ]
+  ],
+  "schema_version": 3,
+  "inputs": {
+    "wbt": "/home/taro/ros2_ws/src/susumu_object_perception/webots_worlds/indoor.wbt",
+    "map": "/home/taro/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/indoor.yaml",
+    "map_image": "/home/taro/ros2_ws/src/susumu_object_perception/outputs/mapping_indoor/indoor.pgm",
+    "robot_world_xy": [
+      6.36,
+      0.0
+    ],
+    "occupied_distance_threshold_m": 0.5
+  },
+  "inputs_hash": {
+    "wbt_sha256": "b5433fc265f2a3529cc0ca3c7271f8a837eeb52927a0fb2c80243a2f3c0aafce",
+    "map_sha256": "6a134d945c6a752f2c6a01e0cb819b087502b16a2af35d00292f319b2924fc2c",
+    "map_image_sha256": "ca397b989744f8d1b4654fa2cd1ecf406a7fd5ffb3379189826c4089e90f7d3e"
+  },
+  "criteria": {
+    "min_near_ratio_inside": 0.0,
+    "min_wall_near_ratio_inside": 0.0,
+    "min_obstacle_near_ratio_inside": 0.0
+  },
+  "validation_passed": true,
+  "failures": []
 }

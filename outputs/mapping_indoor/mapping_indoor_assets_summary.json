@@ -1,0 +1,42 @@
+{
+  "schema_version": 3,
+  "ok": true,
+  "validation_passed": true,
+  "summary": {
+    "checked": 3,
+    "passed": 3,
+    "failed": 0
+  },
+  "results": [
+    {
+      "map": "outputs/mapping_indoor/indoor.yaml",
+      "map_sha256": "e908dc8c8796c0c5fbe5eb8bddc7c4dfc3587ae84e33d18c8ed1b450179781a9",
+      "kind": "occupancy_map",
+      "image": "indoor.pgm",
+      "image_path": "outputs/mapping_indoor/indoor.pgm",
+      "image_sha256": "a894e9e33265b2d81500fbf71e3ff81d683f68b4fd7c1032a3e98c34a459513b",
+      "ok": true,
+      "reason": "ok"
+    },
+    {
+      "map": "outputs/mapping_indoor/break_room.yaml",
+      "map_sha256": "f3e1776103ad0a564a660b445eb6b56af93d44a9e443d1a16f7e8c095fc6a95a",
+      "kind": "occupancy_map",
+      "image": "break_room.pgm",
+      "image_path": "outputs/mapping_indoor/break_room.pgm",
+      "image_sha256": "e122f39e97f8187e5a4ea45f09b3538085370a23e7cda5834f0c38b187b78129",
+      "ok": true,
+      "reason": "ok"
+    },
+    {
+      "map": "outputs/mapping_indoor/cafe.yaml",
+      "map_sha256": "3b8793fea104f196dc52189f518a4751705d568cf3cc34b188bbf67007253bf3",
+      "kind": "occupancy_map",
+      "image": "cafe.pgm",
+      "image_path": "outputs/mapping_indoor/cafe.pgm",
+      "image_sha256": "c487dc620954af767c654243319daea8f9071fd4460f9dc931615a228e2e241f",
+      "ok": true,
+      "reason": "ok"
+    }
+  ]
+}

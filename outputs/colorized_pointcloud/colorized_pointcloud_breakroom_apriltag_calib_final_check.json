@@ -1,0 +1,74 @@
+{
+  "schema_version": 4,
+  "validation_passed": true,
+  "failures": [],
+  "summary": {
+    "points": 336037,
+    "colored_ratio": 0.9969318854768969,
+    "below_floor_percent": 0.0,
+    "main_extent_x_m": 12.84067611694336,
+    "main_extent_y_m": 7.924900054931641,
+    "occupancy_cells_5cm_z_ge_0": 28375
+  },
+  "ply": "outputs/colorized_pointcloud/colorized_pointcloud_breakroom_apriltag_calib_final.ply",
+  "ply_sha256": "46ef7d5e67e2394202db4c3e21e5321b19cdf069c781cb7f53467fee7a28d2a2",
+  "header_vertices": 336037,
+  "properties": [
+    {
+      "type": "float",
+      "name": "x"
+    },
+    {
+      "type": "float",
+      "name": "y"
+    },
+    {
+      "type": "float",
+      "name": "z"
+    },
+    {
+      "type": "uchar",
+      "name": "red"
+    },
+    {
+      "type": "uchar",
+      "name": "green"
+    },
+    {
+      "type": "uchar",
+      "name": "blue"
+    }
+  ],
+  "points": 336037,
+  "colored_count": 335006,
+  "colored_ratio": 0.9969318854768969,
+  "main_extent_x_m": 12.84067611694336,
+  "main_extent_y_m": 7.924900054931641,
+  "true_x_m": 12.86,
+  "true_y_m": 7.7,
+  "expansion_x": 0.9984973652366532,
+  "expansion_y": 1.0292077993417714,
+  "floor_z_m": -0.05,
+  "below_floor_percent": 0.0,
+  "z_min_m": 0.10000000149011612,
+  "z_max_m": 2.200000047683716,
+  "z_std_m": 0.613144040107727,
+  "occupancy_cells_5cm_z_ge_0": 28375,
+  "rgb_mean_255": [
+    165.4,
+    145.6,
+    121.1
+  ],
+  "rgb_std_255": [
+    50.7,
+    50.7,
+    48.2
+  ],
+  "criteria": {
+    "min_points": 1000,
+    "min_colored_ratio": 0.95,
+    "max_below_floor_percent": 1.0,
+    "max_expansion_ratio": 1.15
+  },
+  "png": "outputs/colorized_pointcloud/colorized_pointcloud_breakroom_apriltag_calib_final_check.png"
+}

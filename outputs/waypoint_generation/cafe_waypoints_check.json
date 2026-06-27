@@ -1,0 +1,179 @@
+{
+  "schema_version": 3,
+  "validation_passed": true,
+  "issues": [],
+  "summary": {
+    "waypoint_count": 40,
+    "min_clearance_m": 0.6000000000000001,
+    "coverage_max_m": 2.0223748416156684,
+    "route_max_geodesic_m": 5.6298989839999924,
+    "route_unreachable_edges": 0,
+    "route_over_jump_edges": 0
+  },
+  "inputs": {
+    "map": "outputs/mapping_indoor/cafe.yaml",
+    "map_image": "outputs/mapping_indoor/cafe.pgm",
+    "waypoints": "outputs/waypoint_generation/cafe_waypoints.yaml",
+    "clearance_m": 0.6,
+    "connect_clearance_m": 0.3,
+    "route_clearance_m": 0.3,
+    "coverage_warn_m": 3.0,
+    "max_jump_warn_m": 8.0
+  },
+  "inputs_hash": {
+    "map_sha256": "3b8793fea104f196dc52189f518a4751705d568cf3cc34b188bbf67007253bf3",
+    "map_image_sha256": "c487dc620954af767c654243319daea8f9071fd4460f9dc931615a228e2e241f",
+    "waypoints_sha256": "9d29eae2c0254cad439863ee9e9c2558c8ba4517813fca370a19d2d5e1fe4e1b"
+  },
+  "metrics": {
+    "waypoint_count": 40,
+    "clearance_min_m": 0.6000000000000001,
+    "clearance_mean_m": 1.554305234691521,
+    "clearance_max_m": 2.557831112485733,
+    "near_clearance_count": 0,
+    "coverage_mean_m": 0.8009459948628296,
+    "coverage_max_m": 2.0223748416156684,
+    "thin_coverage_cells": 0,
+    "thin_coverage_percent": 0.0,
+    "route_components_total": 1,
+    "route_waypoint_off_route_count": 0,
+    "route_waypoint_component_count": 1,
+    "route_unreachable_edges": 0,
+    "route_over_jump_edges": 0,
+    "route_mean_geodesic_m": 2.1066512171794867,
+    "route_max_geodesic_m": 5.6298989839999924,
+    "route_max_straight_m": 4.732071428032337
+  },
+  "worst_clearances": [
+    {
+      "index": 28,
+      "clearance_m": 0.6000000000000001,
+      "x": 3.615,
+      "y": -6.475
+    },
+    {
+      "index": 17,
+      "clearance_m": 0.6184658438426491,
+      "x": 1.265,
+      "y": 10.525
+    },
+    {
+      "index": 16,
+      "clearance_m": 0.7778174593052023,
+      "x": 1.315,
+      "y": 6.925
+    },
+    {
+      "index": 10,
+      "clearance_m": 0.9219544457292888,
+      "x": -2.385,
+      "y": 5.425
+    },
+    {
+      "index": 29,
+      "clearance_m": 0.95524865872714,
+      "x": 2.965,
+      "y": -8.125
+    },
+    {
+      "index": 18,
+      "clearance_m": 1.0012492197250393,
+      "x": 2.965,
+      "y": 8.475
+    },
+    {
+      "index": 36,
+      "clearance_m": 1.0259142264341596,
+      "x": -2.385,
+      "y": -8.125
+    },
+    {
+      "index": 35,
+      "clearance_m": 1.05,
+      "x": -0.935,
+      "y": -9.825
+    }
+  ],
+  "longest_edges": [
+    {
+      "from_index": 17,
+      "to_index": 18,
+      "geodesic_m": 5.6298989839999924,
+      "straight_m": 2.6631747971171555,
+      "from_x": 1.265,
+      "from_y": 10.525,
+      "to_x": 2.965,
+      "to_y": 8.475
+    },
+    {
+      "from_index": 26,
+      "to_index": 27,
+      "geodesic_m": 4.921930001999995,
+      "straight_m": 4.732071428032337,
+      "from_x": -0.835,
+      "from_y": -3.475,
+      "to_x": 2.115,
+      "to_y": -7.175
+    },
+    {
+      "from_index": 6,
+      "to_index": 7,
+      "geodesic_m": 3.8242640679999997,
+      "straight_m": 3.7,
+      "from_x": -3.935,
+      "from_y": -1.325,
+      "to_x": -3.935,
+      "to_y": 2.375
+    },
+    {
+      "from_index": 16,
+      "to_index": 17,
+      "geodesic_m": 3.620710678,
+      "straight_m": 3.600347205478939,
+      "from_x": 1.315,
+      "from_y": 6.925,
+      "to_x": 1.265,
+      "to_y": 10.525
+    },
+    {
+      "from_index": 14,
+      "to_index": 15,
+      "geodesic_m": 3.1500000000000004,
+      "straight_m": 3.1500000000000004,
+      "from_x": 0.565,
+      "from_y": 2.425,
+      "to_x": 0.565,
+      "to_y": 5.575
+    },
+    {
+      "from_index": 21,
+      "to_index": 22,
+      "geodesic_m": 3.0,
+      "straight_m": 3.0,
+      "from_x": 2.115,
+      "from_y": 3.875,
+      "to_x": 2.115,
+      "to_y": 0.875
+    },
+    {
+      "from_index": 38,
+      "to_index": 39,
+      "geodesic_m": 2.991421356,
+      "straight_m": 2.9516944286290885,
+      "from_x": -3.935,
+      "from_y": -6.675,
+      "to_x": -3.835,
+      "to_y": -9.625
+    },
+    {
+      "from_index": 25,
+      "to_index": 26,
+      "geodesic_m": 2.724264068,
+      "straight_m": 2.61725046566048,
+      "from_x": 1.765,
+      "from_y": -3.175,
+      "to_x": -0.835,
+      "to_y": -3.475
+    }
+  ]
+}
