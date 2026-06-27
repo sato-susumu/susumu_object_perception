@@ -26,7 +26,7 @@ from PIL import Image, ImageDraw, ImageFont
 PHASE_TITLES = {
     'mapping': '1. SLAM Mapping',
     'waypoints': '2. Waypoint Generation',
-    'recognition': '3. Object Recognition',
+    'recognition': '3. Waypoint Patrol + Object Recognition',
 }
 
 
@@ -84,10 +84,10 @@ def overlay_task_badge(img: Image.Image, title: str) -> Image.Image:
     """
     out = img.convert('RGB').copy()
     draw = ImageDraw.Draw(out, 'RGBA')
-    pad_x, pad_y = 14, 8
-    margin = 12
-    max_box_w = int(out.width * 0.70)
-    font_size = max(22, out.height // 18)
+    pad_x, pad_y = 10, 5
+    margin = 10
+    max_box_w = int(out.width * 0.55)
+    font_size = max(14, out.height // 28)
     font = None
     for _ in range(20):
         try:
@@ -99,9 +99,9 @@ def overlay_task_badge(img: Image.Image, title: str) -> Image.Image:
             break
         bbox = draw.textbbox((0, 0), title, font=font)
         text_w = bbox[2] - bbox[0]
-        if text_w + pad_x * 2 <= max_box_w or font_size <= 14:
+        if text_w + pad_x * 2 <= max_box_w or font_size <= 11:
             break
-        font_size = max(14, font_size - 2)
+        font_size = max(11, font_size - 1)
     bbox = draw.textbbox((0, 0), title, font=font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]

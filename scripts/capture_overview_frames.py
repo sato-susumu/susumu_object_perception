@@ -118,8 +118,9 @@ class MappingCapture(Node):
         res = msg.info.resolution
         H = h  # OccupancyGrid 高さ (=画像高 = grid_img の行数)
 
-        # ロボット現在位置 (青三角) を crop 後の画像座標へ
-        robot_px = None
+        # crop 後のロボット位置 (PGM ピクセル) を算出
+        robot_crop_px = None
+        robot_yaw = None
         if self.robot_xy is not None and res > 0:
             rx, ry, ryaw = self.robot_xy
             col_pgm = int((rx - ox) / res)
@@ -127,17 +128,8 @@ class MappingCapture(Node):
             col = col_pgm - x0
             row = row_pgm - y0
             if 0 <= col < img.width and 0 <= row < img.height:
-                draw = ImageDraw.Draw(img, 'RGBA')
-                size = 10
-                ia = -ryaw
-                pts = []
-                for ang_off in (0.0, 2.5, -2.5):
-                    ang = ia + ang_off
-                    pts.append((col + size * math.cos(ang),
-                                row + size * math.sin(ang)))
-                draw.polygon(pts, fill=(20, 20, 220, 255),
-                             outline=(255, 255, 255))
-                robot_px = (int(col), int(row))
+                robot_crop_px = (col, row)
+                robot_yaw = ryaw
 
         # 高さ固定 (480px) で書き出し、最後のリサイズは GIF 側
         target_h = 480
@@ -145,9 +137,26 @@ class MappingCapture(Node):
             ratio = target_h / img.height
             img = img.resize((max(1, int(img.width * ratio)), target_h),
                              Image.NEAREST)
-            if robot_px is not None:
-                robot_px = (int(robot_px[0] * ratio),
-                            int(robot_px[1] * ratio))
+            if robot_crop_px is not None:
+                robot_crop_px = (int(robot_crop_px[0] * ratio),
+                                 int(robot_crop_px[1] * ratio))
+
+        # リサイズ後の最終画像上に三角を描く (size は最終解像度基準なので
+        # 地図のスケール変動の影響を受けず、 recognition と同じ見栄えになる)
+        robot_px = None
+        if robot_crop_px is not None and robot_yaw is not None:
+            col, row = robot_crop_px
+            draw = ImageDraw.Draw(img, 'RGBA')
+            size = 10
+            ia = -robot_yaw
+            pts = []
+            for ang_off in (0.0, 2.5, -2.5):
+                ang = ia + ang_off
+                pts.append((col + size * math.cos(ang),
+                            row + size * math.sin(ang)))
+            draw.polygon(pts, fill=(20, 20, 220, 255),
+                         outline=(255, 255, 255))
+            robot_px = (int(col), int(row))
 
         # 旧バッジは GIF 側で重ねるため、画像内には描かない
         out_path = self.out_dir / f'{self.frame_index:04d}.png'
