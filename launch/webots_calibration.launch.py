@@ -28,6 +28,8 @@ def generate_launch_description():
     use_colored_slam = LaunchConfiguration('colored_slam')
     lidar_model = LaunchConfiguration('lidar_model')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
+    strict_omni_calibration_json = LaunchConfiguration(
+        'strict_omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_apriltag_calib = LaunchConfiguration('apriltag_calib')
     apriltag_calib_json = LaunchConfiguration('apriltag_calib_json')
@@ -47,6 +49,7 @@ def generate_launch_description():
             ('colored_slam', use_colored_slam),
             ('lidar_model', lidar_model),
             ('omni_calibration_json', omni_calibration_json),
+            ('strict_omni_calibration_json', strict_omni_calibration_json),
             ('use_sim_time', use_sim_time),
         ],
     )
@@ -92,6 +95,9 @@ def generate_launch_description():
                               description='3D LiDAR model metadata: mid360 / vlp16'),
         DeclareLaunchArgument('omni_calibration_json', default_value='',
                               description='direct_visual_lidar_calibration の calib.json。空なら初期TF'),
+        DeclareLaunchArgument(
+            'strict_omni_calibration_json', default_value='False',
+            description='Trueなら calibration_json 読み込み失敗時に初期TFへ戻さず停止する'),
         DeclareLaunchArgument('use_sim_time', default_value='True',
                               description='Webots はシミュレーション時刻のため True'),
         DeclareLaunchArgument('apriltag_calib', default_value='False',

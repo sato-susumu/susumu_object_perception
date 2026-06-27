@@ -151,6 +151,8 @@ def generate_launch_description():
     colored_slam_min_z = LaunchConfiguration('colored_slam_min_z')
     colored_slam_max_z = LaunchConfiguration('colored_slam_max_z')
     omni_calibration_json = LaunchConfiguration('omni_calibration_json')
+    strict_omni_calibration_json = LaunchConfiguration(
+        'strict_omni_calibration_json')
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
     lidar_frame = 'lidar_link'
     lidar_points_topic = '/lidar/points/point_cloud'
@@ -209,6 +211,7 @@ def generate_launch_description():
             'lidar_xyz': [0.0, 0.0, 0.20],
             'camera_xyz_initial': [0.0, 0.0, 0.75],
             'calibration_json': omni_calibration_json,
+            'strict_calibration_json': strict_omni_calibration_json,
         }])
 
     # 2D LiDAR(LDS-01) を廃止したので /scan は 3D 点群から生成する（Gazebo 側と同構成）。
@@ -798,6 +801,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'omni_calibration_json', default_value='',
             description='direct_visual_lidar_calibration の calib.json。空なら初期TFを使う'),
+        DeclareLaunchArgument(
+            'strict_omni_calibration_json', default_value='False',
+            description='Trueなら calibration_json 読み込み失敗時に初期TFへ戻さず停止する'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='true',
             description='Webots はシミュレーション時刻のため true 必須'),
