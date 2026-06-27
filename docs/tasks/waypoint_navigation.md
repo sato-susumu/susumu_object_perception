@@ -10,7 +10,7 @@
 | 入力 | `webots_worlds/<world>.wbt`、`outputs/waypoint_generation/<world>_waypoints.yaml` |
 | 実行 | `launch/webots_waypoint_nav.launch.py` |
 | 出力（ライブ） | `/waypoint_nav/status`、`/waypoints/markers`、Nav2 の走行結果 |
-| 出力（最終） | `outputs/waypoint_generation/<world>_patrol_report.{json,csv,md}` (reached/missed 詳細)、`outputs/waypoint_generation/<world>_patrol_result.png` (地図に reached=緑/苦戦=黄/missed=赤 を重ねた可視化)。 `scripts/run_all_tasks.sh` が巡回完了後に `visualize_patrol_result.py` を必ず呼んで PNG を生成 |
+| 出力（最終） | `outputs/waypoint_generation/<world>_patrol_report.{json,csv,md}` (reached/missed 詳細)、`outputs/waypoint_generation/<world>_patrol_result.{png,json,md}` (地図に reached=緑/苦戦=黄/missed=赤 を重ねた可視化 + `validation_passed` / 完走率の集計 summary)。 `scripts/run_all_tasks.sh` が巡回完了後に `visualize_patrol_result.py` を必ず呼んで生成 |
 | 出力（中間） | `experiments/waypoint_navigation/<YYYY-MM-DD>_<label>/`（`report_prefix.{json,csv,md}` / localization cycle / EKF/odom 比較 / radius multiplier 評価。gitignore） |
 | 併用 | `perception:=True omni_perception:=True image_recognition:=True` で巡回しながら認識も実行可能 |
 
@@ -43,7 +43,9 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
 ros2 run susumu_object_perception visualize_patrol_result.py \
   --map outputs/mapping_indoor/<world>.yaml \
   --report /path/to/report.json \
-  --out outputs/waypoint_generation/<world>_patrol_result.png
+  --out outputs/waypoint_generation/<world>_patrol_result.png \
+  --json-out outputs/waypoint_generation/<world>_patrol_result.json \
+  --md-out outputs/waypoint_generation/<world>_patrol_result.md
 ```
 
 `waypoints` は `outputs/waypoint_generation/` 配下のファイル名で渡す。絶対パスではなく `indoor_waypoints.yaml` のように指定する。
@@ -98,6 +100,17 @@ path length 比は改善するが odom aligned と進行性が悪化したため
 - 1 周が終わると reached/missed を `/waypoint_nav/status` に出す。
 - `report_prefix` が空でなければ、JSON/CSV/Markdown の reached/missed report を書く。
   長い屋外巡回では `mission_timeout_sec` で bounded にし、partial report を評価値として残す。
+- `visualize_patrol_result.py` は report JSON と地図から `patrol_result.{png,json,md}` を後処理生成する。
+  PNG は reached/struggled/missed の地図重畳、JSON/Markdown は `validation_passed`、`completion_rate`、
+  `clean_completion_rate`、reached/missed、recovery 合計、reason 別件数、duration 統計を保存する。
+  iter40 以降、result JSON は `schema_version`、`criteria`、`failures` を持つ。
+  既定 criteria は `max_missed=0`、`max_struggled=0` で、missed と struggled がどちらも 0 のときだけ
+  `validation_passed=true` になる。`--require-pass` で NG 時に非ゼロ終了する。
+  `run_all_tasks.sh` は通常巡回後にこの後処理を `--require-pass` 付きで自動実行し、
+  PNG/summary 生成失敗や巡回 NG をログだけで続行しない。`validate_contracts.py` は
+  indoor / break_room の最終 result JSON が `validation_passed=true` で、schema/criteria/failures を
+  持つことまで検査する。iter47 以降の result JSON は `schema_version: 3` で、
+  `safe_pose_recovery_count` と `step_event_count` も持つ。
 - `loop:=True` なら次の周回に入る。
 
 1 点で詰まって全体が止まらないことを優先している。最終的な巡回品質は、missed を減らす方向で
@@ -133,10 +146,12 @@ path length 比は改善するが odom aligned と進行性が悪化したため
   (約 6 分完走、 recovery 多発なし)。 旧 19 WP の `reached=13/19` から完走率改善を実証。
 - `slam:=False map_file:=outputs/mapping_indoor/indoor.yaml nav_params_file:=config/nav2_params.yaml` の静的地図 AMCL
   モードは過去 `reached=22/22 missed=[]` を維持していた (22 WP 時代)。 iter46 で indoor_waypoints.yaml が
-  9 WP に縮小されてからは `reached=9/9 missed=[]` (iter119 で SLAM 巡回モードで実測、 `outputs/waypoint_generation/indoor_patrol_result.png`)。
+  9 WP に縮小されてからは `reached=9/9 missed=[]` (iter119 で SLAM 巡回モードで実測、
+  `outputs/waypoint_generation/indoor_patrol_result.{png,json,md}`)。
 - `break_room.wbt` (19 WP) の `slam:=True` 巡回も iter126 で `reached=19/19 missed=[]` を実証
   (約 5.4 分完走、 recovery 0、 一発成功、 WP duration mean=17.1s)。 成果物は
-  `outputs/waypoint_generation/break_room_patrol_{report.json,csv,md, result.png}` に配置。
+  `outputs/waypoint_generation/break_room_patrol_report.{json,csv,md}` と
+  `outputs/waypoint_generation/break_room_patrol_result.{png,json,md}` に配置。
   自己位置評価の要点は次に集約する。
 
   | 区分 | 要点 |
@@ -158,6 +173,12 @@ path length 比は改善するが odom aligned と進行性が悪化したため
   段差/縁石/スタックを検知したら `goal_timeout_sec` (既定 120s) 満了を待たず即座に
   current WP を missed として次の WP へ進む。 屋内 (`webots_waypoint_nav.launch.py`
   単独) は既定 False のまま (段差が無い world では不要)。
+- iter47 以降、`waypoint_nav_node.py` は `step_detector_avoid:=True` のとき `/amcl_pose` も保持し、
+  段差/スタック event を `report_prefix` の `step_events[]` に記録する。各 event には
+  waypoint index、event type、ロボット推定位置、target waypoint、tilt/progress payload、
+  Nav2 feedback の recovery 数と残距離を残す。`safe_pose_guard:=True` かつ最後の安全姿勢がある場合は、
+  step event でも即 skip せず、最後の安全姿勢へ NavigateToPose recovery を試してから current WP を
+  missed として次へ進む。屋内既定 (`step_detector_avoid:=False`) には影響しない。
 - ウェイポイント YAML を手で直す場合も、必ず確認用 PNG/RViz で壁・unknown 上にないことを見る。
 - Nav2 パラメータを変えたら [Nav2 tuning](../nav2_tuning.md) の現在値表と調整履歴サマリを更新する。
 

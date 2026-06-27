@@ -15,7 +15,7 @@ world を frontier 探索で走らせ、`slam_toolbox` が作る 2D OccupancyGri
 |---|---|
 | 入力 | `webots_worlds/<world>.wbt`、3D LiDAR 由来の `/scan`、SLAM/Nav2 |
 | 実行 | `launch/webots_indoor_mapping.launch.py` |
-| 出力（最終） | `outputs/mapping_indoor/<map_name>.pgm`、`outputs/mapping_indoor/<map_name>.yaml`、`outputs/mapping_indoor/<map_name>_vs_world.{png,json}`（契約名・git 追跡。`_vs_world` は save_map 完了直後に `check_map_vs_world.py` が自動生成する world 真値との重ね合わせ＋アライメント JSON。 wbt が無い world (Gazebo cafe 等) では生成不可)、 `outputs/mapping_indoor/<map_name>_eval.png` (iter32 で追加、 `eval_map_quality.py --png-dir` が地図 PGM + 統計タイトル PNG を全 world 共通で出す。 `run_all_tasks.sh` の `run_mapping` が自動生成) |
+| 出力（最終） | `outputs/mapping_indoor/<map_name>.pgm`、`outputs/mapping_indoor/<map_name>.yaml`、`outputs/mapping_indoor/<map_name>_vs_world.{png,json,csv}`（契約名・git 追跡。`_vs_world` は save_map 完了直後に `check_map_vs_world.py` が自動生成する world 真値との重ね合わせ、アライメント JSON、object-level coverage CSV。 wbt が無い world (Gazebo cafe 等) では生成不可)、 `outputs/mapping_indoor/<map_name>_eval.{png,json,md}` (`eval_map_quality.py` が地図 PGM + 統計タイトル PNG と `schema_version` / `validation_passed` / `summary` 付きの機械可読 summary を全 world 共通で出す。 `run_all_tasks.sh` の `run_mapping` が自動生成)、`outputs/mapping_indoor/mapping_indoor_quality_summary.{json,md}`（屋内採用地図セットの横比較 summary）、`outputs/mapping_indoor/mapping_indoor_assets_summary.{json,md}`（YAML が参照する PGM の存在検査 summary） |
 | 出力（中間） | `experiments/mapping_indoor/<YYYY-MM-DD>_<label>/`（PGM 試作版、map_progress 等の cycle ログ。gitignore）、`experiments/mapping_indoor/legacy/` （旧採用版で対応 wbt が無いもの、house.yaml 等） |
 | 主な確認 | RViz の `/map`、`scripts/map_progress_monitor.py`、`scripts/eval_map_quality.py`、`scripts/check_map_vs_world.py` |
 
@@ -86,6 +86,28 @@ ros2 run nav2_map_server map_saver_cli \
 git 追跡対象にする。YAML だけが残った状態だと Nav2、waypoint 生成、認識の map support/overlay が
 後段で失敗するため、保存地図は `.yaml` と `.pgm` を必ずペアで扱う。確認用 `.png` は再生成可能なので
 引き続き追跡しない。
+iter24 以降、`eval_map_quality.py` と `validate_map_assets.py` の JSON summary は `schema_version: 2`、
+`validation_passed`、短い `summary` を持つ。`validate_contracts.py` は indoor / break_room / cafe の
+per-map eval、屋内集合 quality summary、asset summary がすべて `validation_passed=true` であることまで
+検査する。
+iter56 以降、`validate_map_assets.py` の JSON summary は `schema_version: 3` で、各 YAML と
+参照 PGM の `map_sha256` / `image_sha256` を持つ。`validate_contracts.py` は現在の YAML/PGM を
+再計算して照合し、YAML または参照画像だけが差し替わった stale asset summary を検出する。
+iter44 以降、`eval_map_quality.py` の `maps[]` は地図 YAML と参照 PGM の `map_sha256` /
+`image_sha256` を持つ。`validate_contracts.py` は現在の YAML/PGM を再計算して summary と照合し、
+地図だけが差し替わった stale eval summary を検出する。
+iter28 以降、`scripts/run_all_tasks.sh` は mapping eval / quality summary / asset summary の生成失敗を
+ログだけで続行せず非ゼロ終了する。全タスク末尾でも `validate_contracts.py` を実行し、壊れた地図 contract を
+後段タスク完了扱いにしない。
+iter38 以降、`check_map_vs_world.py` の JSON は `schema_version: 2`、`validation_passed`、
+`criteria`、`failures` を持つ。`scripts/run_all_tasks.sh` は `indoor` / `break_room` の
+world 照合で `near_ratio_inside>=0.90`、`wall.near_ratio_inside>=0.85`、
+`obstacle.near_ratio_inside>=0.75` を要求し、`--require-pass` で失敗時に止める。
+`validate_contracts.py` も `_vs_world.json` の `validation_passed=true` まで検査する。
+iter50 以降、`_vs_world.json` は `schema_version: 3` で、`inputs.wbt`、`inputs.map`、
+`inputs.map_image` と SHA-256 (`inputs_hash`) を持つ。`validate_contracts.py` は現在の
+WBT / map YAML / PGM と hash を照合し、地図や world が差し替わったのに古い world 照合 JSON/PNG/CSV が
+残る stale report を検出する。
 
 ```bash
 cd ~/ros2_ws/src/susumu_object_perception
@@ -135,15 +157,36 @@ python3 -u scripts/map_progress_monitor.py --interval 10 --duration 180
 # 保存後: 地図統計を確認
 ros2 run susumu_object_perception eval_map_quality.py outputs/mapping_indoor/<map_name>.yaml
 
+# 保存後: 地図統計を PNG/JSON/Markdown へ保存
+ros2 run susumu_object_perception eval_map_quality.py \
+  outputs/mapping_indoor/<map_name>.yaml \
+  --png-dir outputs/mapping_indoor \
+  --json-out outputs/mapping_indoor/<map_name>_eval.json \
+  --md-out outputs/mapping_indoor/<map_name>_eval.md
+
+# 保存後: 屋内採用地図セットを横比較 summary へ保存
+ros2 run susumu_object_perception eval_map_quality.py \
+  outputs/mapping_indoor/indoor.yaml \
+  outputs/mapping_indoor/break_room.yaml \
+  outputs/mapping_indoor/cafe.yaml \
+  --json-out outputs/mapping_indoor/mapping_indoor_quality_summary.json \
+  --md-out outputs/mapping_indoor/mapping_indoor_quality_summary.md
+
 # 保存後: YAML が参照する PGM/PNG が実在することを確認
-ros2 run susumu_object_perception validate_map_assets.py outputs/mapping_indoor/<map_name>.yaml
+ros2 run susumu_object_perception validate_map_assets.py \
+  outputs/mapping_indoor/indoor.yaml \
+  outputs/mapping_indoor/break_room.yaml \
+  outputs/mapping_indoor/cafe.yaml \
+  --json-out outputs/mapping_indoor/mapping_indoor_assets_summary.json \
+  --md-out outputs/mapping_indoor/mapping_indoor_assets_summary.md
 
 # 保存後: wbt の真値構造と重ねて確認
 ros2 run susumu_object_perception check_map_vs_world.py \
   --map outputs/mapping_indoor/<map_name>.yaml \
   --wbt webots_worlds/<world>.wbt \
   --out experiments/mapping_indoor/<map_name>_vs_world.png \
-  --report experiments/mapping_indoor/<map_name>_vs_world.json
+  --report experiments/mapping_indoor/<map_name>_vs_world.json \
+  --object-report experiments/mapping_indoor/<map_name>_vs_world.csv
 ```
 
 数値だけでなく、`check_map_vs_world.py` の重畳図と RViz で目視確認する。移動量が十分あるのに
@@ -153,6 +196,12 @@ ros2 run susumu_object_perception check_map_vs_world.py \
 **家具・人・壁などの占有マークが地図に正しく現れているか**は `check_map_vs_world.py` の重畳図
 で目視確認する。
 
+方針参考:
+- Nav2 Map Server / Map Saver は grid map の loading / saving / publishing と metadata を扱う。
+  <https://docs.nav2.org/configuration/packages/configuring-map-server.html>
+- ROS `nav_msgs/OccupancyGrid` は 2D grid map と `MapMetaData`（resolution / origin 等）を持つ。
+  <https://docs.ros.org/en/humble/p/nav_msgs/>
+
 ## 直近の保存結果
 
 | 日付 | world / map | 条件 | 結果 |
@@ -161,6 +210,8 @@ ros2 run susumu_object_perception check_map_vs_world.py \
 | 2026-06-21 | `break_room.wbt` → `outputs/mapping_indoor/break_room.yaml/.pgm` | `mode:=realtime`, SLAM `/map` を `map_saver_cli` で保存 | `validate_map_assets.py` OK。`eval_map_quality.py`: `188x140`, `9.4x7.0m`, 壁率 `2.3%`, 最大連結成分 `100%`, 判定 `OK`。`check_map_vs_world.py`: wall `near_ratio_inside=0.848`, obstacle `0.750`。**ただし unknown 55% で world 7.7x12.86m の半分しか地図化できておらず、6/25 に再マッピングで置換** |
 | 2026-06-25 | `break_room.wbt` → `outputs/mapping_indoor/break_room.yaml/.pgm` | `mode:=realtime`, 改善 launch (`done_frontier_cells=5`, `done_after_empty=20`, `min_frontier_cells=2`, `approach_setback=1.0`, `stall_timeout_sec=180`) | `eval_map_quality.py`: `259x157`, `13.0x7.9m`, 壁率 `11.1%`, 最大連結成分 `100%`, **unknown 22% (旧 55% から大幅改善)**, 判定 `OK`。`check_map_vs_world.py`: wall `inside=17/17`, obstacle `inside=8/8` (旧 10/17, 4/8 から全数到達)。waypoint 13→38 個、カバー領域 17→44 m² |
 | 2026-06-26 | `break_room.wbt` → 実験版 (採用版維持) | iter6 bugfix 後の再マッピング検証 (iter15)。 `_finish` 経由で正常 save_map | `eval_map_quality.py`: `14.2x8.8m`, 壁率 `17.5%`, unknown `30%`, 判定 `OK`。`check_map_vs_world.py`: wall `inside=16/17`, obstacle `inside=8/8`。 寸法は広いが壁率高 (ブレ含む)。 採用版 (sharp) を維持。 `experiments/mapping_indoor/2026-06-26_iter15_breakroom/` 参照 |
+| 2026-06-26 | 現在の採用地図 3 件 | `eval_map_quality.py --png-dir --json-out --md-out` で per-map 契約 summary と屋内セット横比較 summary を生成。`validate_map_assets.py --json-out --md-out` で YAML/PGM ペア検査 summary も生成 | `indoor`: `5.2x10.1m`, 壁率 `10.8%`, 最大連結 `98%`, unknown `10.3%`, `OK (minor fragments)`。`break_room`: `13.0x7.8m`, 壁率 `11.0%`, 最大連結 `100%`, unknown `20.2%`, `OK (unknown 20%)`。`cafe`: `9.7x23.6m`, 壁率 `4.2%`, 最大連結 `100%`, unknown `18.9%`, `OK (unknown 19%)`。asset summary は 3/3 OK。成果物は `outputs/mapping_indoor/*_eval.{png,json,md}`、`mapping_indoor_quality_summary.{json,md}`、`mapping_indoor_assets_summary.{json,md}` |
+| 2026-06-26 | `indoor.wbt` / `break_room.wbt` の world 照合 CSV | `check_map_vs_world.py --object-report` を既存採用地図へ適用。frontier 自動保存後処理も `_vs_world.csv` を出すよう更新 | `indoor`: `near_ratio_inside=1.000`。`break_room`: `near_ratio_inside=0.949`、wall `mean_object_coverage=0.922`、obstacle `1.000`。成果物は `outputs/mapping_indoor/{indoor,break_room}_vs_world.csv` |
 
 次は地図品質が崩れた場合に、衝突ログ・`/scan`・SLAM 設定のどこで占有が欠けたかを切り分ける。
 また、`break_room` の改善 launch 既定値 (上記 2026-06-25 条件) は `indoor.wbt` でも同じ

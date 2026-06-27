@@ -11,7 +11,7 @@
 | 入力 | 3D LiDAR 点群、全天球画像、2D `/map` |
 | 実行 | `simulation.launch.py`、`webots_simulation.launch.py`、`webots_waypoint_nav.launch.py perception:=True omni_perception:=True image_recognition:=True` |
 | 出力（ライブ） | `/perception/tracked_objects`、`/perception/tracked_objects_classified`、`/perception/predicted_objects`、`/perception/predicted_costmap`、`/perception/traffic_signals`、RViz markers |
-| 出力（最終） | `outputs/recognition/<world>_recognition_overlay.png`（地図上に物体ラベル重ね、必須）、`outputs/recognition/<world>_recognition_eval.{md,json,csv,png}`（world 真値との照合・採用評価、PNG 必須）、`outputs/recognition/<world>_recognition_eval_ignore_table_sofa.{md,json,csv}`（採用評価。契約名・git 追跡） |
+| 出力（最終） | `outputs/recognition/<world>_recognition_overlay.png`（地図上に物体ラベル重ね、必須）、`outputs/recognition/<world>_recognition_eval.{md,json,csv,png}`（world 真値との照合・全対象評価、PNG 必須）、`outputs/recognition/<world>_recognition_eval_ignore_table_sofa.{md,json,csv,png}`（採用評価）、`outputs/recognition/<world>_recognition_eval_summary.{json,md}`（全対象 / Table-Sofa 除外の横比較 summary。契約名・git 追跡） |
 | 出力 PNG の必須化 | 認識タスクの launch 終了後、`scripts/run_all_tasks.sh` が `render_recognition_overlay.py` と `evaluate_recognition_vs_world.py` を必ず呼び `_recognition_overlay.png` と `_recognition_eval.png` を生成する。`webots_simulation.launch.py` は `image_recognition:=True` のとき `object_memory_node` を自動起動して `~/.ros/object_memory.sqlite3` を書く。DB が見つからないときは run_all_tasks.sh が WARN を出して visualization を skip し、認識が機能していないサインとして強調する |
 | 出力（中間） | `experiments/recognition/<YYYY-MM-DD>_<label>/`（cycle 別の eval / recorder / nav / crops / yolo_compare / viewpoint。gitignore） |
 | Nav2 連携 | prediction のみを `/perception/predicted_costmap` として自作 costmap layer に max 合成 |
@@ -131,6 +131,20 @@ ros2 run susumu_object_perception evaluate_recognition_vs_world.py \
 `--match-distance` は world 真値と map/SLAM/検出位置のずれを許容する距離ゲート[m]。既定は `1.0m`。
 `--map` を渡すと、評価対象 world object ごとに保存地図の最寄り occupied セル距離も出る。
 評価対象を一時的に外す場合は `--ignore-type Sofa --ignore-type Table` のように指定する。
+iter45 以降、`*_recognition_eval_summary.json` の各 `reports[]` は参照している個別
+eval JSON (`*_recognition_eval*.json`) の `report_sha256` を持つ。`validate_contracts.py` は
+現在の eval JSON を再計算して summary と照合し、eval JSON だけが差し替わった stale comparison
+summary を検出する。`evaluate_recognition_vs_world.py` は将来のライブ再生成時に使えるよう、
+新規生成する個別 eval JSON に WBT / map YAML / map PGM / object memory DB の SHA-256 も記録する。
+`scripts/summarize_recognition_eval.py` は複数の評価 JSON から precision / recall / F1 などを
+横比較し、`*_recognition_eval_summary.{json,md}` を生成する。summary には各条件の
+`missed_type_hist`、`extra_class_hist`、missed/wrong/extra の明細も含める。F1 は採用候補の
+ランキングに使い、次に直すべき箇所は false negative / false positive の内訳で見る。
+iter42 以降、summary JSON は `schema_version: 2`、`validation_passed`、`summary`、
+`criteria`、`failures` を持つ。通常採用評価では `ignore_table_sofa` が best F1 で、
+`best_f1>=0.70` を要求する。`run_all_tasks.sh` は full 評価、Table/Sofa 除外評価、
+summary まで順に生成し、`summarize_recognition_eval.py --require-pass` で NG を非ゼロ終了にする。
+`validate_contracts.py` も `indoor_recognition_eval_summary.json` の schema と best F1 を検査する。
 
 ## 履歴サマリ
 
@@ -171,6 +185,14 @@ ros2 run susumu_object_perception evaluate_recognition_vs_world.py \
 
 評価値は run 条件・対象除外条件で変わる。採用判断では Markdown/JSON/CSV/PNG の成果物を残し、
 単発の debug waypoint 結果だけで既定値を変えない。
+現在の横比較 summary は `outputs/recognition/indoor_recognition_eval_summary.{json,md}` にあり、
+`best_by_f1=ignore_table_sofa` (`F1=0.727`) を明示する。iter で failure details を追加し、
+採用条件の残課題が `Fridge` / `PottedTree` / `BunchOfSunFlowers` の missed であることを
+summary から直接確認できる。
+
+方針参考:
+- scikit-learn model evaluation: precision / recall / F1 は分類評価の要約指標。
+  <https://scikit-learn.org/stable/modules/model_evaluation.html>
 
 ### 次に見る低成績箇所
 

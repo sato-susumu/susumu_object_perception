@@ -12,7 +12,7 @@
 | 点群出力 | `/perception/colorized_points` |
 | 蓄積地図 | `/slam/colorized_points_map` または `/slam/glim_colorized_points_map` |
 | 保存 | `/slam/save_colorized_map` (`std_srvs/Trigger`) |
-| 出力（最終） | `outputs/colorized_pointcloud/colorized_pointcloud_<world>_apriltag_calib_final.ply` 等の名前固定 PLY（採用版）、 `colorized_pointcloud_<world>_apriltag_calib_final_check.png` (XY 俯瞰 + XZ 側面の検査画像、 ブレ・壁二重化・床下散乱を一目確認、 iter31 で `run_all_tasks.sh` が自動生成) |
+| 出力（最終） | `outputs/colorized_pointcloud/colorized_pointcloud_{indoor,breakroom}_apriltag_calib_final.ply`、`colorized_pointcloud_indoor_goal_run_final.ply` の名前固定 PLY（採用版）、各 PLY に対応する `_check.{png,json,md}` (XY 俯瞰 + XZ 側面の検査画像、ブレ・壁二重化・床下散乱・色付き率の数値、JSON は `schema_version` / `validation_passed` / `summary` 付き)、`colorized_pointcloud_quality_summary.{json,md}` (3 PLY の点数・RGB property・色付き率・値域チェック、同じく schema/pass summary 付き)。`validate_contracts.py` が 3 PLY + 各 check 一式 + summary の存在と `validation_passed=true` を検査する |
 | 出力（中間） | `experiments/colorized_pointcloud/<YYYY-MM-DD>_<label>/` または `experiments/colorized_pointcloud/intermediate/`（タイムスタンプ付き `colorized_map_<ts>.ply`、`*_check.png` 等。gitignore） |
 
 ## 実行
@@ -121,6 +121,11 @@ ros2 launch susumu_object_perception webots_waypoint_nav.launch.py \
 # 巡回完走後
 ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 python3 scripts/check_colorized_cloud.py outputs/colorized_pointcloud/<name>.ply --true-x 5 --true-y 10
+python3 scripts/check_colorized_cloud.py outputs/colorized_pointcloud/<name>.ply \
+  --true-x 5 --true-y 10 \
+  --out experiments/colorized_pointcloud/<run>/<name>_check.png \
+  --json-out experiments/colorized_pointcloud/<run>/<name>_check.json \
+  --md-out experiments/colorized_pointcloud/<run>/<name>_check.md
 ```
 
 **ブレ低減の 3 要素（重要）:**
@@ -176,6 +181,80 @@ python3 scripts/check_colorized_cloud.py outputs/colorized_pointcloud/<name>.ply
 2D SLAM の姿勢精度がそのまま上限になる。**根本解決には「静止時のみ蓄積」（移動中の姿勢誤差を点群に
 乗せない）が唯一未検証の有力策**として残る。検査は `scripts/check_colorized_cloud.py`（占有セル・
 床下点率・主要部寸法・XY/XZ 投影図）で行う。
+
+### check_colorized_cloud のレポート化 (2026-06-26)
+
+`check_colorized_cloud.py` は以前、PNG 出力先ディレクトリが存在しないと保存時に
+`FileNotFoundError` で落ち、数値も stdout だけだった。iter で次を追加した。
+
+- `--out` の親ディレクトリを自動作成。
+- `--json-out` / `--md-out` で点数、色付き率、主要部寸法、膨張率、床下点率、z 範囲、
+  5cm 占有セル数、RGB 平均/標準偏差を保存。
+- `scripts/run_all_tasks.sh` は採用 PLY から `_check.{png,json,md}` を自動生成する。
+- iter25 以降の `_check.json` は `schema_version`、`validation_passed`、短い `summary` を持ち、
+  `validate_contracts.py` は 3 採用 PLY の `_check.json` と `colorized_pointcloud_quality_summary.json` が
+  すべて `validation_passed=true` であることまで検査する。
+- iter29 以降、`check_colorized_cloud.py --require-pass` は `validation_passed=false` で非ゼロ終了する。
+  `run_all_tasks.sh` の colorized フェーズは新規 `colorized_map_*.ply` が保存できない場合、per-PLY check が
+  NG の場合、または quality summary が NG の場合に失敗して止まる。古い final PLY を検査して成功扱いにしない。
+- iter31 以降、`run_all_tasks.sh` の colorized フェーズは
+  `outputs/extrinsic_calibration/calib.json` を `omni_calibration_json` に渡し、
+  `strict_omni_calibration_json:=True` で起動する。`apriltag_calib_final` という契約名の PLY を、
+  初期 TF のまま誤って再生成しない。
+- iter34 以降、`run_all_tasks.sh` が生成する `_check.{json,md}` には world 寸法
+  (`indoor=5.0x10.0m`, `break_room=12.86x7.70m`) を `--true-x/--true-y` として渡す。
+  これにより色付き率だけでなく、SLAM ブレによる主要部寸法の膨張も `--require-pass` の判定対象になる。
+- iter46 以降、`_check.json` は `schema_version: 3` と `ply_sha256` を持つ。
+  `validate_contracts.py` は契約 PLY の現在 SHA-256 と照合し、PLY だけ差し替わって古い
+  `_check.{png,json,md}` が残る stale report を検出する。
+- iter49 以降、`_check.json` は `schema_version: 4`。`check_colorized_cloud.py` は PLY の
+  vertex 列を固定位置 (`x y z red green blue`) で読まず、header の `property` 名から
+  `x/y/z/red/green/blue` の列 index を解決する。`header_vertices` と `properties` も保存し、
+  `validate_contracts.py` が存在を検査する。PLY property 順序が変わっても、色や座標を誤読しない。
+
+最終 PLY の再検査（レポートは `experiments/colorized_pointcloud/2026-06-26_iter_quality_metrics/`）:
+
+| PLY | 点数 | 色付き率 | 主要部寸法 | 床下点 | 占有セル |
+|---|---:|---:|---:|---:|---:|
+| indoor full | 211,730 | 99.9% | 5.17×10.03m | 0.0% | 12,990 |
+| indoor stationary_only | 7,776 | 100.0% | 4.95×10.01m | 0.0% | 1,406 |
+| break_room full | 336,037 | 99.7% | 12.84×7.92m | 0.0% | 28,375 |
+
+判断: stationary_only は点数は少ないが、既存 full と同じ色付き率を保ちながら占有セルが約 1/9 で、
+ブレ低減効果が数値レポートとして再確認できる。
+
+### PLY 形式健全性 summary (2026-06-26)
+
+`validate_colorized_pointcloud_quality.py` に `--json-out` / `--md-out` を追加し、複数 PLY の
+ファイル形式健全性をまとめて残せるようにした。`check_colorized_cloud.py` が幾何ブレを見るのに対し、
+こちらは PLY として後段ツールが読める最低条件（header vertex 数と実読点数の一致、`x/y/z` と
+`red/green/blue` property、RGB 値域 0..255、色付き率、RGB 分散）を見る。iter25 以降は
+`schema_version` と `summary` も出す。iter46 以降の summary は各 PLY item に `file_sha256`、
+全体に `inputs_hash.ply_sha256` を持つ。iter53 以降は `schema_version: 4` で、
+`unique_ply_count` / `unique_ply_hash_count` と重複リストを持ち、同じ PLY や同じ内容のファイルを
+複数の採用 contract として誤って登録していないかも検査する。`validate_contracts.py` は
+3 採用 PLY すべての hash を現在ファイルと照合し、summary schema 4 と重複なしを検査する。
+iter57 以降は `schema_version: 5` で、PLY header の `element vertex` にある property 型も保存し、
+`x/y/z` が float 系、`red/green/blue` が 8bit unsigned color (`uchar`/`uint8`) であることを
+検査する。後段ツールが vertex 色を 8bit RGB として読む最低契約をここで固定する。
+
+```bash
+ros2 run susumu_object_perception validate_colorized_pointcloud_quality.py \
+  --ply outputs/colorized_pointcloud/colorized_pointcloud_indoor_apriltag_calib_final.ply \
+  --ply outputs/colorized_pointcloud/colorized_pointcloud_indoor_goal_run_final.ply \
+  --ply outputs/colorized_pointcloud/colorized_pointcloud_breakroom_apriltag_calib_final.ply \
+  --min-colored-ratio 0.95 \
+  --json-out outputs/colorized_pointcloud/colorized_pointcloud_quality_summary.json \
+  --md-out outputs/colorized_pointcloud/colorized_pointcloud_quality_summary.md
+```
+
+最新 summary:
+
+| PLY | 点数 | 色付き率 | RGB 値域 | 判定 |
+|---|---:|---:|---|---|
+| indoor full | 211,730 | 99.9% | OK | PASS |
+| indoor stationary_only | 7,776 | 100.0% | OK | PASS |
+| break_room full | 336,037 | 99.7% | OK | PASS |
 
 ### 静止時のみ蓄積モード (2026-06-26 ライブ検証で実証)
 
@@ -319,6 +398,10 @@ ros2 run susumu_object_perception validate_omni_colorization.py \
 
 方針参考:
 
+- ROS 2 `sensor_msgs/PointCloud2`: 点群は `fields` で `x/y/z/rgb` 等の layout を表現する。
+  <https://docs.ros.org/en/humble/p/sensor_msgs/interfaces/msg/PointCloud2.html>
+- PLY polygon file format: vertex に `red/green/blue` property を持つ点群として保存できる。
+  <https://paulbourke.net/dataformats/ply/>
 - Webots Camera reference: cylindrical projection は equirectangular 画像を生成する。
   <https://www.cyberbotics.com/doc/reference/camera>
 - direct_visual_lidar_calibration program details: `--camera_model equirectangular` と

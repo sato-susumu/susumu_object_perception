@@ -13,7 +13,7 @@
 |---|---|
 | 入力 | `webots_worlds/calibration.wbt`（4 方位に AprilTag 36h11 パネル）、`/omni_camera/image_raw/image_color`（equirect）、`/lidar/points/point_cloud` |
 | 実行 | `launch/webots_calibration.launch.py apriltag_calib:=True` |
-| 出力（最終） | `~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json`（`results.T_lidar_camera` = `[x,y,z,qx,qy,qz,qw]`、`p_lidar = T * p_camera`）、 `outputs/extrinsic_calibration/calib_summary.png` (iter33 で追加、 真値 vs 推定値 bar chart + RMS/RPY/quaternion テーブルの可視化、 `run_all_tasks.sh` の `run_calib` が自動生成) |
+| 出力（最終） | `~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json`（`results.T_lidar_camera` = `[x,y,z,qx,qy,qz,qw]`、`p_lidar = T * p_camera`）、 `outputs/extrinsic_calibration/calib_summary.{png,json,md}` (真値 vs 推定値 bar chart + RMS/RPY/quaternion テーブルの可視化、採用基準の機械可読 summary、`run_all_tasks.sh` の `run_calib` が自動生成) |
 | 出力（中間） | `experiments/extrinsic_calibration/<YYYY-MM-DD>_<label>/`（試行版 calib、PnP/平面フィットの中間ログ、複数回測定。gitignore） |
 | 利用 | calib.json を `omni_calibration_json:=...` で渡すと `omni_sensor_tf_node` が `lidar_link -> omni_camera_link` TF を置換。色付き点群 / 物体クロップ / 色付き SLAM 地図が同じ TF を使う |
 
@@ -47,7 +47,8 @@ ros2 launch susumu_object_perception webots_calibration.launch.py \
 # 得た TF で色付け（活用。omni_sensor_tf_node が calib.json を読む）
 ros2 launch susumu_object_perception webots_calibration.launch.py \
   colored_slam:=True \
-  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json
+  omni_calibration_json:=~/ros2_ws/src/susumu_object_perception/outputs/extrinsic_calibration/calib.json \
+  strict_omni_calibration_json:=True
 # 色付き点群を PLY 保存
 ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 
@@ -55,7 +56,10 @@ ros2 service call /slam/save_colorized_map std_srvs/srv/Trigger {}
 # 真値 vs 推定値 bar chart + 数値テーブル (RMS / RPY / quaternion / 各軸 diff)
 ros2 run susumu_object_perception visualize_calib_result.py \
   --calib outputs/extrinsic_calibration/calib.json \
-  --out outputs/extrinsic_calibration/calib_summary.png
+  --out outputs/extrinsic_calibration/calib_summary.png \
+  --json-out outputs/extrinsic_calibration/calib_summary.json \
+  --md-out outputs/extrinsic_calibration/calib_summary.md \
+  --require-pass
 ```
 
 ## 合格基準
@@ -70,6 +74,22 @@ ros2 run susumu_object_perception visualize_calib_result.py \
    `colorized_pointcloud_node` がそのキャリブ TF で色付けする。色付け品質（カラー物体の色一致スコア）が
    初期 TF と同等以下に劣化しない（実測: green 0.970→0.976 / magenta 0.985→0.982）。
 
+4. **採用判定が機械可読に残る**
+   `calib_summary.json` の `validation_passed` が true。既定基準は used tags `>=4`、RMS `<=10mm`、
+   回転角 `<=1deg`、並進誤差 `<=30mm`。現在値は RMS `9.60mm`、回転角 `0.317deg`、
+   並進誤差 `24.2mm`。iter41 以降、`calib_summary.json` は `summary`、`criteria`、
+   `failures` を持つ。iter52 以降は `schema_version: 3` とし、`results.T_lidar_camera` が
+   7 要素・有限値・単位 quaternion（既定 norm 誤差 `<=1e-3`）であること、AprilTag ID が
+   重複なく `>=4` 個あることも採用判定に含める。`visualize_calib_result.py --require-pass` は
+   NG 時に非ゼロ終了し、`run_all_tasks.sh` の calibration phase と `validate_contracts.py` は
+   `calib_summary.json` の `validation_passed=true` と schema 3 の構造検証まで検査する。iter43 以降、
+   `calib_summary.json` は入力 `calib.json` の `calib_sha256` も持ち、`validate_contracts.py` が
+   現在の `calib.json` と一致することを再計算して検査する。これにより `calib.json` だけが
+   差し替わった stale summary を検出できる。iter58 以降、`omni_sensor_tf_node.py` と
+   `scripts/direct_calib_to_tf.py` も `T_lidar_camera` の 7 要素・有限値・quaternion norm
+   (`calibration_quaternion_norm_tolerance` / 既定 `1e-3`) を読み込み時に検査する。strict 起動時に
+   壊れた calib が初期 TF や identity quaternion へ丸め込まれないことを runtime 側でも保証する。
+
 ## 制約・注意
 
 - **並進絶対誤差は現状 24mm 残り、1cm 未満は未達**（x の -23mm 系統オフセット）。主因は LiDAR がタグ板の
@@ -82,6 +102,15 @@ ros2 run susumu_object_perception visualize_calib_result.py \
 - **CycloneDDS 推奨**（全天球画像が大きく、FastRTPS SHM の罠を避ける）。
 - 評価モードは `mode:=realtime`。
 - 独自 `.msg` は作らない。検出は OpenCV `cv2.aruco`、出力は vlcal 互換 calib.json。
+- 厳密検証では `strict_omni_calibration_json:=True` を指定する。`calib.json` が壊れている /
+  パスが違う場合に初期 TF へ silently fallback せず、起動を失敗させるため。
+  `calibration_quaternion_norm_tolerance` は既定 `1e-3` で、`calib_summary.json` の判定基準と揃える。
+
+方針参考:
+- OpenCV `solvePnP`: 3D object points と 2D image points から object pose を推定する。
+  <https://docs.opencv.org/4.x/d5/d1f/calib3d_solvePnP.html>
+- direct_visual_lidar_calibration: equirectangular camera model と `T_lidar_camera` を扱える。
+  <https://koide3.github.io/direct_visual_lidar_calibration/programs/>
 
 ## 試行・未採用 (2026-06-26)
 
