@@ -17,6 +17,7 @@ Outputs:
 import argparse
 import csv
 from dataclasses import asdict, dataclass
+import hashlib
 import json
 import math
 import os
@@ -53,6 +54,24 @@ UNSUPPORTED_WORLD_TYPES = {
     'Wall': 'structural element',
     'Window': 'structural element',
 }
+
+
+def file_sha256(path):
+    if not path:
+        return None
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def map_image_path(map_yaml):
+    if not map_yaml:
+        return ''
+    with open(map_yaml, encoding='utf-8') as f:
+        meta = yaml.safe_load(f)
+    return os.path.join(os.path.dirname(map_yaml), meta['image'])
 
 
 @dataclass
@@ -612,6 +631,7 @@ def fmt_nearest(info):
 def write_markdown(path, report):
     summary = report['summary']
     inputs = report['inputs']
+    hashes = report.get('inputs_hash', {})
     lines = [
         '# Recognition World Comparison',
         '',
@@ -619,7 +639,12 @@ def write_markdown(path, report):
         '',
         f"- world: `{inputs['wbt']}`",
         f"- map: `{inputs.get('map') or ''}`",
+        f"- map_image: `{inputs.get('map_image') or ''}`",
         f"- db: `{inputs['db']}`",
+        f"- wbt_sha256: `{hashes.get('wbt_sha256')}`",
+        f"- map_sha256: `{hashes.get('map_sha256')}`",
+        f"- map_image_sha256: `{hashes.get('map_image_sha256')}`",
+        f"- db_sha256: `{hashes.get('db_sha256')}`",
         f"- robot_world_xy: {inputs['robot_world_xy']}",
         f"- min_existence: {inputs['min_existence']}",
         f"- min_hits: {inputs['min_hits']}",
@@ -860,16 +885,26 @@ def run(args):
         expected_with_map_support)
     result['summary']['missed_with_map_support_count'] = (
         missed_with_map_support)
+    map_image = map_image_path(args.map) if args.map else ''
     report = {
+        'schema_version': 2,
         'inputs': {
             'wbt': args.wbt,
             'map': args.map,
             'db': args.db,
+            'map_image': map_image,
             'robot_world_xy': [robot_xy[0], robot_xy[1]],
             'min_existence': args.min_existence,
             'min_hits': args.min_hits,
             'ignored_types': sorted(ignored_types),
             'expected_map_support_dist_m': args.expected_map_support_dist,
+        },
+        'inputs_hash': {
+            'wbt_sha256': file_sha256(args.wbt),
+            'map_sha256': file_sha256(args.map) if args.map else None,
+            'map_image_sha256': (
+                file_sha256(map_image) if map_image else None),
+            'db_sha256': file_sha256(args.db),
         },
         'summary': result['summary'],
         'correct': result['correct'],

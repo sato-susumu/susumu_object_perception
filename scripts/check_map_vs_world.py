@@ -18,7 +18,9 @@ map 座標には「ロボット初期位置ぶんのオフセット」がある�
 
 import argparse
 import csv
+import hashlib
 import json
+import os
 import re
 from collections import Counter
 
@@ -60,6 +62,14 @@ BUILDING_TYPES = {
 }
 
 CELL_CLASSES = ('occupied', 'free', 'unknown', 'outside')
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def load_pgm(path):
@@ -493,6 +503,30 @@ def worst_objects(report, kind='', limit=8):
     return objects[:limit]
 
 
+def validate_alignment(summary, criteria):
+    failures = []
+
+    def check_ratio(label, value, minimum):
+        if minimum <= 0.0:
+            return
+        if value is None:
+            failures.append(f'{label} missing')
+        elif float(value) < minimum:
+            failures.append(f'{label} {float(value):.3f} < {minimum:.3f}')
+
+    check_ratio(
+        'near_ratio_inside',
+        summary.get('near_ratio_inside'),
+        float(criteria['min_near_ratio_inside']))
+    by_kind = summary.get('by_kind') or {}
+    for kind in ('wall', 'obstacle'):
+        check_ratio(
+            f'{kind}.near_ratio_inside',
+            (by_kind.get(kind) or {}).get('near_ratio_inside'),
+            float(criteria[f'min_{kind}_near_ratio_inside']))
+    return failures
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--wbt', required=True)
@@ -515,13 +549,21 @@ def main():
                     help='標準出力へ出す低 coverage object の最大数')
     ap.add_argument('--occupied-distance-threshold-m', type=float, default=0.5,
                     help='wbt sample が occupied に近いとみなす距離[m]')
+    ap.add_argument('--min-near-ratio-inside', type=float, default=0.0,
+                    help='overall near_ratio_inside の最小値。0 で無効')
+    ap.add_argument('--min-wall-near-ratio-inside', type=float, default=0.0,
+                    help='wall near_ratio_inside の最小値。0 で無効')
+    ap.add_argument('--min-obstacle-near-ratio-inside', type=float, default=0.0,
+                    help='obstacle near_ratio_inside の最小値。0 で無効')
+    ap.add_argument('--require-pass', action='store_true',
+                    help='validation_passed=false なら非ゼロ終了')
     args = ap.parse_args()
 
     meta = yaml.safe_load(open(args.map))
     res = float(meta['resolution'])
     ox, oy = meta['origin'][0], meta['origin'][1]
-    import os
-    img = load_pgm(os.path.join(os.path.dirname(args.map), meta['image']))
+    map_image = os.path.join(os.path.dirname(args.map), meta['image'])
+    img = load_pgm(map_image)
     h, w = img.shape
 
     objs = parse_wbt(args.wbt)
@@ -602,12 +644,36 @@ def main():
     ax.set_title(f'{os.path.basename(args.map)} vs {os.path.basename(args.wbt)}\n'
                  'red=wall/building, blue=floor/ground, orange=fence, '
                  'green=object, cyan=low marking')
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)) or '.', exist_ok=True)
     fig.savefig(args.out, dpi=80, bbox_inches='tight')
     print(f'saved {args.out}')
     report = summarize_alignment(
         objs, img_display, world_to_map_px, res,
         args.occupied_distance_threshold_m)
     summary = report['summary']
+    criteria = {
+        'min_near_ratio_inside': args.min_near_ratio_inside,
+        'min_wall_near_ratio_inside': args.min_wall_near_ratio_inside,
+        'min_obstacle_near_ratio_inside': args.min_obstacle_near_ratio_inside,
+    }
+    failures = validate_alignment(summary, criteria)
+    report['schema_version'] = 3
+    report['inputs'] = {
+        'wbt': args.wbt,
+        'map': args.map,
+        'map_image': map_image,
+        'robot_world_xy': [float(rxw), float(ryw)],
+        'occupied_distance_threshold_m': (
+            args.occupied_distance_threshold_m),
+    }
+    report['inputs_hash'] = {
+        'wbt_sha256': file_sha256(args.wbt),
+        'map_sha256': file_sha256(args.map),
+        'map_image_sha256': file_sha256(map_image),
+    }
+    report['criteria'] = criteria
+    report['validation_passed'] = not failures
+    report['failures'] = failures
     print(
         'alignment: samples={samples} inside={inside} '
         'near_occupied={near_occupied} near_ratio_inside={ratio}'.format(
@@ -642,13 +708,23 @@ def main():
                 f'cells={counts} '
                 f'max_dist={obj["max_distance_to_occupied_m"]}')
     if args.report:
+        os.makedirs(os.path.dirname(os.path.abspath(args.report)) or '.',
+                    exist_ok=True)
         with open(args.report, 'w') as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
             f.write('\n')
         print(f'wrote {args.report}')
     if args.object_report:
+        os.makedirs(os.path.dirname(os.path.abspath(args.object_report)) or '.',
+                    exist_ok=True)
         write_object_csv(report, args.object_report)
         print(f'wrote {args.object_report}')
+    if report['validation_passed']:
+        print('validation_passed=true')
+    else:
+        print('validation_passed=false')
+        for failure in failures:
+            print(f'- {failure}')
     # 寸法サマリ
     kinds = Counter(o['kind'] for o in objs)
     types = Counter(o['type'] for o in objs)
@@ -662,7 +738,10 @@ def main():
             print(f'  Floor/ground {obj["type"]} at world{t} '
                   f'(map原点基準 {t[0]-rxw:.1f},{t[1]-ryw:.1f})')
     print(f'地図実寸 {w*res:.1f}x{h*res:.1f}m')
+    if args.require_pass and not report['validation_passed']:
+        return 2
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

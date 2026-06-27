@@ -15,6 +15,7 @@ bar chart で表示し、 RMS / 使用 tag 数 / quaternion の roll/pitch/yaw �
 """
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -41,6 +42,78 @@ def quat_to_rpy(qx, qy, qz, qw):
     return math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
 
 
+def rotation_angle_deg(qx, qy, qz, qw):
+    norm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
+    if norm <= 0.0:
+        return float('inf')
+    qw_n = max(-1.0, min(1.0, abs(qw / norm)))
+    return math.degrees(2.0 * math.acos(qw_n))
+
+
+def is_finite_number(value):
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+    )
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def write_json(path, report):
+    out_dir = os.path.dirname(path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    with open(path, 'w') as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+        f.write('\n')
+
+
+def write_markdown(path, report):
+    out_dir = os.path.dirname(path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    m = report['metrics']
+    c = report['criteria']
+    lines = [
+        '# Extrinsic Calibration Summary',
+        '',
+        f"- validation_passed: `{str(report['validation_passed']).lower()}`",
+        f"- schema_version: `{report['schema_version']}`",
+        f"- method: `{report['meta']['method']}`",
+        f"- camera_model: `{report['meta']['camera_model']}`",
+        f"- calib_sha256: `{report['inputs']['calib_sha256']}`",
+        f"- used_tag_count: `{m['used_tag_count']}`",
+        f"- unique_tag_count: `{m['unique_tag_count']}`",
+        f"- correspondence_rms_mm: `{m['correspondence_rms_m'] * 1000.0:.2f}`",
+        f"- rotation_angle_deg: `{m['rotation_angle_deg']:.3f}`",
+        f"- quaternion_norm: `{m['quaternion_norm']:.6f}`",
+        f"- translation_error_mm: `{m['translation_error_m'] * 1000.0:.1f}`",
+        f"- transform_finite: `{str(m['transform_finite']).lower()}`",
+        '',
+        '| metric | value | criterion |',
+        '|---|---:|---:|',
+        f"| transform length | {m['transform_length']} | = 7 |",
+        f"| finite transform | {str(m['transform_finite']).lower()} | true |",
+        f"| unique tags | {m['unique_tag_count']} | >= {c['min_used_tags']} |",
+        f"| RMS [mm] | {m['correspondence_rms_m'] * 1000.0:.2f} | <= {c['max_rms_m'] * 1000.0:.1f} |",
+        f"| quaternion norm error | {abs(m['quaternion_norm'] - 1.0):.2e} | <= {c['max_quaternion_norm_error']:.1e} |",
+        f"| rotation [deg] | {m['rotation_angle_deg']:.3f} | <= {c['max_rotation_deg']:.1f} |",
+        f"| translation error [mm] | {m['translation_error_m'] * 1000.0:.1f} | <= {c['max_translation_error_m'] * 1000.0:.1f} |",
+    ]
+    if report['failures']:
+        lines.extend(['', '## Failures'])
+        lines.extend(f'- {failure}' for failure in report['failures'])
+    with open(path, 'w') as f:
+        f.write('\n'.join(lines) + '\n')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--calib', required=True,
@@ -49,12 +122,37 @@ def main():
     ap.add_argument('--ref-translation', nargs=3, type=float,
                     default=[0.0, 0.0, 0.55],
                     help='真値 translation [x y z] (m)')
+    ap.add_argument('--json-out', default='',
+                    help='optional machine-readable summary path')
+    ap.add_argument('--md-out', default='',
+                    help='optional Markdown summary path')
+    ap.add_argument('--min-used-tags', type=int, default=4)
+    ap.add_argument('--max-rms-m', type=float, default=0.010)
+    ap.add_argument('--max-rotation-deg', type=float, default=1.0)
+    ap.add_argument('--max-translation-error-m', type=float, default=0.030)
+    ap.add_argument('--max-quaternion-norm-error', type=float, default=1.0e-3)
+    ap.add_argument('--require-pass', action='store_true',
+                    help='validation_passed=false なら非ゼロ終了')
     args = ap.parse_args()
 
+    calib_sha256 = file_sha256(args.calib)
     with open(args.calib) as f:
         data = json.load(f)
-    t_lc = data['results']['T_lidar_camera']
+    t_lc = data.get('results', {}).get('T_lidar_camera', [])
+    transform_length = len(t_lc) if isinstance(t_lc, list) else 0
+    transform_finite = (
+        isinstance(t_lc, list)
+        and transform_length == 7
+        and all(is_finite_number(v) for v in t_lc)
+    )
+    if transform_length != 7 or not transform_finite:
+        print('invalid T_lidar_camera')
+        print(f'  transform length: {transform_length} (expected 7)')
+        print(f'  transform_finite: {transform_finite}')
+        return 2 if args.require_pass else 0
+    t_lc = [float(v) for v in t_lc]
     tx, ty, tz, qx, qy, qz, qw = t_lc
+    quaternion_norm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
     ref_x, ref_y, ref_z = args.ref_translation
     diff_x = tx - ref_x
     diff_y = ty - ref_y
@@ -62,8 +160,15 @@ def main():
     transl_err = math.sqrt(diff_x**2 + diff_y**2 + diff_z**2)
 
     roll, pitch, yaw = quat_to_rpy(qx, qy, qz, qw)
+    rot_angle = rotation_angle_deg(qx, qy, qz, qw)
     rms = data.get('apriltag_calib', {}).get('correspondence_rms_m', None)
     used_tags = data.get('apriltag_calib', {}).get('used_tag_ids', [])
+    tag_counts = {}
+    for tag in used_tags:
+        tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    unique_tag_ids = sorted(tag_counts)
+    duplicate_tag_ids = sorted(
+        tag for tag, count in tag_counts.items() if count > 1)
     tag_size = data.get('apriltag_calib', {}).get('tag_size_m', None)
     method = data.get('meta', {}).get('method', 'unknown')
     cam_model = data.get('meta', {}).get('camera_model', 'unknown')
@@ -103,6 +208,7 @@ def main():
         ['method', method],
         ['camera_model', cam_model],
         ['used tags', str(used_tags)],
+        ['unique tags', str(unique_tag_ids)],
         ['tag size [m]', f'{tag_size:.4f}' if tag_size else 'N/A'],
         [
             'translation [m]',
@@ -122,6 +228,7 @@ def main():
         ],
         ['quaternion (xyzw)',
          f'{qx:+.4f}, {qy:+.4f}, {qz:+.4f}, {qw:+.4f}'],
+        ['quaternion norm', f'{quaternion_norm:.6f}'],
         ['correspondence RMS [mm]',
          f'{rms*1000:.2f}' if rms is not None else 'N/A'],
     ]
@@ -141,12 +248,104 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or '.', exist_ok=True)
     fig.savefig(args.out, dpi=120, bbox_inches='tight')
     plt.close(fig)
+
+    failures = []
+    if transform_length != 7:
+        failures.append(f'T_lidar_camera length {transform_length} != 7')
+    if not transform_finite:
+        failures.append('T_lidar_camera contains non-finite values')
+    if len(unique_tag_ids) < args.min_used_tags:
+        failures.append(
+            f'unique used tags {len(unique_tag_ids)} < {args.min_used_tags}')
+    if duplicate_tag_ids:
+        failures.append(f'duplicate used tag IDs: {duplicate_tag_ids}')
+    if rms is None:
+        failures.append('correspondence RMS missing')
+    elif rms > args.max_rms_m:
+        failures.append(
+            f'correspondence RMS {rms:.6f} > {args.max_rms_m:.6f}')
+    quaternion_norm_error = abs(quaternion_norm - 1.0)
+    if quaternion_norm_error > args.max_quaternion_norm_error:
+        failures.append(
+            f'quaternion norm error {quaternion_norm_error:.6e} > '
+            f'{args.max_quaternion_norm_error:.6e}')
+    if rot_angle > args.max_rotation_deg:
+        failures.append(
+            f'rotation angle {rot_angle:.3f} > {args.max_rotation_deg:.3f}')
+    if transl_err > args.max_translation_error_m:
+        failures.append(
+            f'translation error {transl_err:.6f} > '
+            f'{args.max_translation_error_m:.6f}')
+    report = {
+        'schema_version': 3,
+        'validation_passed': not failures,
+        'failures': failures,
+        'summary': {
+            'used_tag_count': len(used_tags),
+            'unique_tag_count': len(unique_tag_ids),
+            'correspondence_rms_m': rms,
+            'rotation_angle_deg': rot_angle,
+            'quaternion_norm': quaternion_norm,
+            'transform_finite': transform_finite,
+            'translation_error_m': transl_err,
+        },
+        'inputs': {
+            'calib': args.calib,
+            'calib_sha256': calib_sha256,
+            'ref_translation': args.ref_translation,
+        },
+        'criteria': {
+            'min_used_tags': args.min_used_tags,
+            'max_rms_m': args.max_rms_m,
+            'max_rotation_deg': args.max_rotation_deg,
+            'max_translation_error_m': args.max_translation_error_m,
+            'max_quaternion_norm_error': args.max_quaternion_norm_error,
+        },
+        'meta': {
+            'method': method,
+            'camera_model': cam_model,
+        },
+        'metrics': {
+            'translation_m': [tx, ty, tz],
+            'translation_diff_m': [diff_x, diff_y, diff_z],
+            'translation_error_m': transl_err,
+            'rotation_rpy_deg': [roll, pitch, yaw],
+            'rotation_angle_deg': rot_angle,
+            'quaternion_xyzw': [qx, qy, qz, qw],
+            'quaternion_norm': quaternion_norm,
+            'transform_length': transform_length,
+            'transform_finite': transform_finite,
+            'correspondence_rms_m': rms,
+            'used_tag_ids': used_tags,
+            'used_tag_count': len(used_tags),
+            'unique_tag_ids': unique_tag_ids,
+            'unique_tag_count': len(unique_tag_ids),
+            'duplicate_tag_ids': duplicate_tag_ids,
+            'tag_size_m': tag_size,
+            'png': args.out,
+        },
+    }
+    if args.json_out:
+        write_json(args.json_out, report)
+        print(f'saved JSON: {args.json_out}')
+    if args.md_out:
+        write_markdown(args.md_out, report)
+        print(f'saved MD: {args.md_out}')
     print(f'saved PNG: {args.out}')
     print(f'  translation error: {transl_err*1000:.1f} mm')
-    print(f'  RPY (deg): roll={roll:+.3f} pitch={pitch:+.3f} yaw={yaw:+.3f}')
+    print(
+        f'  RPY (deg): roll={roll:+.3f} pitch={pitch:+.3f} '
+        f'yaw={yaw:+.3f}; angle={rot_angle:.3f}')
     if rms is not None:
         print(f'  correspondence RMS: {rms*1000:.2f} mm')
+    if not failures:
+        print('  validation_passed=true')
+        return 0
+    print('  validation_passed=false')
+    for failure in failures:
+        print(f'  - {failure}')
+    return 2 if args.require_pass else 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

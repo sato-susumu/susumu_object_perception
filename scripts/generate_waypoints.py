@@ -47,13 +47,24 @@ spacing で漏れなく拾い、完走は測地巡回順で連続点間の大ジ
 """
 
 import argparse
+import csv
+import hashlib
 import heapq
+import json
 import math
 import os
 
 import numpy as np
 import yaml
 from scipy import ndimage
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def load_pgm(path):
@@ -753,8 +764,196 @@ def _append_object_viewpoints(pts_cell, occ, connectable, dist_cells, res,
     return existing, added
 
 
+def _first_number(record, keys):
+    """record から最初に見つかった数値フィールドを返す。"""
+    for key in keys:
+        if key not in record:
+            continue
+        value = record.get(key)
+        if value in (None, ''):
+            continue
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _is_hazard_record(record):
+    """monitor rows の ok サンプルを hazard として読まないための判定。"""
+    diagnosis = str(record.get('diagnosis', '')).strip().lower()
+    event = str(record.get('event', '')).strip().lower()
+    if diagnosis and diagnosis != 'ok':
+        return True
+    if event and event != 'ok':
+        return True
+    # step_detector / visualize_step_events JSON は type だけを持つ。
+    if record.get('type') not in (None, '', 'ok'):
+        return True
+    # 明示的な hazards 配列では diagnosis が無くても採用する。
+    return diagnosis == '' and event == ''
+
+
+def _records_from_payload(payload):
+    """hazard 入力の代表的な JSON/YAML 形を record list へ正規化する。"""
+    if payload is None:
+        return []
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        return []
+    for key in ('hazards', 'events'):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+    rows = payload.get('rows')
+    if isinstance(rows, list):
+        return [
+            row for row in rows
+            if isinstance(row, dict) and _is_hazard_record(row)
+        ]
+    return [payload]
+
+
+def _load_hazard_points(paths, default_radius, strict=False):
+    """JSON/YAML/CSV から map 座標の hazard 円を読む。
+
+    対応形式:
+      - visualize_step_events.py の JSON: events[{x,y,r,type}]
+      - nav2_pose_costmap_monitor_node.py の JSON: events[{map_x,map_y,diagnosis}]
+      - 汎用 YAML/JSON: hazards[{x,y,radius,reason}]
+      - CSV: x,y[,radius] / map_x,map_y[,r]
+    """
+    hazards = []
+    for raw_path in paths or []:
+        path = os.path.expanduser(str(raw_path))
+        if not path:
+            continue
+        ext = os.path.splitext(path)[1].lower()
+        try:
+            if ext == '.csv':
+                with open(path, newline='') as f:
+                    records = list(csv.DictReader(f))
+            else:
+                with open(path) as f:
+                    if ext in ('.yaml', '.yml'):
+                        payload = yaml.safe_load(f)
+                    else:
+                        payload = json.load(f)
+                records = _records_from_payload(payload)
+        except Exception as exc:
+            msg = f'hazard-file を読めませんでした {path}: {exc}'
+            if strict:
+                raise RuntimeError(msg) from exc
+            print(f'  注意: {msg}')
+            continue
+
+        for record in records:
+            if not isinstance(record, dict) or not _is_hazard_record(record):
+                continue
+            x = _first_number(record, ('x', 'map_x', 'pose_x'))
+            y = _first_number(record, ('y', 'map_y', 'pose_y'))
+            if x is None or y is None:
+                continue
+            radius = _first_number(
+                record, ('radius', 'r', 'radius_m', 'blacklist_radius'))
+            if radius is None:
+                radius = float(default_radius)
+            if radius <= 0.0:
+                continue
+            hazards.append({
+                'x': x,
+                'y': y,
+                'radius': radius,
+                'source': os.path.basename(path),
+                'type': str(
+                    record.get('type')
+                    or record.get('diagnosis')
+                    or record.get('event')
+                    or record.get('source')
+                    or ''),
+            })
+    return hazards
+
+
+def _hazard_mask_from_points(hazards, meta, shape):
+    """map 座標の hazard 円を PGM セル mask に変換する。"""
+    h, w = shape
+    if not hazards:
+        return np.zeros((h, w), dtype=bool), []
+    res = float(meta['resolution'])
+    ox, oy = float(meta['origin'][0]), float(meta['origin'][1])
+    mask = np.zeros((h, w), dtype=bool)
+    kept = []
+    for hz in hazards:
+        cx = int(round((float(hz['x']) - ox) / res - 0.5))
+        cy = int(round(h - 1 - ((float(hz['y']) - oy) / res - 0.5)))
+        radius_cells = int(math.ceil(float(hz['radius']) / res))
+        if radius_cells <= 0:
+            continue
+        x0 = max(0, cx - radius_cells)
+        x1 = min(w - 1, cx + radius_cells)
+        y0 = max(0, cy - radius_cells)
+        y1 = min(h - 1, cy + radius_cells)
+        if x0 > x1 or y0 > y1:
+            continue
+        yy, xx = np.ogrid[y0:y1 + 1, x0:x1 + 1]
+        local = (xx - cx) ** 2 + (yy - cy) ** 2 <= radius_cells ** 2
+        mask[y0:y1 + 1, x0:x1 + 1] |= local
+        out = dict(hz)
+        out.update({'cell_x': cx, 'cell_y': cy, 'radius_cells': radius_cells})
+        kept.append(out)
+    return mask, kept
+
+
+def _generation_parameters(args):
+    keys = (
+        'spacing',
+        'candidate_mode',
+        'graph_node_spacing',
+        'graph_cover_radius',
+        'clearance',
+        'connect_clearance',
+        'route_clearance',
+        'edge_clearance',
+        'edge_clearance_weight',
+        'hazard_radius',
+        'strict_hazard_file',
+        'require_hazards',
+        'max_waypoints',
+        'relink_long_jumps',
+        'max_segment_length',
+        'dedupe_min_separation',
+        'grid_nms_separation_ratio',
+        'limit_radius',
+        'limit_center_x',
+        'limit_center_y',
+        'object_viewpoints',
+        'view_clearance',
+        'object_min_area',
+        'object_max_area',
+        'viewpoint_min_separation',
+        'view_map_border_margin',
+        'no_png',
+    )
+    return {key: getattr(args, key) for key in keys}
+
+
+def _hazard_file_inputs(paths):
+    out = []
+    for raw_path in paths:
+        path = os.path.expanduser(str(raw_path))
+        out.append({
+            'path': raw_path,
+            'expanded_path': path,
+            'exists': os.path.isfile(path),
+            'sha256': file_sha256(path) if os.path.isfile(path) else None,
+        })
+    return out
+
+
 def save_overlay(png_path, img, place, connectable, pts_cell, order,
-                 start_cell, place_cells, title):
+                 start_cell, place_cells, title, hazard_mask=None):
     """地図にウェイポイント・巡回経路・起点・clearance 領域を重ねた PNG を保存。
 
     RViz を立てなくても巡回路が壁を跨がないか・カバー範囲を一目で確認できる。
@@ -776,6 +975,10 @@ def save_overlay(png_path, img, place, connectable, pts_cell, order,
     place_rgba = np.zeros((h, w, 4))
     place_rgba[place] = (0.2, 0.8, 0.2, 0.18)         # 配置可能領域(clearance)
     ax.imshow(place_rgba, origin='upper')
+    if hazard_mask is not None and hazard_mask.any():
+        hazard_rgba = np.zeros((h, w, 4))
+        hazard_rgba[hazard_mask] = (1.0, 0.0, 0.0, 0.22)
+        ax.imshow(hazard_rgba, origin='upper')
 
     # 巡回順に並べたセル座標。
     xs = [pts_cell[i][0] for i in order]
@@ -786,13 +989,19 @@ def save_overlay(png_path, img, place, connectable, pts_cell, order,
     # 番号付き点（巡回開始点=赤、他=青）。番号は巡回順。
     ax.plot([], [], 'o', color='royalblue', markersize=5, label='waypoint')
     ax.plot([], [], 'o', color='red', markersize=7, label='waypoint #0 (first)')
+    ranks_by_cell = {}
     for rank, (cx, cy) in enumerate(zip(xs, ys)):
-        is_first = (rank == 0)
+        ranks_by_cell.setdefault((cx, cy), []).append(rank)
+    for (cx, cy), ranks in ranks_by_cell.items():
+        is_first = 0 in ranks
         ax.plot(cx, cy, 'o', color='red' if is_first else 'royalblue',
                 markersize=7 if is_first else 5, zorder=3)
-        ax.annotate(str(rank), (cx, cy), color='black', fontsize=6,
+        label = ','.join(str(rank) for rank in ranks)
+        ax.annotate(label, (cx, cy), color='black', fontsize=6,
                     fontweight='bold', xytext=(3, 3),
-                    textcoords='offset points', zorder=4)
+                    textcoords='offset points', zorder=4,
+                    bbox=dict(facecolor='white', alpha=0.65,
+                              edgecolor='none', pad=0.4))
     # ロボット起点（最大連結成分の重心）を×で明示。ラベルは日本語フォント非依存
     # にするため英字（matplotlib 既定フォントに日本語グリフが無い環境向け）。
     ax.plot(start_cell[0], start_cell[1], 'x', color='magenta',
@@ -852,6 +1061,18 @@ def main():
                     help='soft penalty weight for low-clearance route edges')
     ap.add_argument('--edge-risk-report', default='',
                     help='optional prefix for edge risk CSV/MD reports')
+    # 過去の live で段差/スタック/lethal が出た map 座標を、次回 route 生成時に
+    # 円形 keepout として扱う。Nav2 KeepoutFilter や Route Server edge blocking と
+    # 同じ「危険履歴を planner に戻す」考え方を、保存 waypoint 生成側で軽量に行う。
+    ap.add_argument('--hazard-file', action='append', default=[],
+                    help='JSON/YAML/CSV の hazard 点。複数指定可。'
+                         'visualize_step_events JSON と monitor JSON(events) に対応')
+    ap.add_argument('--hazard-radius', type=float, default=1.5,
+                    help='hazard 入力に半径が無い場合の既定半径 [m]')
+    ap.add_argument('--strict-hazard-file', action='store_true',
+                    help='hazard-file が読めない場合は警告継続せず失敗する')
+    ap.add_argument('--require-hazards', action='store_true',
+                    help='hazard-file 指定時、地図上で有効な hazard が 0 件なら失敗する')
     # 巡回の最大ウェイポイント数（多すぎると 1 周が長い）。
     ap.add_argument('--max-waypoints', type=int, default=40)
     # 長い測地区間を中間 waypoint で分割する閾値。0 以下なら従来通り分割しない。
@@ -930,6 +1151,20 @@ def main():
     # 通行不可（占有 or 未知）からの距離 [セル]。free セルが壁/未知からどれだけ
     # 離れているか。
     blocked = occ | unknown
+    try:
+        hazards = _load_hazard_points(
+            args.hazard_file, args.hazard_radius, args.strict_hazard_file)
+    except RuntimeError as exc:
+        raise SystemExit(f'ERROR: {exc}') from exc
+    hazard_mask, hazard_points = _hazard_mask_from_points(hazards, meta, img.shape)
+    if args.require_hazards and args.hazard_file and not hazard_points:
+        raise SystemExit(
+            'ERROR: --require-hazards was set, but no usable hazard points '
+            'fell inside the map')
+    if hazard_points:
+        blocked = blocked | hazard_mask
+        print(f'  hazard avoid: {len(hazard_points)} points '
+              f'blocked_cells={int(hazard_mask.sum())}')
     dist_cells = ndimage.distance_transform_edt(~blocked)
     connect_cells = args.connect_clearance / res
     route_cells_clearance = args.route_clearance / res
@@ -1098,23 +1333,59 @@ def main():
         before = len(ordered)
         dedup_min2 = dedupe_min ** 2
         deduped = [ordered[0]]
-        for (px, py) in ordered[1:]:
+        deduped_cells = [route_cells[0]]
+        for cell, (px, py) in zip(route_cells[1:], ordered[1:]):
             qx, qy = deduped[-1]
             if (px - qx) ** 2 + (py - qy) ** 2 >= dedup_min2:
                 deduped.append((px, py))
+                deduped_cells.append(cell)
         ordered = deduped
+        route_cells = deduped_cells
         if before > len(ordered):
             print(f'  dedupe: {before} -> {len(ordered)} '
                   f'(連続近接 < {dedupe_min:.2f}m を統合)')
+            if args.max_segment_length > 0.0:
+                route_cells, route_geo, resplit_segments = _split_long_segments(
+                    route_cells, connectable, res, args.max_segment_length,
+                    waypoint_mask=place, shortest_path_func=shortest_path_func)
+                ordered = [cell_to_map(*cell) for cell in route_cells]
+                if resplit_segments:
+                    print(f'  dedupe後の長距離区間再分割: inserted='
+                          f'{resplit_segments}')
     edge_stats = _route_edge_stats(
         route_cells, connectable, dist_cells, res, args.edge_clearance,
         shortest_path_func)
 
     out = {
+        'schema_version': 2,
         'map': os.path.basename(args.map),
         'frame_id': 'map',
+        'provenance': {
+            'generator': 'generate_waypoints.py',
+            'map': args.map,
+            'map_image': pgm_path,
+            'map_sha256': file_sha256(args.map),
+            'map_image_sha256': file_sha256(pgm_path),
+            'parameters': _generation_parameters(args),
+            'hazard_files': _hazard_file_inputs(args.hazard_file),
+            'hazards_used_count': len(hazard_points),
+        },
         'waypoints': [[round(float(x), 3), round(float(y), 3)] for (x, y) in ordered],
     }
+    if hazard_points:
+        out['hazard_avoidance'] = {
+            'files': [os.path.basename(p) for p in args.hazard_file],
+            'default_radius_m': args.hazard_radius,
+            'hazards_used': [
+                {
+                    'x': round(float(hz['x']), 3),
+                    'y': round(float(hz['y']), 3),
+                    'radius': round(float(hz['radius']), 3),
+                    'type': hz.get('type', ''),
+                }
+                for hz in hazard_points
+            ],
+        }
     out_dir = os.path.dirname(args.out)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
@@ -1122,12 +1393,12 @@ def main():
         yaml.safe_dump(out, f, default_flow_style=None, sort_keys=False)
 
     # 巡回路の指標を報告（測地経路長と最大ジャンプ＝完走のしやすさの目安）。
-    if route_geo:
+    if route_geo and len(route_geo) == max(0, len(route_cells) - 1):
         geo = route_geo
     else:
         geo = [
-            dm_cells[order[i - 1], order[i]] * res
-            for i in range(1, len(order))
+            _path_len_cells(shortest_path_func(start, goal)) * res
+            for start, goal in zip(route_cells[:-1], route_cells[1:])
         ]
     straight = [math.hypot(ordered[i][0] - ordered[i - 1][0],
                            ordered[i][1] - ordered[i - 1][1])
@@ -1144,6 +1415,9 @@ def main():
     if args.limit_radius > 0.0:
         print(f'  制限半径={args.limit_radius}m '
               f'center=({args.limit_center_x},{args.limit_center_y})')
+    if hazard_points:
+        print(f'  hazard keepout={len(hazard_points)} '
+              f'default_radius={args.hazard_radius}m')
     if inserted_segments:
         print(f'  長距離区間分割: max_segment_length='
               f'{args.max_segment_length}m inserted={inserted_segments}')
@@ -1173,12 +1447,12 @@ def main():
                  f'len={sum(geo):.0f}m  maxjump={max(geo):.1f}m'
                  if geo else os.path.basename(args.out))
         try:
-            overlay_cells = route_cells if inserted_segments else pts_cell
-            overlay_order = (
-                list(range(len(route_cells))) if inserted_segments else order)
+            overlay_cells = route_cells
+            overlay_order = list(range(len(route_cells)))
             save_overlay(png_path, img, place, connectable,
                          overlay_cells, overlay_order,
-                         (cx0, cy0), place_cells, title)
+                         (cx0, cy0), place_cells, title,
+                         hazard_mask=hazard_mask)
             print(f'  オーバーレイ画像 -> {png_path}')
         except Exception as e:  # 画像生成失敗で yaml 出力までは無駄にしない。
             print(f'  注意: オーバーレイ画像の生成に失敗（yaml は出力済み）: {e}')

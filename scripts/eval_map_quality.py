@@ -19,6 +19,8 @@ PGM/YAML から測れる範囲で定量化する。目視に頼らず「どの w
 """
 
 import argparse
+import hashlib
+import json
 import os
 
 import numpy as np
@@ -46,6 +48,14 @@ def load_pgm(path):
         int(rt())
         data = np.frombuffer(f.read(w * h), dtype=np.uint8)
     return data.reshape(h, w)
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def evaluate(map_yaml, connect_clearance):
@@ -86,11 +96,59 @@ def evaluate(map_yaml, connect_clearance):
         main_rate = 0.0
         big = 0
 
+    total = n_free + n_occ + n_unk
     return dict(
+        map=map_yaml,
+        map_sha256=file_sha256(map_yaml),
+        image=pgm,
+        image_sha256=file_sha256(pgm),
         world=os.path.splitext(os.path.basename(map_yaml))[0],
-        wh=f'{w}x{h}', size_m=f'{w*res:.1f}x{h*res:.1f}',
-        free=n_free, occ=n_occ, unk=n_unk,
-        wall_rate=wall_rate, main_rate=main_rate, n_components=big)
+        wh=f'{w}x{h}',
+        width_cells=w,
+        height_cells=h,
+        resolution_m=res,
+        size_m=f'{w*res:.1f}x{h*res:.1f}',
+        size_x_m=w * res,
+        size_y_m=h * res,
+        free=n_free,
+        occ=n_occ,
+        unk=n_unk,
+        total=total,
+        unknown_rate=100.0 * n_unk / max(total, 1),
+        wall_rate=wall_rate,
+        main_rate=main_rate,
+        n_components=big)
+
+
+def classify_verdict(r):
+    """評価 dict から端末用/PNG用の判定文字列を返す。"""
+    total = r['free'] + r['occ'] + r['unk']
+    unk_ratio = r['unk'] / total if total else 0.0
+    # 判定: まず unknown が多すぎる地図を NG にする（未探索＝不良）。次に連結領域が
+    # 1 個（=主要空間が分断されていない）かつ最大成分が大半(>=90%)なら OK。
+    # PNG では ASCII 限定 (matplotlib の既定フォントで安定)、 端末出力では日本語可。
+    if unk_ratio >= 0.30:
+        verdict = f'未探索多い(unknown {unk_ratio*100:.0f}%)'
+        verdict_ascii = f'too-unexplored (unknown {unk_ratio*100:.0f}%)'
+    elif r['n_components'] <= 1:
+        if unk_ratio < 0.10:
+            verdict = 'OK'
+            verdict_ascii = 'OK'
+        else:
+            verdict = f'OK(unknown {unk_ratio*100:.0f}%)'
+            verdict_ascii = f'OK (unknown {unk_ratio*100:.0f}%)'
+    elif r['main_rate'] >= 90:
+        verdict = 'OK(微小片あり)'
+        verdict_ascii = 'OK (minor fragments)'
+    else:
+        verdict = f'分断あり(主要領域{r["n_components"]}個)'
+        verdict_ascii = f'fragmented ({r["n_components"]} regions)'
+    return verdict, verdict_ascii
+
+
+def validation_passed(row):
+    """classify_verdict() と同じ判定軸で機械可読 pass/fail を返す。"""
+    return str(row.get('verdict_ascii', '')).startswith('OK')
 
 
 def render_png(map_yaml, r, verdict, out_png):
@@ -132,40 +190,32 @@ def main():
     ap.add_argument('--connect-clearance', type=float, default=0.3)
     ap.add_argument('--png-dir', default='',
                     help='指定すると <world>_eval.png を出力 (各 map の品質を視覚化)')
+    ap.add_argument('--json-out', default='',
+                    help='指定すると評価 summary JSON を出力')
+    ap.add_argument('--md-out', default='',
+                    help='指定すると評価 summary Markdown を出力')
     args = ap.parse_args()
 
     print(f'{"world":12s} {"寸法[m]":10s} {"壁率%":>6s} '
           f'{"最大連結成分%":>12s} {"連結片数":>8s} {"unknown":>8s}  判定')
     print('-' * 78)
+    rows = []
     for mp in args.maps:
         try:
             r = evaluate(mp, args.connect_clearance)
         except Exception as e:
             print(f'{mp}: 評価失敗 {e}')
+            rows.append({
+                'map': mp,
+                'status': 'error',
+                'error': str(e),
+                'validation_passed': False,
+            })
             continue
-        # unknown 比率 = 地図全体（free+occ+unknown）に占める unknown の割合。屋内は閉じた
-        # 空間なので探索しきれば unknown は小さくなる。大きい＝未探索だらけの不良地図。
-        total = r['free'] + r['occ'] + r['unk']
-        unk_ratio = r['unk'] / total if total else 0.0
-        # 判定: まず unknown が多すぎる地図を NG にする（未探索＝不良）。次に連結領域が
-        # 1 個（=主要空間が分断されていない）かつ最大成分が大半(>=90%)なら OK。
-        # PNG では ASCII 限定 (matplotlib の既定フォントで安定)、 端末出力では日本語可。
-        if unk_ratio >= 0.30:
-            verdict = f'未探索多い(unknown {unk_ratio*100:.0f}%)'
-            verdict_ascii = f'too-unexplored (unknown {unk_ratio*100:.0f}%)'
-        elif r['n_components'] <= 1:
-            if unk_ratio < 0.10:
-                verdict = 'OK'
-                verdict_ascii = 'OK'
-            else:
-                verdict = f'OK(unknown {unk_ratio*100:.0f}%)'
-                verdict_ascii = f'OK (unknown {unk_ratio*100:.0f}%)'
-        elif r['main_rate'] >= 90:
-            verdict = 'OK(微小片あり)'
-            verdict_ascii = 'OK (minor fragments)'
-        else:
-            verdict = f'分断あり(主要領域{r["n_components"]}個)'
-            verdict_ascii = f'fragmented ({r["n_components"]} regions)'
+        verdict, verdict_ascii = classify_verdict(r)
+        r['verdict'] = verdict
+        r['verdict_ascii'] = verdict_ascii
+        r['validation_passed'] = validation_passed(r)
         print(f'{r["world"]:12s} {r["size_m"]:10s} {r["wall_rate"]:6.1f} '
               f'{r["main_rate"]:12.0f} {r["n_components"]:8d} {r["unk"]:8d}  '
               f'{verdict}')
@@ -173,12 +223,62 @@ def main():
             out_png = os.path.join(args.png_dir, f'{r["world"]}_eval.png')
             try:
                 render_png(mp, r, verdict_ascii, out_png)
+                r['eval_png'] = out_png
                 print(f'  -> PNG: {out_png}')
             except Exception as e:
                 print(f'  -> PNG render failed: {e}')
+                r['eval_png_error'] = str(e)
+        rows.append(r)
     print('-' * 78)
     print('最大連結成分%: free のうち最大の通行可能領域が占める割合（高いほど良い、'
           '低い=斜めノイズ等で分断）。連結片数: 意味ある大きさの連結成分数（少ないほど良い）。')
+    passed = sum(1 for r in rows if r.get('validation_passed') is True)
+    summary = {
+        'schema_version': 2,
+        'validation_passed': passed == len(rows) and bool(rows),
+        'summary': {
+            'map_count': len(rows),
+            'passed': passed,
+            'failed': len(rows) - passed,
+        },
+        'connect_clearance_m': args.connect_clearance,
+        'maps': rows,
+    }
+    if args.json_out:
+        out_dir = os.path.dirname(args.json_out)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        with open(args.json_out, 'w') as f:
+            json.dump(summary, f, indent=2, ensure_ascii=False)
+            f.write('\n')
+        print(f'JSON: {args.json_out}')
+    if args.md_out:
+        out_dir = os.path.dirname(args.md_out)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        lines = [
+            '# Map Quality Summary',
+            '',
+            f"- validation_passed: `{str(summary['validation_passed']).lower()}`",
+            f"- passed: `{passed}/{len(rows)}`",
+            f'- connect_clearance_m: `{args.connect_clearance}`',
+            '',
+            '| world | pass | size[m] | wall% | main_conn% | components | unknown% | verdict |',
+            '|---|---|---:|---:|---:|---:|---:|---|',
+        ]
+        for r in rows:
+            if r.get('status') == 'error':
+                lines.append(
+                    f"| `{os.path.basename(r['map'])}` | NG | | | | | | ERROR: {r['error']} |")
+                continue
+            lines.append(
+                f"| {r['world']} | {'OK' if r.get('validation_passed') else 'NG'} | "
+                f"{r['size_m']} | {r['wall_rate']:.1f} | "
+                f"{r['main_rate']:.0f} | {r['n_components']} | "
+                f"{r['unknown_rate']:.1f} | {r['verdict_ascii']} |")
+        with open(args.md_out, 'w') as f:
+            f.write('\n'.join(lines) + '\n')
+        print(f'MD: {args.md_out}')
 
 
 if __name__ == '__main__':

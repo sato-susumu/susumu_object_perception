@@ -41,6 +41,18 @@ def main():
     parser.add_argument(
         '--edge-risk-report', default='',
         help='optional prefix for route edge risk CSV/MD reports')
+    parser.add_argument(
+        '--hazard-file', action='append', default=[],
+        help='JSON/YAML/CSV hazard points from previous outdoor runs')
+    parser.add_argument(
+        '--hazard-radius', type=float, default=1.5,
+        help='default hazard radius [m] when the file has no radius')
+    parser.add_argument(
+        '--strict-hazard-file', action='store_true',
+        help='fail instead of warning when a hazard file cannot be read')
+    parser.add_argument(
+        '--require-hazards', action='store_true',
+        help='fail when hazard files are provided but no usable hazards are on the map')
     parser.add_argument('--max-waypoints', type=int, default=40)
     parser.add_argument('--max-segment-length', type=float, default=4.0)
     parser.add_argument('--limit-radius', type=float, default=14.0)
@@ -73,6 +85,14 @@ def main():
         argv += ['--edge-clearance-weight', str(args.edge_clearance_weight)]
     if args.edge_risk_report:
         argv += ['--edge-risk-report', args.edge_risk_report]
+    for path in args.hazard_file:
+        argv += ['--hazard-file', path]
+    if args.hazard_file:
+        argv += ['--hazard-radius', str(args.hazard_radius)]
+    if args.strict_hazard_file:
+        argv.append('--strict-hazard-file')
+    if args.require_hazards:
+        argv.append('--require-hazards')
     if args.no_png:
         argv.append('--no-png')
     argv.extend(extra)

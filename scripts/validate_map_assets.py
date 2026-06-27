@@ -9,6 +9,7 @@ fail with a low-level FileNotFoundError.
 """
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -37,13 +38,23 @@ def _resolve_image_path(map_yaml, image_value):
     return map_yaml.parent / image_path
 
 
+def file_sha256(path):
+    h = hashlib.sha256()
+    with Path(path).open('rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def validate_one(map_yaml):
     map_yaml = Path(map_yaml)
     result = {
         'map': str(map_yaml),
+        'map_sha256': '',
         'kind': 'not_occupancy_map',
         'image': '',
         'image_path': '',
+        'image_sha256': '',
         'ok': True,
         'reason': '',
     }
@@ -55,6 +66,7 @@ def validate_one(map_yaml):
         })
         return result
 
+    result['map_sha256'] = file_sha256(map_yaml)
     try:
         meta = _load_yaml(map_yaml)
     except Exception as exc:
@@ -77,6 +89,7 @@ def validate_one(map_yaml):
 
     if image_path.exists():
         result['reason'] = 'ok'
+        result['image_sha256'] = file_sha256(image_path)
         return result
 
     result['ok'] = False
@@ -120,6 +133,10 @@ def main():
         action='store_true',
         help='print machine-readable JSON',
     )
+    ap.add_argument('--json-out', default='',
+                    help='optional machine-readable summary path')
+    ap.add_argument('--md-out', default='',
+                    help='optional Markdown summary path')
     args = ap.parse_args()
 
     map_paths = [Path(p) for p in args.maps] if args.maps else _default_maps()
@@ -134,9 +151,10 @@ def main():
 
     results = [validate_one(p) for p in map_paths]
     bad = [r for r in results if not r['ok']]
+    ok = not bad
 
     if args.json:
-        print(json.dumps({'ok': not bad, 'results': results},
+        print(json.dumps({'ok': ok, 'results': results},
                          indent=2, ensure_ascii=False))
     else:
         print_table(results, only_bad=args.only_bad)
@@ -144,8 +162,57 @@ def main():
             print()
             print('Fix: regenerate the missing map image with Nav2 map_saver_cli,')
             print('for example: ros2 run nav2_map_server map_saver_cli -f outputs/mapping_indoor/<map_name>')
+    if args.json_out:
+        write_json(args.json_out, results, ok)
+        print(f'JSON: {args.json_out}')
+    if args.md_out:
+        write_markdown(args.md_out, results, ok)
+        print(f'MD: {args.md_out}')
 
     raise SystemExit(1 if bad else 0)
+
+
+def write_json(path, results, ok):
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    passed = sum(1 for r in results if r.get('ok') is True)
+    with out.open('w') as f:
+        json.dump({
+            'schema_version': 3,
+            'ok': ok,
+            'validation_passed': ok,
+            'summary': {
+                'checked': len(results),
+                'passed': passed,
+                'failed': len(results) - passed,
+            },
+            'results': results,
+        }, f, indent=2, ensure_ascii=False)
+        f.write('\n')
+
+
+def write_markdown(path, results, ok):
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        '# Map Asset Summary',
+        '',
+        f"- ok: `{str(ok).lower()}`",
+        f"- validation_passed: `{str(ok).lower()}`",
+        f"- checked: `{len(results)}`",
+        '',
+        '| map | status | image | map sha256 | image sha256 | reason |',
+        '|---|---|---|---|---|---|',
+    ]
+    for r in results:
+        status = 'OK' if r['ok'] else 'NG'
+        image = r['image_path'] or r['image']
+        map_digest = (r.get('map_sha256') or '')[:12]
+        image_digest = (r.get('image_sha256') or '')[:12]
+        lines.append(
+            f"| `{r['map']}` | {status} | `{image}` | "
+            f"`{map_digest}` | `{image_digest}` | {r['reason'] or r['kind']} |")
+    out.write_text('\n'.join(lines) + '\n')
 
 
 if __name__ == '__main__':

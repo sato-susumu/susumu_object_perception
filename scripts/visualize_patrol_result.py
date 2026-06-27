@@ -19,6 +19,7 @@ waypoint_nav_node.py に report_prefix を渡すと、各ウェイポイント�
 """
 
 import argparse
+from collections import Counter
 import json
 import os
 
@@ -34,8 +35,18 @@ def main():
     ap.add_argument('--map', required=True)
     ap.add_argument('--report', required=True, help='waypoint_nav の結果 JSON')
     ap.add_argument('--out', default='/tmp/patrol_result.png')
+    ap.add_argument('--json-out', default='',
+                    help='optional JSON summary output path')
+    ap.add_argument('--md-out', default='',
+                    help='optional Markdown summary output path')
     ap.add_argument('--recovery-warn', type=int, default=2,
                     help='この回数以上の recovery を「苦戦(黄)」とする')
+    ap.add_argument('--max-missed', type=int, default=0,
+                    help='validation で許容する missed waypoint 数')
+    ap.add_argument('--max-struggled', type=int, default=0,
+                    help='validation で許容する struggled waypoint 数')
+    ap.add_argument('--require-pass', action='store_true',
+                    help='validation_passed=false なら非ゼロ終了')
     args = ap.parse_args()
 
     meta = yaml.safe_load(open(args.map))
@@ -46,6 +57,7 @@ def main():
     h, w = img.shape
 
     report = json.load(open(args.report))
+    report_summary = report.get('summary', {}) if isinstance(report, dict) else {}
     results = report.get('results', report if isinstance(report, list) else [])
     # 最後の lap だけを見る（loop 時は最新周回）。
     if results:
@@ -67,6 +79,8 @@ def main():
 
     xs_line, ys_line = [], []
     n_reached = n_missed = n_struggle = 0
+    missed_indices = []
+    struggled_indices = []
     for r in results:
         px, py = to_px(r['x'], r['y'])
         xs_line.append(px)
@@ -75,10 +89,12 @@ def main():
         if r['result'] == 'missed':
             color = 'red'
             n_missed += 1
+            missed_indices.append(r['index'])
         elif rec >= args.recovery_warn:
             color = 'gold'
             n_struggle += 1
             n_reached += 1
+            struggled_indices.append(r['index'])
         else:
             color = 'limegreen'
             n_reached += 1
@@ -89,7 +105,9 @@ def main():
         elif rec:
             label += f"(rec{rec})"
         ax.annotate(label, (px, py), color='black', fontsize=5,
-                    xytext=(3, 3), textcoords='offset points', zorder=4)
+                    xytext=(3, 3), textcoords='offset points', zorder=4,
+                    bbox=dict(facecolor='white', alpha=0.65,
+                              edgecolor='none', pad=0.3))
     ax.plot(xs_line, ys_line, '-', color='orange', linewidth=1.2,
             alpha=0.8, zorder=2)
 
@@ -100,10 +118,105 @@ def main():
     ax.set_title(f'patrol result: reached={n_reached} missed={n_missed} '
                  f'struggled={n_struggle} / {len(results)}')
     plt.tight_layout()
+    out_dir = os.path.dirname(args.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     plt.savefig(args.out, dpi=100, bbox_inches='tight')
     print(f'reached={n_reached} missed={n_missed} struggled={n_struggle} '
           f'/ {len(results)}')
     print(f'saved {args.out}')
+    reason_counts = Counter(str(r.get('reason', '')) for r in results)
+    recovery_values = [int(r.get('nav_recoveries', 0) or 0) for r in results]
+    duration_values = [
+        float(r.get('duration_sec'))
+        for r in results
+        if r.get('duration_sec') is not None
+    ]
+    criteria = {
+        'max_missed': args.max_missed,
+        'max_struggled': args.max_struggled,
+        'recovery_warn': args.recovery_warn,
+    }
+    failures = []
+    if n_missed > args.max_missed:
+        failures.append(f'missed {n_missed} > {args.max_missed}')
+    if n_struggle > args.max_struggled:
+        failures.append(f'struggled {n_struggle} > {args.max_struggled}')
+    summary = {
+        'schema_version': 3,
+        'validation_passed': not failures,
+        'criteria': criteria,
+        'failures': failures,
+        'map': args.map,
+        'report': args.report,
+        'out': args.out,
+        'lap': max((r.get('lap', 0) for r in results), default=0),
+        'total': len(results),
+        'reached': n_reached,
+        'missed': n_missed,
+        'struggled': n_struggle,
+        'completion_rate': n_reached / max(len(results), 1),
+        'clean_completion_rate': (
+            (n_reached - n_struggle) / max(len(results), 1)),
+        'recovery_warn': args.recovery_warn,
+        'missed_indices': missed_indices,
+        'struggled_indices': struggled_indices,
+        'reason_counts': dict(reason_counts),
+        'max_nav_recoveries': max(recovery_values) if recovery_values else 0,
+        'total_nav_recoveries': int(sum(recovery_values)),
+        'safe_pose_recovery_count': int(
+            report_summary.get('safe_pose_recovery_count') or 0),
+        'step_event_count': int(
+            report_summary.get('step_event_count') or len(
+                report.get('step_events', []) if isinstance(report, dict) else [])),
+        'duration_mean_sec': (
+            sum(duration_values) / len(duration_values)
+            if duration_values else None),
+        'duration_max_sec': max(duration_values) if duration_values else None,
+    }
+    if args.json_out:
+        json_dir = os.path.dirname(args.json_out)
+        if json_dir:
+            os.makedirs(json_dir, exist_ok=True)
+        with open(args.json_out, 'w') as f:
+            json.dump(summary, f, indent=2, ensure_ascii=False)
+            f.write('\n')
+        print(f'saved {args.json_out}')
+    if args.md_out:
+        md_dir = os.path.dirname(args.md_out)
+        if md_dir:
+            os.makedirs(md_dir, exist_ok=True)
+        lines = [
+            '# Patrol Result Summary',
+            '',
+            f"- validation_passed: `{str(summary['validation_passed']).lower()}`",
+            f"- schema_version: `{summary['schema_version']}`",
+            f"- report: `{args.report}`",
+            f"- criteria: `{criteria}`",
+            f"- reached: `{n_reached}/{len(results)}`",
+            f"- completion_rate: `{summary['completion_rate']:.3f}`",
+            f"- clean_completion_rate: `{summary['clean_completion_rate']:.3f}`",
+            f"- missed: `{missed_indices}`",
+            f"- struggled: `{struggled_indices}`",
+            f"- total_nav_recoveries: `{summary['total_nav_recoveries']}`",
+            f"- max_nav_recoveries: `{summary['max_nav_recoveries']}`",
+            f"- safe_pose_recovery_count: `{summary['safe_pose_recovery_count']}`",
+            f"- step_event_count: `{summary['step_event_count']}`",
+            f"- duration_mean_sec: `{summary['duration_mean_sec']}`",
+            f"- duration_max_sec: `{summary['duration_max_sec']}`",
+            f"- png: `{args.out}`",
+            '',
+            '| reason | count |',
+            '|---|---:|',
+        ]
+        for reason, count in sorted(reason_counts.items()):
+            lines.append(f'| {reason} | {count} |')
+        if failures:
+            lines.extend(['', '## Failures'])
+            lines.extend(f'- {failure}' for failure in failures)
+        with open(args.md_out, 'w') as f:
+            f.write('\n'.join(lines) + '\n')
+        print(f'saved {args.md_out}')
     # missed/struggled の点を一覧（後から確認用）。
     for r in results:
         rec = r.get('nav_recoveries', 0) or 0
@@ -111,7 +224,14 @@ def main():
             print(f"  #{r['index']} ({r['x']:.1f},{r['y']:.1f}) {r['result']} "
                   f"reason={r.get('reason','')} recoveries={rec} "
                   f"dist_remaining={r.get('nav_distance_remaining_m')}")
+    if summary['validation_passed']:
+        print('validation_passed=true')
+        return 0
+    print('validation_passed=false')
+    for failure in failures:
+        print(f'- {failure}')
+    return 2 if args.require_pass else 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

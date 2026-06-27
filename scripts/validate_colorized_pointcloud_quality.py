@@ -2,9 +2,12 @@
 """Validate live or saved colorized PointCloud2/PLY data."""
 
 import argparse
+import hashlib
+import json
 import math
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 
@@ -37,6 +40,18 @@ TARGETS = {
         'expect': 'magenta',
     },
 }
+
+
+PLY_FLOAT_TYPES = {'float', 'float32', 'double', 'float64'}
+PLY_UINT8_TYPES = {'uchar', 'uint8', 'uint8_t', 'unsigned_char'}
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 class CloudGrabber(Node):
@@ -133,7 +148,29 @@ def summarize_cloud(name, msg, min_points, min_colored_ratio, min_channel_std):
     print(
         'bounds_min=[' + ','.join(f'{v:.2f}' for v in bounds_min) + '] '
         'bounds_max=[' + ','.join(f'{v:.2f}' for v in bounds_max) + ']')
-    return xyz, rgb, failures
+    metrics = {
+        'kind': 'pointcloud2',
+        'name': name,
+        'frame_id': msg.header.frame_id,
+        'stamp_sec': int(msg.header.stamp.sec),
+        'stamp_nanosec': int(msg.header.stamp.nanosec),
+        'points': points,
+        'finite_ratio': finite_ratio,
+        'colored_ratio': colored_ratio,
+        'rgb_mean_255': [round(float(v), 1) for v in rgb.mean(axis=0)]
+        if points else [0.0, 0.0, 0.0],
+        'rgb_std_255': [round(float(v), 1) for v in channel_std],
+        'bounds_min_m': [round(float(v), 3) for v in bounds_min],
+        'bounds_max_m': [round(float(v), 3) for v in bounds_max],
+        'criteria': {
+            'min_points': int(min_points),
+            'min_colored_ratio': float(min_colored_ratio),
+            'min_channel_std': float(min_channel_std),
+        },
+        'passed': not failures,
+        'failures': failures,
+    }
+    return xyz, rgb, failures, metrics
 
 
 def validate_targets(xyz, rgb, yaw_deg, min_score):
@@ -162,13 +199,20 @@ def read_ply(path):
         if line != 'ply':
             raise ValueError('not a PLY file')
         vertex_count = None
-        properties = []
+        property_defs = []
+        current_element = None
         for line in f:
             line = line.strip()
             if line.startswith('element vertex '):
+                current_element = 'vertex'
                 vertex_count = int(line.split()[-1])
-            elif line.startswith('property '):
-                properties.append(line.split()[-1])
+            elif line.startswith('element '):
+                parts = line.split()
+                current_element = parts[1] if len(parts) >= 2 else None
+            elif line.startswith('property ') and current_element == 'vertex':
+                parts = line.split()
+                if len(parts) >= 3:
+                    property_defs.append({'type': parts[-2], 'name': parts[-1]})
             elif line == 'end_header':
                 break
         if vertex_count is None:
@@ -176,10 +220,10 @@ def read_ply(path):
         rows = []
         for _ in range(vertex_count):
             parts = f.readline().split()
-            if len(parts) < len(properties):
+            if len(parts) < len(property_defs):
                 break
             rows.append(parts)
-    prop_index = {name: idx for idx, name in enumerate(properties)}
+    prop_index = {prop['name']: idx for idx, prop in enumerate(property_defs)}
     required = {'x', 'y', 'z', 'red', 'green', 'blue'}
     missing = required - set(prop_index)
     if missing:
@@ -188,23 +232,48 @@ def read_ply(path):
         [float(row[prop_index['x']]), float(row[prop_index['y']]), float(row[prop_index['z']])]
         for row in rows
     ], dtype=np.float32)
-    rgb = np.array([
+    rgb_i = np.array([
         [int(row[prop_index['red']]), int(row[prop_index['green']]), int(row[prop_index['blue']])]
         for row in rows
-    ], dtype=np.uint8)
-    return xyz, rgb, vertex_count
+    ], dtype=np.int32)
+    return xyz, rgb_i, vertex_count, property_defs
 
 
 def summarize_ply(path, min_points, min_colored_ratio, min_channel_std):
-    xyz, rgb, vertex_count = read_ply(path)
+    xyz, rgb_i, vertex_count, property_defs = read_ply(path)
+    ply_hash = file_sha256(path)
     failures = []
+    prop_types = {prop['name']: str(prop['type']).lower()
+                  for prop in property_defs}
+    property_type_failures = []
+    for name in ('x', 'y', 'z'):
+        if prop_types.get(name) not in PLY_FLOAT_TYPES:
+            property_type_failures.append(
+                f'{name}:{prop_types.get(name, "missing")}')
+    for name in ('red', 'green', 'blue'):
+        if prop_types.get(name) not in PLY_UINT8_TYPES:
+            property_type_failures.append(
+                f'{name}:{prop_types.get(name, "missing")}')
     points = int(xyz.shape[0])
+    finite_ratio = float(np.mean(np.isfinite(xyz).all(axis=1))) if points else 0.0
+    rgb_in_range = bool(np.all((rgb_i >= 0) & (rgb_i <= 255))) if points else False
+    rgb = np.clip(rgb_i, 0, 255).astype(np.uint8)
     colored_ratio = float(np.mean(np.max(rgb, axis=1) > 10)) if points else 0.0
     channel_std = rgb.astype(np.float32).std(axis=0) if points else np.zeros(3)
+    bounds_min = xyz.min(axis=0) if points else np.zeros(3)
+    bounds_max = xyz.max(axis=0) if points else np.zeros(3)
     if points != vertex_count:
         failures.append(f'{path}: read {points} vertices but header says {vertex_count}')
+    if property_type_failures:
+        failures.append(
+            f'{path}: unsupported PLY property types '
+            f'{", ".join(property_type_failures)}')
     if points < min_points:
         failures.append(f'{path}: points {points} < {min_points}')
+    if finite_ratio < 0.999:
+        failures.append(f'{path}: finite ratio {finite_ratio:.3f} < 0.999')
+    if not rgb_in_range:
+        failures.append(f'{path}: RGB values outside 0..255')
     if colored_ratio < min_colored_ratio:
         failures.append(
             f'{path}: colored ratio {colored_ratio:.3f} < {min_colored_ratio:.3f}')
@@ -212,11 +281,91 @@ def summarize_ply(path, min_points, min_colored_ratio, min_channel_std):
         failures.append(
             f'{path}: max RGB std {np.max(channel_std):.2f} < {min_channel_std:.2f}')
     print(f'=== {path} ===')
-    print(f'points={points} header_vertices={vertex_count} colored_ratio={colored_ratio:.4f}')
+    print(
+        f'points={points} header_vertices={vertex_count} '
+        f'finite_ratio={finite_ratio:.4f} colored_ratio={colored_ratio:.4f}')
     print(
         'rgb_mean=[' + ','.join(f'{v:.1f}' for v in rgb.mean(axis=0)) + '] '
         'rgb_std=[' + ','.join(f'{v:.1f}' for v in channel_std) + ']')
-    return failures
+    print(
+        'bounds_min=[' + ','.join(f'{v:.2f}' for v in bounds_min) + '] '
+        'bounds_max=[' + ','.join(f'{v:.2f}' for v in bounds_max) + ']')
+    metrics = {
+        'kind': 'ply',
+        'name': path,
+        'file_sha256': ply_hash,
+        'file_size_bytes': int(Path(path).stat().st_size),
+        'points': points,
+        'header_vertices': int(vertex_count),
+        'properties': property_defs,
+        'property_types': prop_types,
+        'property_types_valid': not property_type_failures,
+        'property_type_failures': property_type_failures,
+        'finite_ratio': finite_ratio,
+        'rgb_values_in_range': rgb_in_range,
+        'colored_ratio': colored_ratio,
+        'rgb_mean_255': [round(float(v), 1) for v in rgb.mean(axis=0)]
+        if points else [0.0, 0.0, 0.0],
+        'rgb_std_255': [round(float(v), 1) for v in channel_std],
+        'bounds_min_m': [round(float(v), 3) for v in bounds_min],
+        'bounds_max_m': [round(float(v), 3) for v in bounds_max],
+        'criteria': {
+            'min_points': int(min_points),
+            'min_colored_ratio': float(min_colored_ratio),
+            'min_channel_std': float(min_channel_std),
+        },
+        'passed': not failures,
+        'failures': failures,
+    }
+    return failures, metrics
+
+
+def write_json(path, report):
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open('w') as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+        f.write('\n')
+
+
+def write_markdown(path, report):
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    summary = report.get('summary', {})
+    lines = [
+        '# Colorized Point Cloud Quality Summary',
+        '',
+        f"- validation_passed: `{str(report['validation_passed']).lower()}`",
+        f"- schema_version: `{report['schema_version']}`",
+        f"- items: `{len(report['items'])}`",
+        f"- unique_ply_count: `{summary.get('unique_ply_count', 0)}`",
+        f"- duplicate_input_names: `{summary.get('duplicate_input_name_count', 0)}`",
+        f"- duplicate_file_hashes: `{summary.get('duplicate_file_hash_count', 0)}`",
+        f"- failures: `{len(report['failures'])}`",
+        '',
+        '| item | kind | points | colored ratio | max RGB std | sha256 | status |',
+        '|---|---|---:|---:|---:|---|---|',
+    ]
+    for item in report['items']:
+        max_std = max(item.get('rgb_std_255', [0.0]))
+        status = 'PASS' if item.get('passed') else 'FAIL'
+        digest = item.get('file_sha256', '')
+        digest_short = digest[:12] if digest else ''
+        lines.append(
+            f"| `{item['name']}` | {item['kind']} | {item['points']} | "
+            f"{item['colored_ratio']:.4f} | {max_std:.1f} | "
+            f"`{digest_short}` | {status} |")
+    if report['failures']:
+        lines.extend(['', '## Failures'])
+        lines.extend(f'- {failure}' for failure in report['failures'])
+    out.write_text('\n'.join(lines) + '\n')
+
+
+def duplicate_values(values):
+    counts = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return sorted(value for value, count in counts.items() if count > 1)
 
 
 def grab_clouds(topics, timeout_sec):
@@ -245,10 +394,15 @@ def main():
     parser.add_argument('--calibration-targets', action='store_true')
     parser.add_argument('--yaw-deg', type=float, default=0.0)
     parser.add_argument('--min-target-score', type=float, default=0.45)
+    parser.add_argument('--json-out', default='',
+                        help='optional machine-readable summary path')
+    parser.add_argument('--md-out', default='',
+                        help='optional Markdown summary path')
     args = parser.parse_args()
 
     topics = args.cloud_topic or ([] if args.ply else ['/perception/colorized_points'])
     failures = []
+    items = []
 
     if topics:
         clouds = grab_clouds(topics, args.timeout_sec)
@@ -257,17 +411,91 @@ def main():
             if msg is None:
                 failures.append(f'{topic}: no cloud received within {args.timeout_sec:.1f}s')
                 continue
-            xyz, rgb, cloud_failures = summarize_cloud(
+            xyz, rgb, cloud_failures, metrics = summarize_cloud(
                 topic, msg, args.min_points,
                 args.min_colored_ratio, args.min_channel_std)
+            items.append(metrics)
             failures.extend(cloud_failures)
             if args.calibration_targets:
                 failures.extend(validate_targets(
                     xyz, rgb, args.yaw_deg, args.min_target_score))
 
     for ply in args.ply:
-        failures.extend(summarize_ply(
-            ply, args.min_points, args.min_colored_ratio, args.min_channel_std))
+        ply_failures, metrics = summarize_ply(
+            ply, args.min_points, args.min_colored_ratio, args.min_channel_std)
+        items.append(metrics)
+        failures.extend(ply_failures)
+
+    ply_items = [item for item in items if item.get('kind') == 'ply']
+    ply_names = [item.get('name') for item in ply_items if item.get('name')]
+    duplicate_input_names = duplicate_values(ply_names)
+    hash_to_names = {}
+    for item in ply_items:
+        digest = item.get('file_sha256')
+        if digest:
+            hash_to_names.setdefault(digest, []).append(item.get('name'))
+    duplicate_file_hashes = [
+        {'file_sha256': digest, 'names': sorted(names)}
+        for digest, names in sorted(hash_to_names.items())
+        if len(names) > 1
+    ]
+    if duplicate_input_names:
+        failures.append(
+            'duplicate PLY input names: ' + ', '.join(duplicate_input_names))
+    for duplicate in duplicate_file_hashes:
+        failures.append(
+            'duplicate PLY file hash '
+            f"{duplicate['file_sha256']}: {', '.join(duplicate['names'])}")
+
+    failure_set = set(failures)
+    for item in items:
+        item['passed'] = all(f not in failure_set for f in item.get('failures', []))
+
+    passed = sum(1 for item in items if item.get('passed') is True)
+    report = {
+        'schema_version': 5,
+        'validation_passed': not failures,
+        'summary': {
+            'item_count': len(items),
+            'ply_item_count': len(ply_items),
+            'unique_ply_count': len(set(ply_names)),
+            'unique_ply_hash_count': len(hash_to_names),
+            'duplicate_input_name_count': len(duplicate_input_names),
+            'duplicate_file_hash_count': len(duplicate_file_hashes),
+            'passed': passed,
+            'failed': len(items) - passed,
+            'failure_count': len(failures),
+        },
+        'items': items,
+        'failures': failures,
+        'duplicate_input_names': duplicate_input_names,
+        'duplicate_file_hashes': duplicate_file_hashes,
+        'inputs': {
+            'cloud_topics': topics,
+            'ply': args.ply,
+            'timeout_sec': args.timeout_sec,
+            'min_points': args.min_points,
+            'min_colored_ratio': args.min_colored_ratio,
+            'min_channel_std': args.min_channel_std,
+            'calibration_targets': args.calibration_targets,
+            'yaw_deg': args.yaw_deg,
+            'min_target_score': args.min_target_score,
+        },
+        'inputs_hash': {
+            'ply_sha256': {
+                item['name']: item['file_sha256']
+                for item in items
+                if item.get('kind') == 'ply' and item.get('file_sha256')
+            },
+        },
+    }
+
+    if args.json_out:
+        write_json(args.json_out, report)
+        print(f'saved {args.json_out}')
+    if args.md_out:
+        write_markdown(args.md_out, report)
+        print(f'saved {args.md_out}')
 
     if failures:
         print('=== validation failures ===')

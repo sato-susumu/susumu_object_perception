@@ -20,6 +20,7 @@ frontier_explore_node や waypoint_nav_node の標準出力ログから
 """
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -56,6 +57,46 @@ def parse_log(log_path):
     return events
 
 
+def write_csv(path, events):
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or '.', exist_ok=True)
+    with open(path, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=['type', 'x', 'y', 'r'])
+        writer.writeheader()
+        for ev in events:
+            writer.writerow({
+                'type': ev['type'],
+                'x': ev['x'],
+                'y': ev['y'],
+                'r': ev['r'],
+            })
+
+
+def write_markdown(path, args, events, type_counter, validation_passed,
+                   criteria, failures):
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or '.', exist_ok=True)
+    lines = [
+        '# Step Detector Events',
+        '',
+        f"- validation_passed: `{str(validation_passed).lower()}`",
+        f"- map: `{args.map}`",
+        f"- log: `{args.log}`",
+        f"- count: `{len(events)}`",
+        f"- by_type: `{dict(type_counter)}`",
+        f"- criteria: `{criteria}`",
+        '',
+        '| type | x | y | radius |',
+        '|---|---:|---:|---:|',
+    ]
+    for ev in events:
+        lines.append(
+            f"| {ev['type']} | {ev['x']:.3f} | {ev['y']:.3f} | {ev['r']:.2f} |")
+    if failures:
+        lines.extend(['', '## Failures'])
+        lines.extend(f'- {failure}' for failure in failures)
+    with open(path, 'w') as f:
+        f.write('\n'.join(lines) + '\n')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--map', required=True, help='保存地図 YAML')
@@ -63,6 +104,14 @@ def main():
     ap.add_argument('--out', default='/tmp/step_events_overlay.png')
     ap.add_argument('--events-json', default='',
                     help='抽出 event を JSON で残す (空なら out と同名 .json)')
+    ap.add_argument('--csv-out', default='',
+                    help='optional CSV event table output path')
+    ap.add_argument('--md-out', default='',
+                    help='optional Markdown event summary output path')
+    ap.add_argument('--require-events', action='store_true',
+                    help='return non-zero when no step events were extracted')
+    ap.add_argument('--min-events', type=int, default=0,
+                    help='minimum extracted events required for validation')
     ap.add_argument('--scale', type=int, default=4,
                     help='地図表示の拡大倍率 (PNG 視認性向上)')
     args = ap.parse_args()
@@ -78,6 +127,15 @@ def main():
 
     events = parse_log(args.log)
     type_counter = Counter(e['type'] for e in events)
+    min_events = max(args.min_events, 1 if args.require_events else 0)
+    criteria = {
+        'min_events': min_events,
+        'require_events': bool(args.require_events),
+    }
+    failures = []
+    if len(events) < min_events:
+        failures.append(f'events {len(events)} < {min_events}')
+    validation_passed = not failures
 
     print(f'events: {len(events)} (by type: {dict(type_counter)})')
 
@@ -92,9 +150,9 @@ def main():
 
     # event ごとに色分け
     color_map = {
-        'tilt': ('red', 'tilt (段差傾き)'),
-        'stuck': ('orange', 'stuck (車輪空回り)'),
-        'accel_jolt': ('yellow', 'accel jolt (急変)'),
+        'tilt': ('red', 'tilt'),
+        'stuck': ('orange', 'stuck'),
+        'accel_jolt': ('yellow', 'accel jolt'),
         'tilt_recover': ('green', 'tilt recover'),
     }
     legend_handles = []
@@ -138,6 +196,14 @@ def main():
         json_path = base + '.json'
     with open(json_path, 'w') as f:
         json.dump({
+            'schema_version': 3,
+            'validation_passed': validation_passed,
+            'criteria': criteria,
+            'failures': failures,
+            'summary': {
+                'count': len(events),
+                'by_type': dict(type_counter),
+            },
             'map': args.map,
             'log': args.log,
             'count': len(events),
@@ -145,7 +211,22 @@ def main():
             'events': events,
         }, f, ensure_ascii=False, indent=2)
     print(f'saved JSON: {json_path}')
+    if args.csv_out:
+        write_csv(args.csv_out, events)
+        print(f'saved CSV: {args.csv_out}')
+    if args.md_out:
+        write_markdown(
+            args.md_out, args, events, type_counter, validation_passed,
+            criteria, failures)
+        print(f'saved MD: {args.md_out}')
+    if not validation_passed:
+        print('validation_passed=false')
+        for failure in failures:
+            print(f'- {failure}')
+        return 2
+    print('validation_passed=true')
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())
