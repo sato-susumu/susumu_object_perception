@@ -6,6 +6,11 @@
 ROS 2 Humble のシミュレーター統合パッケージ。3D LiDAR と全天球カメラを載せた移動ロボットが、
 シミュレータ上で「地図を作る → 巡回する → 周囲を認識する → 点群をカラー化する」流れを検証する。
 
+![overview: mapping → waypoint → recognition](docs/images/overview.gif)
+
+> indoor.wbt を題材に、SLAM マッピング → ウェイポイント生成 → 巡回しながらの物体認識を 1 本にまとめたサマリー。
+> 再生成は `bash scripts/capture_overview.sh` (詳細はスクリプト先頭コメント)。
+
 ## 目指す構想
 
 実機の自律移動ロボットに必要な一連のループを、Gazebo Classic / Webots 上で統合して確認する。
