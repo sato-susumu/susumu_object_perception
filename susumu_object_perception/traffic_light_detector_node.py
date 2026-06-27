@@ -75,6 +75,20 @@ COLOR_TO_ELEMENT = {
 }
 
 
+def quantize_yaw_deg(yaw_deg, quant_deg):
+    """方位[deg]を TrafficSignal ID 用の安定した整数方位へ丸める。
+
+    Autoware 本来の traffic_signal_id は地図上の信号 ID だが、本プロジェクトは HD map を
+    持たないため方位を ID 代わりに使う。検出 bbox の微小な揺れで ID が毎フレーム変わらない
+    よう、既定では数度単位に量子化する。quant_deg<=0 は従来どおり 1deg 丸め。
+    """
+    yaw = float(yaw_deg) % 360.0
+    q = float(quant_deg)
+    if q > 0.0:
+        yaw = math.floor((yaw / q) + 0.5) * q
+    return int(round(yaw)) % 360
+
+
 class ClassicDetector:
     """HSV 色マスク + 円形度で信号灯を検出・色分類する古典 CV バックエンド。
 
@@ -311,10 +325,20 @@ class TrafficLightDetectorNode(Node):
         self._last_proc_t = None
 
         # 重複統合のマージ角 [deg]。視野の重なる隣接ビューに同じ信号が重複検出されるので、
-        # 方向ベクトルの角度差がこの値未満で同色なら 1 つに統合する（全天球で 1 箇所の信号 →
-        # 認識結果 1 つ）。ビュー間隔(360/N)やビュー画角に応じて調整。0 以下で統合無効。
+        # 方向ベクトルの角度差がこの値未満なら 1 つに統合する（全天球で 1 箇所の信号 →
+        # 認識結果 1 つ）。色違いを統合するかは merge_cross_color で切替。0 以下で統合無効。
         self.merge_angle = math.radians(
             float(self.declare_parameter('merge_angle_deg', 20.0).value))
+        # 同じ信号が隣接ビューで別色に揺れた場合も方向で 1 グループにする。GREEN は
+        # GO 指示なので、非 green と競合したら十分強い場合だけ採用する。
+        self.merge_cross_color = bool(
+            self.declare_parameter('merge_cross_color', True).value)
+        self.green_conflict_margin = float(
+            self.declare_parameter('green_conflict_margin', 1.25).value)
+        # HD map なし構成では traffic_signal_id に方位を入れる。bbox 中心から復元した方位を
+        # そのまま 1deg 丸めにするとフレーム間ジッタで ID が増えるため、既定で 5deg に量子化。
+        self.signal_id_quant_deg = float(
+            self.declare_parameter('signal_id_quant_deg', 5.0).value)
 
         # classic は常に生成（yolo の bbox 内色判定にも流用するため）。
         classic = ClassicDetector(self)
@@ -424,20 +448,85 @@ class TrafficLightDetectorNode(Node):
         # 視野の重なる隣接ビューに同じ信号が重複検出されるので、方向で 1 つに統合する。
         return self._merge_detections(out)
 
+    def _resolve_merged_detection(self, group):
+        """同一方向グループから代表検出を選ぶ。
+
+        地図無し全天球では同じ信号が隣接ビューに重複し、色相だけでは red/amber/green が
+        揺れることがある。色ごとの最高信頼度を比較し、GREEN は誤 GO を避けるため
+        RED/AMBER より十分強い場合だけ採用する。
+        """
+        if not group:
+            return None
+        best_by_color = {}
+        for det in group:
+            color = det.get('color')
+            if color not in best_by_color or \
+                    det['confidence'] > best_by_color[color]['confidence']:
+                best_by_color[color] = det
+        if len(best_by_color) == 1:
+            return dict(next(iter(best_by_color.values())))
+
+        green = best_by_color.get('green')
+        stop_candidates = [
+            best_by_color[c] for c in ('red', 'amber')
+            if c in best_by_color
+        ]
+        best_stop = max(
+            stop_candidates, key=lambda d: d['confidence'],
+            default=None)
+        if green is not None and best_stop is not None:
+            if green['confidence'] >= \
+                    best_stop['confidence'] * self.green_conflict_margin:
+                return dict(green)
+            return dict(best_stop)
+        if best_stop is not None:
+            return dict(best_stop)
+        return dict(max(group, key=lambda d: d['confidence']))
+
     def _merge_detections(self, dets):
         """全周ビューに重複して出た同一信号を 1 つに統合する。
 
         全天球を N ビューに分けると視野が重なり、同じ信号機が複数ビューに出る。各検出は方向
-        ベクトル `dir`（ロボット座標）を持つので、方向が近く(角度差 < merge_angle)・色が同じ
-        検出を 1 グループとみなし、最高信頼度のものを代表に残す（方位ベースの NMS 相当）。
+        ベクトル `dir`（ロボット座標）を持つので、方向が近ければ 1 グループとみなす
+        （方位ベースの NMS 相当）。色が揺れた場合は _resolve_merged_detection で 1 色へ決める。
         これで「全天球で 1 箇所の信号 → 認識結果 1 つ」になる。
         """
         if not dets or self.merge_angle <= 0.0:
             return dets
+        if not self.merge_cross_color:
+            return self._merge_same_color_detections(dets)
         cos_th = math.cos(self.merge_angle)
         used = [False] * len(dets)
         merged = []
-        # 信頼度の高い順に代表を選び、近い方向・同色をまとめる。
+        # 信頼度の高い順に代表を選び、近い方向をまとめる。
+        order = sorted(range(len(dets)), key=lambda i: -dets[i]['confidence'])
+        for i in order:
+            if used[i]:
+                continue
+            used[i] = True
+            rep = dets[i]
+            di = np.array(rep['dir'], dtype=float)
+            group = [rep]
+            for j in order:
+                if used[j]:
+                    continue
+                dj = np.array(dets[j]['dir'], dtype=float)
+                if float(np.dot(di, dj)) > cos_th:  # 方向が近い＝同一信号
+                    used[j] = True
+                    group.append(dets[j])
+            resolved = self._resolve_merged_detection(group)
+            if resolved is not None:
+                resolved['merged_count'] = len(group)
+                resolved['merged_colors'] = ','.join(
+                    sorted({str(d.get('color')) for d in group}))
+                merged.append(resolved)
+        return merged
+
+    def _merge_same_color_detections(self, dets):
+        """従来互換: 方向が近く、かつ同色の検出だけを統合する。"""
+        cos_th = math.cos(self.merge_angle)
+        used = [False] * len(dets)
+        merged = []
         order = sorted(range(len(dets)), key=lambda i: -dets[i]['confidence'])
         for i in order:
             if used[i]:
@@ -449,7 +538,7 @@ class TrafficLightDetectorNode(Node):
                 if used[j] or dets[j]['color'] != rep['color']:
                     continue
                 dj = np.array(dets[j]['dir'], dtype=float)
-                if float(np.dot(di, dj)) > cos_th:  # 方向が近い＝同一信号
+                if float(np.dot(di, dj)) > cos_th:
                     used[j] = True
             merged.append(rep)
         return merged
@@ -492,7 +581,10 @@ class TrafficLightDetectorNode(Node):
             sig = TrafficSignal()
             # 地図無しなので id は識別子。全天球モードでは方位[deg]を入れ、
             # 「どの方向の信号か」を id から読めるようにする（通常モードは検出 index）。
-            sig.traffic_signal_id = det.get('yaw_deg', i) if self.omni_mode else i
+            signal_yaw = quantize_yaw_deg(
+                det.get('dir_yaw_deg', det.get('yaw_deg', i)),
+                self.signal_id_quant_deg)
+            sig.traffic_signal_id = signal_yaw if self.omni_mode else i
             sig.elements = [elem]
             sig_arr.signals.append(sig)
 
@@ -509,7 +601,7 @@ class TrafficLightDetectorNode(Node):
             # 全天球モードでは class_id に方位とビュー番号を載せる（可視化が読む）。
             if self.omni_mode:
                 hyp.hypothesis.class_id = '%s@%ddeg(v%d)' % (
-                    det['color'], det.get('yaw_deg', 0), det.get('view', 0))
+                    det['color'], signal_yaw, det.get('view', 0))
                 # LiDAR 連携用に bbox 中心から復元した方向単位ベクトル（ロボット座標）を
                 # pose.position に載せる。LiDAR 連携ノードがこの方向で距離を引き 3D 位置にする。
                 if 'dir' in det:

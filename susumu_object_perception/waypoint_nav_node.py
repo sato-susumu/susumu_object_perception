@@ -219,20 +219,23 @@ class WaypointNavNode(Node):
         self._safe_recovery_trigger_pose = None
         self._safe_recovery_goal_pose = None
         self._safe_pose_recoveries = []
+        self._step_events = []
+        self._pending_step_event_index = None
 
-        if self.safe_pose_guard:
+        if self.safe_pose_guard or self.step_detector_avoid:
             pose_qos = QoSProfile(depth=10)
             pose_qos.reliability = ReliabilityPolicy.RELIABLE
-            costmap_qos = QoSProfile(
-                history=HistoryPolicy.KEEP_LAST,
-                depth=1,
-                reliability=ReliabilityPolicy.RELIABLE,
-                durability=DurabilityPolicy.TRANSIENT_LOCAL)
             self.create_subscription(
                 PoseWithCovarianceStamped,
                 self.safe_pose_pose_topic,
                 self._on_safe_pose_pose,
                 pose_qos)
+        if self.safe_pose_guard:
+            costmap_qos = QoSProfile(
+                history=HistoryPolicy.KEEP_LAST,
+                depth=1,
+                reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL)
             self.create_subscription(
                 OccupancyGrid,
                 self.safe_pose_costmap_topic,
@@ -453,6 +456,9 @@ class WaypointNavNode(Node):
         if now - self._last_step_event_wall < self.step_detector_cooldown_sec:
             return
         self._last_step_event_wall = now
+        reason = f'step_detector_{event_type}'
+        self._pending_step_event_index = self._record_step_event(
+            event_type, payload)
         # 現在の goal をキャンセル + 次の WP へ
         self._token += 1
         self._cancel_goal_timer()
@@ -463,11 +469,56 @@ class WaypointNavNode(Node):
                 gh.cancel_goal_async()
             except Exception:
                 pass
-        reason = f'step_detector_{event_type}'
         self._status(
             f'waypoint #{self._idx}: {event_type} '
-            f'(tilt_deg={payload.get("tilt_deg", "?")}); skip and advance')
+            f'(tilt_deg={payload.get("tilt_deg", "?")}); '
+            'recover if enabled, otherwise skip and advance')
+        if self._start_safe_pose_recovery(reason=reason):
+            return
         self._advance(reached=False, reason=reason)
+
+    @staticmethod
+    def _float_or_none(value, digits=3):
+        try:
+            if value is None:
+                return None
+            return round(float(value), digits)
+        except (TypeError, ValueError):
+            return None
+
+    def _record_step_event(self, event_type, payload):
+        idx = self._idx
+        target_x = target_y = target_yaw = None
+        if 0 <= idx < len(self.waypoints):
+            target_x, target_y, target_yaw = self.waypoints[idx]
+        pose = self._current_pose_stamped()
+        pose_x, pose_y = self._pose_xy(pose)
+        event = {
+            'event_index': len(self._step_events),
+            'waypoint_index': idx,
+            'event_type': event_type,
+            'wall_elapsed_sec': round(
+                time.monotonic() - self._run_started_wall, 3),
+            'pose_x': round(pose_x, 3) if pose_x is not None else None,
+            'pose_y': round(pose_y, 3) if pose_y is not None else None,
+            'target_x': round(target_x, 3) if target_x is not None else None,
+            'target_y': round(target_y, 3) if target_y is not None else None,
+            'target_yaw': target_yaw,
+            'tilt_deg': self._float_or_none(payload.get('tilt_deg'), 2),
+            'severity': payload.get('severity'),
+            'progress_ratio': self._float_or_none(
+                payload.get('progress_ratio'), 3),
+            'cmd_vel_avg': self._float_or_none(
+                payload.get('cmd_vel_avg'), 3),
+            'odom_avg': self._float_or_none(payload.get('odom_avg'), 3),
+            'nav_recoveries': self._fb_recoveries,
+            'nav_distance_remaining_m': (
+                round(self._fb_distance, 3)
+                if self._fb_distance is not None else None),
+            'payload': payload,
+        }
+        self._step_events.append(event)
+        return event['event_index']
 
     def _advance(self, reached, reason='', action_status=None):
         """現在のウェイポイントを到達/スキップとして確定し、次へ進む。"""
@@ -495,6 +546,12 @@ class WaypointNavNode(Node):
         else:
             if idx not in self._missed:
                 self._missed.append(idx)
+        step_event_index = None
+        if (isinstance(reason, str) and
+                reason.startswith('step_detector_') and
+                self._pending_step_event_index is not None):
+            step_event_index = self._pending_step_event_index
+            self._pending_step_event_index = None
         self._results.append({
             'lap': self._lap,
             'index': idx,
@@ -512,6 +569,7 @@ class WaypointNavNode(Node):
             'nav_recoveries': self._fb_recoveries,
             'nav_distance_remaining_m': (round(self._fb_distance, 3)
                                          if self._fb_distance is not None else None),
+            'step_event_index': step_event_index,
         })
 
     def _cancel_goal_timer(self):
@@ -847,6 +905,7 @@ class WaypointNavNode(Node):
             'mission_timeout_sec': self.mission_timeout,
             'safe_pose_guard': self.safe_pose_guard,
             'safe_pose_recovery_count': len(self._safe_pose_recoveries),
+            'step_event_count': len(self._step_events),
             'wall_elapsed_sec': round(
                 time.monotonic() - self._run_started_wall, 3),
             'loop': self.loop,
@@ -859,6 +918,7 @@ class WaypointNavNode(Node):
             ],
             'results': self._results,
             'safe_pose_recoveries': self._safe_pose_recoveries,
+            'step_events': self._step_events,
         }
         with open(prefix + '.json', 'w') as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
@@ -870,6 +930,7 @@ class WaypointNavNode(Node):
                     'lap', 'index', 'x', 'y', 'yaw', 'result', 'reason',
                     'action_status', 'duration_sec', 'wall_elapsed_sec',
                     'nav_recoveries', 'nav_distance_remaining_m',
+                    'step_event_index',
                 ])
             writer.writeheader()
             for row in self._results:
@@ -884,6 +945,7 @@ class WaypointNavNode(Node):
             f"- elapsed: `{summary['wall_elapsed_sec']}s`",
             f"- safe_pose_guard: `{self.safe_pose_guard}`",
             f"- safe_pose_recoveries: `{len(self._safe_pose_recoveries)}`",
+            f"- step_events: `{len(self._step_events)}`",
             f"- waypoints: `{self.waypoints_file}`",
             '',
             '| index | result | reason | duration_sec | x | y |',
@@ -908,6 +970,22 @@ class WaypointNavNode(Node):
                     f"{row['result']} | {row['result_reason']} | "
                     f"{row['duration_sec']} | {row['safe_pose_x']} | "
                     f"{row['safe_pose_y']} |")
+        if self._step_events:
+            lines += [
+                '',
+                '## Step Events',
+                '',
+                ('| event | waypoint | type | pose_x | pose_y | target_x | '
+                 'target_y | tilt_deg | progress_ratio |'),
+                '|---:|---:|---|---:|---:|---:|---:|---:|---:|',
+            ]
+            for row in self._step_events:
+                lines.append(
+                    f"| {row['event_index']} | {row['waypoint_index']} | "
+                    f"{row['event_type']} | {row['pose_x']} | "
+                    f"{row['pose_y']} | {row['target_x']} | "
+                    f"{row['target_y']} | {row['tilt_deg']} | "
+                    f"{row['progress_ratio']} |")
         with open(prefix + '.md', 'w') as f:
             f.write('\n'.join(lines) + '\n')
 

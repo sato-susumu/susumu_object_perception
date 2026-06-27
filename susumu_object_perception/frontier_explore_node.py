@@ -322,6 +322,13 @@ class FrontierExploreNode(Node):
 
         self._status_pub = self.create_publisher(
             String, '/frontier_explore/status', 10)
+        hazard_qos = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self._hazards_pub = self.create_publisher(
+            String, '/frontier_explore/hazards', hazard_qos)
         self._marker_pub = self.create_publisher(
             MarkerArray, '/frontier_explore/markers', 1)
         if self.yaw_watchdog:
@@ -354,6 +361,7 @@ class FrontierExploreNode(Node):
             'frontier_explore started '
             f'(min_cells={self.min_frontier_cells} gain={self.gain} '
             f'save={self.save_map} -> {self.map_save_path})')
+        self._publish_hazard_report()
 
     def _bool_param(self, name):
         value = self.get_parameter(name).value
@@ -426,6 +434,7 @@ class FrontierExploreNode(Node):
             self._yaw_hazards.append((x, y, radius))
             # 古い hazard で候補が過剰に詰まらないよう上限を持つ。
             self._yaw_hazards = self._yaw_hazards[-40:]
+            self._publish_hazard_report()
         if self._last_goal is not None:
             self._blacklist.add(self._blkey(*self._last_goal))
         if self._active_goal_xy is not None:
@@ -805,6 +814,7 @@ class FrontierExploreNode(Node):
             self._step_hazards.append((x, y, radius))
             # 上限制御 (古い hazard は捨てる)
             self._step_hazards = self._step_hazards[-40:]
+            self._publish_hazard_report()
         # 進行中の goal もキャンセル
         if self._last_goal is not None:
             self._blacklist.add(self._blkey(*self._last_goal))
@@ -1370,7 +1380,7 @@ class FrontierExploreNode(Node):
             self._publish_status(f'map save failed: {detail}{suffix}')
 
     def _run_vs_world_overlay(self):
-        """保存地図と world 真値の重ね合わせ画像 + アライメント JSON を生成。
+        """保存地図と world 真値の重ね合わせ画像 + JSON/CSV を生成。
 
         world_file が空、または check_map_vs_world.py が存在しないときは何もしない
         （cafe.wbt のように Webots world が無い world では正しく skip される）。
@@ -1424,12 +1434,14 @@ class FrontierExploreNode(Node):
             out_prefix = os.path.splitext(out_prefix)[0]
         out_png = f'{out_prefix}_vs_world.png'
         out_json = f'{out_prefix}_vs_world.json'
+        out_csv = f'{out_prefix}_vs_world.csv'
         cmd = [
             'python3', self.vs_world_script,
             '--wbt', self.world_file,
             '--map', yaml_path,
             '--out', out_png,
             '--report', out_json,
+            '--object-report', out_csv,
         ]
         try:
             completed = subprocess.run(
@@ -1485,9 +1497,48 @@ class FrontierExploreNode(Node):
         self.get_logger().info(text)
         self._status_pub.publish(String(data=text))
 
+    def _hazard_entries(self):
+        entries = []
+        for source, hazards in (
+                ('yaw_watchdog', self._yaw_hazards),
+                ('step_detector', self._step_hazards)):
+            for idx, (x, y, radius) in enumerate(hazards):
+                entries.append({
+                    'source': source,
+                    'id': idx,
+                    'x': float(x),
+                    'y': float(y),
+                    'radius': float(radius),
+                })
+        return entries
+
+    def _publish_hazard_report(self):
+        entries = self._hazard_entries()
+        by_source = {}
+        for entry in entries:
+            source = entry['source']
+            by_source[source] = by_source.get(source, 0) + 1
+        payload = {
+            'schema_version': 1,
+            'frame_id': self.map_frame,
+            'stamp_sec': self.get_clock().now().nanoseconds * 1e-9,
+            'summary': {
+                'count': len(entries),
+                'by_source': by_source,
+            },
+            'hazards': entries,
+        }
+        self._hazards_pub.publish(
+            String(data=json.dumps(payload, ensure_ascii=False)))
+
     def _publish_markers(self, frontiers):
         arr = MarkerArray()
         now = self.get_clock().now().to_msg()
+        clear = Marker()
+        clear.header.frame_id = self.map_frame
+        clear.header.stamp = now
+        clear.action = Marker.DELETEALL
+        arr.markers.append(clear)
         for i, (wx, wy, size) in enumerate(frontiers):
             m = Marker()
             m.header.frame_id = self.map_frame
@@ -1504,6 +1555,28 @@ class FrontierExploreNode(Node):
             m.scale.x = m.scale.y = m.scale.z = s
             m.color = ColorRGBA(r=1.0, g=0.2, b=0.8, a=0.9)
             arr.markers.append(m)
+        for source, hazards, color in (
+                ('yaw_watchdog', self._yaw_hazards,
+                 ColorRGBA(r=0.2, g=0.6, b=1.0, a=0.35)),
+                ('step_detector', self._step_hazards,
+                 ColorRGBA(r=1.0, g=0.1, b=0.0, a=0.35))):
+            for i, (hx, hy, radius) in enumerate(hazards):
+                m = Marker()
+                m.header.frame_id = self.map_frame
+                m.header.stamp = now
+                m.ns = f'hazards_{source}'
+                m.id = i
+                m.type = Marker.CYLINDER
+                m.action = Marker.ADD
+                m.pose.position.x = hx
+                m.pose.position.y = hy
+                m.pose.position.z = 0.03
+                m.pose.orientation.w = 1.0
+                m.scale.x = radius * 2.0
+                m.scale.y = radius * 2.0
+                m.scale.z = 0.06
+                m.color = color
+                arr.markers.append(m)
         self._marker_pub.publish(arr)
 
 
