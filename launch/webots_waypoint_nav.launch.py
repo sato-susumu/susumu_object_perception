@@ -69,6 +69,8 @@ def generate_launch_description():
         'object_memory_delete_thresh')
     object_memory_miss_tp = LaunchConfiguration('object_memory_miss_tp')
     object_memory_miss_fp = LaunchConfiguration('object_memory_miss_fp')
+    object_memory_visible_range = LaunchConfiguration(
+        'object_memory_visible_range')
     tl_method = LaunchConfiguration('traffic_light_method')
     tl_weights = LaunchConfiguration('traffic_light_weights')
     indoor_objects = LaunchConfiguration('indoor_objects')
@@ -145,6 +147,7 @@ def generate_launch_description():
             ('object_memory_delete_thresh', object_memory_delete_thresh),
             ('object_memory_miss_tp', object_memory_miss_tp),
             ('object_memory_miss_fp', object_memory_miss_fp),
+            ('object_memory_visible_range', object_memory_visible_range),
             ('traffic_light_method', tl_method),
             ('traffic_light_weights', tl_weights),
             ('indoor_objects', indoor_objects),
@@ -358,6 +361,11 @@ def generate_launch_description():
             'object_memory_miss_fp', default_value='0.6',
             description=('object_memory の miss 観測時の FP 確率 (既定 0.6)。 '
                          '下げると減衰が緩む')),
+        DeclareLaunchArgument(
+            'object_memory_visible_range', default_value='8.0',
+            description=('object_memory の「見えるはず」 判定レンジ [m] (既定 8.0)。 '
+                         '短くする (例 5.0) と遠い物体に対する negative observation を抑え、 '
+                         '一度認識した物体が離れても忘却されにくくなる')),
         DeclareLaunchArgument(
             'traffic_light_method', default_value='classic',
             description=('信号認識バックエンド: classic (HSV+円形度、 学習不要、 既定) または '

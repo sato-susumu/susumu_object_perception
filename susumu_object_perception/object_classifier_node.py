@@ -22,12 +22,15 @@ import math
 import json
 import os
 import time
+from collections import deque
 
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+from rclpy.time import Time as RclTime
+from rclpy.duration import Duration as RclDuration
 
 from sensor_msgs.msg import Image
 from autoware_perception_msgs.msg import (TrackedObjects, ObjectClassification)
@@ -488,6 +491,22 @@ class ObjectClassifierNode(Node):
         #                     candidate_key, candidate_hits, misses)
         self._class_cache = {}
 
+        # 【時刻同期】移動中は tracked_objects の時刻と画像の時刻がズレると、
+        # ロボットが動いた分だけ「画像上で物体方向と思った場所」が物理的にズレて
+        # クロップ中心が別物体・壁・空白を指し、YOLO の誤分類が空中ゴーストの
+        # tracked_objects と紐付いて「何もない場所で何かを検出」する現象になる。
+        # 物体時刻に最も近い画像と TF を選び直し、ロボット移動の影響を相殺する。
+        # （colorized_pointcloud_node の image_buffer + image_sync_max_dt と同じ作法）
+        # 既定 0.5s: Webots cylindrical camera は実機計測で ~0.25s 程度の publish 遅延
+        # を持ち、 0.2s では毎フレーム同期不能で分類スキップが多発する。 0.5s ならば
+        # 同期失敗を避けつつ、 「latest 画像 + 最新 TF」の素の lookup よりも常に
+        # 画像時刻に近い TF を引ける分、 crop 方向の精度は改善する。
+        self.image_buffer_len = int(self.declare_parameter(
+            'image_buffer_len', 30).value)
+        self.image_sync_max_dt = float(self.declare_parameter(
+            'image_sync_max_dt', 0.5).value)
+        self.image_buffer = deque(maxlen=max(1, self.image_buffer_len))
+
         # 分類器初期化。失敗したら無分類で素通しせず FATAL で終了（自動フォールバック禁止）。
         try:
             self.classifier = YoloClassifier(
@@ -555,21 +574,63 @@ class ObjectClassifierNode(Node):
 
     def on_image(self, msg):
         try:
-            self.latest_image = (
-                self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8'),
-                msg.header.stamp)
+            img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except Exception as exc:
             self.get_logger().warning('omni image decode 失敗: %s' % exc)
+            return
+        t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        self.image_buffer.append((t, img, msg.header.stamp))
+        # 互換: 古いコードパスから参照される latest_image も維持する。
+        self.latest_image = (img, msg.header.stamp)
 
-    def _transform_point(self, point, source_frame):
+    def _image_at(self, target_stamp):
+        """target_stamp に最も近い画像を返す。image_sync_max_dt を超えるなら (None, dt)。
+
+        target_stamp は builtin_interfaces/Time。バッファに何も無いときは
+        (None, None) を返す。ロボット移動中は画像 latency 分だけ object 時刻と
+        画像時刻が乖離する。物体方向の crop 中心がズレないよう、物体時刻に近い
+        画像を選び直す。
+        """
+        if not self.image_buffer:
+            return None, None, None
+        ct = target_stamp.sec + target_stamp.nanosec * 1e-9
+        best = None
+        for entry in self.image_buffer:
+            dt = abs(entry[0] - ct)
+            if best is None or dt < best[0]:
+                best = (dt, entry)
+        if best[0] <= self.image_sync_max_dt:
+            _, (_, img, stamp) = best
+            return img, best[0], stamp
+        return None, best[0], None
+
+    def _transform_point(self, point, source_frame, lookup_stamp=None):
         return self._transform_xyz(
             (float(point.x), float(point.y), float(point.z)),
-            source_frame)
+            source_frame, lookup_stamp)
 
-    def _transform_xyz(self, xyz, source_frame):
+    def _transform_xyz(self, xyz, source_frame, lookup_stamp=None):
+        """lookup_stamp の時点での camera_frame <- source_frame 変換を使う。
+
+        lookup_stamp=None は legacy の latest（rclpy.time.Time()）。これは画像と
+        物体の時刻が一致している前提を満たさず、移動中に crop 中心がズレる。
+        移動物体・移動ロボット環境では tracked_objects の stamp を渡すこと。
+        """
         try:
-            tf = self.tf_buffer.lookup_transform(
-                self.camera_frame, source_frame, rclpy.time.Time())
+            if lookup_stamp is None:
+                tf = self.tf_buffer.lookup_transform(
+                    self.camera_frame, source_frame, rclpy.time.Time())
+            else:
+                # stamp 指定で取れないときは latest にフォールバック（TF が
+                # 過去の bake をすぐ捨てるパス用の救済。logger は throttle で抑制）。
+                try:
+                    tf = self.tf_buffer.lookup_transform(
+                        self.camera_frame, source_frame,
+                        RclTime.from_msg(lookup_stamp),
+                        RclDuration(seconds=0.05))
+                except TransformException:
+                    tf = self.tf_buffer.lookup_transform(
+                        self.camera_frame, source_frame, rclpy.time.Time())
         except TransformException as exc:
             self.get_logger().warning(
                 'no transform %s <- %s: %s'
@@ -753,7 +814,7 @@ class ObjectClassifierNode(Node):
         return cv2.remap(pano, map_x, map_y, interpolation=cv2.INTER_LINEAR,
                          borderMode=cv2.BORDER_WRAP)
 
-    def _crop_center_specs(self, obj, source_frame):
+    def _crop_center_specs(self, obj, source_frame, lookup_stamp=None):
         pose = obj.kinematics.pose_with_covariance.pose
         p = pose.position
         try:
@@ -767,7 +828,7 @@ class ObjectClassifierNode(Node):
             cx = float(p.x)
             cy = float(p.y)
             cz = float(p.z) + shape_z * float(height_frac)
-            p_cam = self._transform_xyz((cx, cy, cz), source_frame)
+            p_cam = self._transform_xyz((cx, cy, cz), source_frame, lookup_stamp)
             if p_cam is not None:
                 specs.append((p_cam, float(height_frac), (cx, cy, cz)))
         return specs
@@ -810,13 +871,13 @@ class ObjectClassifierNode(Node):
                                        dtype=np.float32)
         return corners, center
 
-    def _shape_bbox_crop_specs(self, obj, source_frame):
+    def _shape_bbox_crop_specs(self, obj, source_frame, lookup_stamp=None):
         if not self.crop_shape_bbox_margins:
             return []
         corners_src, center_src = self._bbox_corners_source(obj)
         if not corners_src or center_src is None:
             return []
-        center_cam = self._transform_xyz(center_src, source_frame)
+        center_cam = self._transform_xyz(center_src, source_frame, lookup_stamp)
         if center_cam is None or np.linalg.norm(center_cam) < 1e-6:
             return []
         basis = self._direction_basis(center_cam)
@@ -825,7 +886,7 @@ class ObjectClassifierNode(Node):
         forward, right, up = basis
         corners_cam = []
         for corner in corners_src:
-            p_cam = self._transform_xyz(corner, source_frame)
+            p_cam = self._transform_xyz(corner, source_frame, lookup_stamp)
             if p_cam is not None and np.linalg.norm(p_cam) > 1e-6:
                 corners_cam.append(p_cam)
         if len(corners_cam) < 2:
@@ -875,11 +936,35 @@ class ObjectClassifierNode(Node):
         return specs
 
     def on_objects(self, msg: TrackedObjects):
-        if self.latest_image is None or not msg.objects:
+        if not msg.objects:
+            self.pub_objects.publish(msg)
+            return
+        # 物体時刻に最も近い画像を選ぶ。ロボット移動中は最新画像 + 最新 TF を
+        # 物体時刻に当てると crop 中心が画像内でロボット移動分ズレ、別物体・壁・
+        # 空白を YOLO に食わせる空中ゴースト原因になる。同時刻ペアが取れないなら
+        # 分類はスキップして物体情報だけ素通しする。
+        sync_image, sync_dt, sync_stamp = self._image_at(msg.header.stamp)
+        if sync_image is None and self.latest_image is None:
             # 画像が無い間は素通し（分類できないが物体情報は失わない）。
             self.pub_objects.publish(msg)
             return
-        pano, _ = self.latest_image
+        if sync_image is None:
+            # 同期不能だが画像はある。互換のため latest を使うが分類はせず素通し
+            # （古い画像で誤分類するより、未分類のまま下流に渡す方が安全）。
+            self.get_logger().warning(
+                'object_classifier: 物体時刻に近い画像が無い '
+                f'(closest dt={sync_dt}, threshold={self.image_sync_max_dt}s)',
+                throttle_duration_sec=2.0)
+            self.pub_objects.publish(msg)
+            return
+        pano = sync_image
+        # TF lookup は「画像時刻」に揃える。crop は画像上で行うので、画像時刻時点の
+        # ロボット位置から見た物体方向を計算したい。 物体スタンプ (= 最新時刻) で
+        # TF を引くと、 ロボットが画像撮影後に移動した分だけ crop 中心が物理的に
+        # ズレ、 別物体・壁・空白を YOLO に渡してしまう。 物体の world 座標は時間と
+        # ともにあまり動かない (歩行者でも 0.25s で 30cm 程度) ため、 物体位置は
+        # 物体スタンプのもの、 TF だけ画像時刻に揃えるのが crop 精度として正しい。
+        tf_lookup_stamp = sync_stamp if sync_stamp is not None else msg.header.stamp
 
         # 間引き(1): 処理レート上限。前回の YOLO 推論から _min_interval 秒経つまで
         # 新規推論せず、キャッシュ済みの分類だけ当てて素通しする。
@@ -904,7 +989,8 @@ class ObjectClassifierNode(Node):
                 pose = obj.kinematics.pose_with_covariance.pose
                 crops = []
                 for p_cam, crop_height_frac, crop_center_xyz in \
-                        self._crop_center_specs(obj, msg.header.frame_id):
+                        self._crop_center_specs(
+                            obj, msg.header.frame_id, tf_lookup_stamp):
                     for crop_fov in self.crop_fovs:
                         for crop_yaw in self.crop_yaw_offsets:
                             for crop_pitch in self.crop_pitch_offsets:
@@ -920,7 +1006,7 @@ class ObjectClassifierNode(Node):
                 for p_cam, crop_height_frac, crop_center_xyz, crop_mode, \
                         bbox_margin_deg, bbox_projected_fov_deg, crop_fov in \
                         self._shape_bbox_crop_specs(
-                            obj, msg.header.frame_id):
+                            obj, msg.header.frame_id, tf_lookup_stamp):
                     for crop_yaw in self.crop_yaw_offsets:
                         for crop_pitch in self.crop_pitch_offsets:
                             crop = self._perspective_crop(

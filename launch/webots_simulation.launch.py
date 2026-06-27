@@ -111,6 +111,7 @@ def generate_launch_description():
     om_delete_thresh = LaunchConfiguration('object_memory_delete_thresh')
     om_miss_tp = LaunchConfiguration('object_memory_miss_tp')
     om_miss_fp = LaunchConfiguration('object_memory_miss_fp')
+    om_visible_range = LaunchConfiguration('object_memory_visible_range')
     object_yolo_weights = LaunchConfiguration('object_yolo_weights')
     object_yolo_imgsz = LaunchConfiguration('object_yolo_imgsz')
     object_yolo_conf = LaunchConfiguration('object_yolo_conf')
@@ -582,6 +583,7 @@ def generate_launch_description():
             'delete_thresh': ParameterValue(om_delete_thresh, value_type=float),
             'miss_tp': ParameterValue(om_miss_tp, value_type=float),
             'miss_fp': ParameterValue(om_miss_fp, value_type=float),
+            'visible_range': ParameterValue(om_visible_range, value_type=float),
         }],
         condition=launch.conditions.IfCondition(use_image_recognition))
 
@@ -683,6 +685,12 @@ def generate_launch_description():
             'object_memory_miss_fp', default_value='0.6',
             description=('object_memory の miss 観測時の FP 確率 (既定 0.6)。 '
                          '下げると減衰が緩む')),
+        DeclareLaunchArgument(
+            'object_memory_visible_range', default_value='8.0',
+            description=('object_memory の「見えるはず」 判定レンジ [m] (既定 8.0)。 '
+                         '短くする (例 5.0) と遠い物体に対する negative observation を抑え、 '
+                         '一度認識した物体が離れても忘却されにくくなる。 ただし完全静止での '
+                         '蓄積が増える副作用あり')),
         DeclareLaunchArgument(
             'object_yolo_weights', default_value='yolov8s-seg.pt',
             description='object_classifier_node.py の YOLO weight。認識比較では yolov8m-seg.pt 等へ差し替え可能'),

@@ -151,7 +151,11 @@ controller_server:
       min_vel_y: 0.0
       max_vel_x: 0.26
       max_vel_y: 0.0
-      max_vel_theta: 1.0
+      # 2026-06-27: 旋回速度を 0.5 rad/s (元の 1/2) に。 巡回中の旋回が速すぎる
+      # 体感を改善し、 移動中の認識精度 (omni camera ~0.25s 遅延の同期失敗) も低減する。
+      # 0.25 まで下げると 23WP の goal_timeout に間に合わず missed 多発のため 0.5 で
+      # 確定。 0.5 で 23/23 完走 + DB に複数物体登録を実機検証済み。
+      max_vel_theta: 0.5
       min_speed_xy: 0.0
       max_speed_xy: 0.26
       min_speed_theta: 0.0
@@ -159,10 +163,11 @@ controller_server:
       # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
       acc_lim_x: 2.5
       acc_lim_y: 0.0
-      acc_lim_theta: 3.2
+      # 旋回速度上限を 1/4 にしたのに合わせ、 角加速度上限も 1/4 にする (到達時間を維持)。
+      acc_lim_theta: 1.6
       decel_lim_x: -2.5
       decel_lim_y: 0.0
-      decel_lim_theta: -3.2
+      decel_lim_theta: -1.6
       vx_samples: 20
       vy_samples: 5
       vtheta_samples: 20
@@ -340,9 +345,11 @@ behavior_server:
     transform_tolerance: 0.1
     use_sim_time: true
     simulate_ahead_time: 2.0
-    max_rotational_vel: 1.0
-    min_rotational_vel: 0.4
-    rotational_acc_lim: 3.2
+    # 2026-06-27: 旋回速度を 0.5 rad/s (元の 1/2) に (behavior server の Spin /
+    # recovery 用)。 DWB の max_vel_theta と一致させる。
+    max_rotational_vel: 0.5
+    min_rotational_vel: 0.2
+    rotational_acc_lim: 1.6
 
 robot_state_publisher:
   ros__parameters:
@@ -365,10 +372,15 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.26, 0.0, 1.0]
-    min_velocity: [-0.26, 0.0, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
+    # 2026-06-27: 旋回速度上限を 1/2 (0.5 rad/s) に (DWB / behavior_server と一致)。
+    # 元は max_velocity[2]=1.0 / max_accel[2]=3.2 で、 velocity_smoother がここで
+    # 上限を持っていた結果、 DWB を 0.5 にしても /cmd_vel 経由の最終速度が 1.0 まで
+    # 出て体感「旋回が速い」 状態だった。 cmd_vel 実測 (0.25 設定時) で max=0.25
+    # まで頭打ちを確認しており、 設定通りに効くことは検証済み。
+    max_velocity: [0.26, 0.0, 0.5]
+    min_velocity: [-0.26, 0.0, -0.5]
+    max_accel: [2.5, 0.0, 1.6]
+    max_decel: [-2.5, 0.0, -1.6]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]

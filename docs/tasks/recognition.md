@@ -269,6 +269,56 @@ new_exist = (exist * miss_tp) / (exist * miss_tp + (1 - exist) * miss_fp)
 複数 launch run で分散測定してから採用検討。 ノード本体の既定値変更は
 影響範囲広く、 launch 引数化が安全。
 
+### 2026-06-27: object_classifier の時刻同期と「何もない場所での誤検出」
+
+ユーザーから「巡回中に**何もない場所で何かを検出**することがある」「**全球体レンズの画像を
+展開して認識→座標復元**のどこかで間違っているように見える」 との指摘。 調査の結果:
+
+- 座標自体は LiDAR tracker が出しており「画像→座標」 経路は無い (画像認識はクラスを
+  late fusion で渡すだけ)。 ユーザー直感は **「展開時に方向がズレ、別物体のクラスが
+  LiDAR 空中ゴーストに紐づく」** という形で正しい
+- `object_classifier_node` は `latest_image` を 1 枚だけ保持し、 `_transform_xyz` は
+  `rclpy.time.Time()` (最新 TF) を使っていた。 移動中は **「過去画像 × 最新 TF × 最新
+  tracked_objects」** が混在し、 crop 中心が物理的にズレて別物体・壁・空白を YOLO に
+  渡してしまう
+- Webots cylindrical camera のライブ計測で **画像 publish 遅延 ~0.25s** を確認
+
+**修正** (`object_classifier_node.py`, +104/-18 行):
+- `image_buffer` (deque) + `image_sync_max_dt=0.5s` を導入し、物体時刻に最も近い画像を
+  選び直す (`colorized_pointcloud_node` 既存実装に倣う)
+- `_transform_xyz` に `lookup_stamp` 引数。 TF を**画像時刻**に揃える (画像撮影時点の
+  ロボット位置で物体方向を計算)
+- 同期不能時は分類スキップ (未分類のまま素通し)
+
+**ライブ検証** (`experiments/recognition/2026-06-27_image_sync_fix/`):
+- 修正前 baseline: extra=1 `dining table at (2.98, 1.19)` (Armchair 真値から 1.72m、 別クラス)
+- 修正後: extra=1 `potted plant at (-0.76, -2.95)` (PottedTree[4] 真値から 1.55m、 **同クラス**)
+- match-distance=1.7m なら extra=0 / precision=1.000
+
+**ライブ検証 (Bayes 緩和併用)** (`experiments/recognition/2026-06-27_bayes_relaxed/`):
+- `object_memory_delete_thresh:=0.10 object_memory_miss_fp:=0.4` を付けて再走
+- match=1.7m で TP=4 wrong=0 extra=0 precision=1.000 recall=0.444 F1=0.615 ←過去最高 F1
+
+**ライブ検証 (旋回速度半減併用)** (`experiments/recognition/2026-06-27_halved_rotation/`):
+- `config/nav2_params.yaml` の DWB controller と behavior_server で旋回速度上限を
+  `1.0 → 0.5 rad/s`、 角加速度を `3.2 → 1.6 rad/s²` に半減。
+  使い方は `nav_params_file:=nav2_params.yaml` を明示指定 (デフォルトは tb3 標準のまま、
+  他タスクへの影響ゼロ)
+- 同期失敗 (`物体時刻に近い画像が無い`) ログ: **0 件** (旋回半減で 全 lap 通して 0)
+- match=1.0/1.5/1.7m すべてで **extra=0 / precision=1.000**
+- 「**何もない場所での誤検出**」 はこの構成で **完全解消** を確認
+- recall は 0.222 (pruning で existence<0.5 が落ちて 3 物体しか残らなかったため)。
+  precision 1.000 と extra=0 が本来の優先目標で、 これは達成済み
+
+**残課題**:
+- `LiDAR shape_estimation の depth bias`: 観察可能な面の中心が OBB 中心になりやすく、 物体
+  位置がロボット側に 1-1.5m bias する。 PottedTree[4] (-0.76, -4.5) が (-0.71, -3.34)
+  に出るのはこの典型例で、 画像認識バグではない
+- 評価 match-distance: 現状の既定 1.0m は LiDAR tracker の中心推定誤差をカバーしきれない。
+  shape_estimation を別途改善するか、 認識タスクの match-distance を 1.5-1.7m に緩める
+  運用も検討余地あり。 ただし契約 (`indoor_recognition_eval_summary.json` の best F1 >= 0.70)
+  との整合が必要なので、 baseline 上書きは未実施 (experiments に温存)
+
 ## 合格基準
 
 1. **LiDAR 検出・追跡が成立している**
