@@ -129,6 +129,8 @@ install(PROGRAMS
   scripts/clear_tables.py
   scripts/visualize_patrol_result.py
   scripts/visualize_step_events.py
+  scripts/record_traffic_light_stats.py
+  scripts/summarize_traffic_light_stats.py
   scripts/visualize_calib_result.py
   scripts/direct_calib_to_tf.py
   scripts/validate_colorized_pointcloud_quality.py
@@ -158,6 +160,7 @@ install(PROGRAMS
   scripts/render_recognition_overlay.py
   scripts/filter_object_memory_db.py
   scripts/evaluate_recognition_vs_world.py
+  scripts/summarize_recognition_eval.py
   scripts/generate_recognition_debug_viewpoints.py
   scripts/record_recognition_debug.py
   scripts/evaluate_debug_crops_yolo.py

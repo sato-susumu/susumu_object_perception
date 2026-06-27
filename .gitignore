@@ -77,6 +77,7 @@ outputs/**/*.png
 !outputs/recognition/indoor_recognition_overlay.png
 # 認識タスクの評価 + 巡回品質 PNG (iter27 で生成、 ユーザー指示「PNG 必須」 対応)。
 !outputs/recognition/*_recognition_eval.png
+!outputs/recognition/*_recognition_eval_ignore_table_sofa.png
 !outputs/recognition/*_recognition_patrol_result.png
 !outputs/waypoint_generation/*.png
 !outputs/mapping_indoor/*_vs_world.png
@@ -94,8 +95,10 @@ outputs/colorized_pointcloud/*.ply
 outputs/colorized_pointcloud/*.json
 outputs/colorized_pointcloud/*.csv
 outputs/colorized_pointcloud/*.txt
-# 例外: 検査用 PNG (XY 俯瞰 + XZ 側面) は contracts として置く (~200KB)。
+# 例外: 検査用 PNG/JSON (XY 俯瞰 + XZ 側面 + 品質メトリクス) は contracts として置く。
 !outputs/colorized_pointcloud/*_check.png
+!outputs/colorized_pointcloud/*_check.json
+!outputs/colorized_pointcloud/colorized_pointcloud_quality_summary.json
 
 # ===== 中間成果物（実験ログ・cycle 系・検証中の地図/CSV/JSON/MD） =====
 # 整理: 最終成果物は outputs/<task>/ にタスク別フォルダで契約名固定、
