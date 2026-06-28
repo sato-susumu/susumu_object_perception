@@ -7,6 +7,11 @@
 設計は Autoware の traffic_light recognition と、ROS2 で信号認識を実践している例を
 参照して決めた。要点と根拠は「設計判断の根拠」に記す。
 
+> **入門向けの仕組み解説** は [`omni_camera_recognition.md`](omni_camera_recognition.md)
+> を参照。全天球画像をなぜ N 分割の透視ビューに展開してから検出するのか、隣接ビュー
+> の重なりに何の意味があるのかを、立方体パネル図で図解している。本ドキュメントはノード
+> の API・パラメータ・トピック契約の正本としての位置付け。
+
 ## スコープ（このフェーズ）
 
 - 入力: **全天球カメラ画像**（既定 `/omni_camera/image_raw/image_color`、Webots cylindrical の

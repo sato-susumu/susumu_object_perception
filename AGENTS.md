@@ -22,9 +22,9 @@ ROS 2 Humble + **Gazebo Classic 11** 上の**シミュレーター**統合パッ
 | 自律移動 | **Nav2**。`'/scan'` を costmap obstacle_layer に使用（`'/scan'` は 3D 点群から pointcloud_to_laserscan で生成） |
 | 操縦 | **Teleop / 自動巡回 GUI**（`teleop_gui_node.py`）で手動操縦・自動巡回 |
 | perception | **Autoware LiDAR sensing/perception パイプライン**（既定 ON）。`'/lidar/points'` を Autoware 純正の crop_box → ground_filter → euclidean_cluster で検出し、Python 自作ノードで形状推定・追跡・予測・可視化を補完。詳細は [`docs/autoware_perception.md`](docs/autoware_perception.md) |
-| 全天球カメラ | ロボット上部の **Webots cylindrical 全天球カメラ**（`/omni_camera/image_raw/image_color`）。色付き点群・物体/信号の画像認識に使う。詳細は [`docs/omni_lidar_camera.md`](docs/omni_lidar_camera.md) |
+| 全天球カメラ | ロボット上部の **Webots cylindrical 全天球カメラ**（`/omni_camera/image_raw/image_color`）。色付き点群・物体/信号の画像認識に使う。ハードウェア/TF/トピックは [`docs/omni_lidar_camera.md`](docs/omni_lidar_camera.md)、認識のしくみ（透視ビュー展開・重なりの理由）は [`docs/omni_camera_recognition.md`](docs/omni_camera_recognition.md) |
 | 物体の画像分類 | LiDAR 検出物体（tracked_objects）の方向の全天球クロップを **YOLOv8(COCO)** で分類し「何か」を判定（`object_classifier_node.py`、late fusion）。`tracked_objects_classified` を出す |
-| 信号認識 | **全天球画像を全周 N 分割の透視ビュー**に展開し各ビューで信号灯を検出・色判定（`traffic_light_detector_node.py`）。`traffic_light_localizer_node.py` が LiDAR と組み合わせ信号の 3D 位置も出す。詳細は [`docs/traffic_light_recognition.md`](docs/traffic_light_recognition.md) |
+| 信号認識 | **全天球画像を全周 N 分割の透視ビュー**に展開し各ビューで信号灯を検出・色判定（`traffic_light_detector_node.py`）。`traffic_light_localizer_node.py` が LiDAR と組み合わせ信号の 3D 位置も出す。ノード仕様は [`docs/traffic_light_recognition.md`](docs/traffic_light_recognition.md)、透視ビュー分割と重なりの考え方は [`docs/omni_camera_recognition.md`](docs/omni_camera_recognition.md) |
 
 - ビルド種別は **`ament_cmake`**（Python ノードは `install(PROGRAMS)` +
   `ament_python_install_package` で同梱。C++ costmap 層は SHARED lib）。
@@ -222,7 +222,8 @@ sequenceDiagram
 | `…/traffic_light_localizer_node.py` | **検出方向 × LiDAR 点群で信号の 3D 位置推定**。方位 + 高さ帯 + 最近傍まとまりで距離決定 | rois + LiDAR → `'/perception/traffic_light/poses'` + `'/perception/traffic_light/markers'` |
 
 詳細は [`docs/traffic_light_recognition.md`](docs/traffic_light_recognition.md)、
-全天球カメラ/色付き点群は [`docs/omni_lidar_camera.md`](docs/omni_lidar_camera.md)。
+全天球カメラ/色付き点群は [`docs/omni_lidar_camera.md`](docs/omni_lidar_camera.md)、
+透視ビュー展開と重なりの考え方は [`docs/omni_camera_recognition.md`](docs/omni_camera_recognition.md)。
 
 ### Nav2 連携（predicted 層）
 
