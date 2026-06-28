@@ -1,0 +1,208 @@
+<?xml version="1.0"?>
+<!--
+  BotWheel Explorer chassis (no sensors, no Gazebo plugins).
+
+  linorobot2 (linorobot/linorobot2, branch=jazzy) の 2wd 構成を骨格として、
+  ODrive BotWheel Explorer Kit の実物寸法に合わせたもの。
+  センサ (LiDAR/camera/IMU) と Gazebo plugin は意図的に未搭載。
+
+  実物寸法 (ODrive 公式ショップ / docs より):
+    overall      : 0.50 (L, x) x 0.30 (W, y) x 0.50 m
+                   (実物 BotWheel Explorer Kit は 0.50 x 0.45 x 0.175m だが、
+                   本ロボットでは W=0.30 に絞り、地上 -> 本体上面が 0.50m に
+                   なるよう chassis 高さを 0.40m に拡張)
+    track width  : 0.419 m (chassis 外側に hub motor がはみ出す配置 = 現物どおり)
+    wheel        : diameter 0.171 m (radius 0.0855 m)
+    ground clear : 0.100 m
+
+  座標系の約束 (linorobot2 base マクロ準拠):
+    base_footprint : 地面 (z=0)
+    base_link      : chassis ボックスの中心。z = wheel_radius - wheel_pos_z
+    wheel_pos_z    : base_link 中心から wheel 軸への z オフセット (負値)
+-->
+<robot name="botwheel_explorer" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- ===== Properties ===== -->
+
+  <!-- Chassis (= base_link). 上面が地上 0.50m に来るように厚み 0.40m とする。 -->
+  <xacro:property name="base_length" value="0.50" />
+  <xacro:property name="base_width"  value="0.30" />
+  <xacro:property name="base_height" value="0.40" />
+  <xacro:property name="base_mass"   value="20.0" />  <!-- 公称 ~20kg (バッテリ+コンピュータ込み) -->
+
+  <!-- Drive wheels (BotWheel hub motor) -->
+  <xacro:property name="wheel_radius" value="0.0855" />
+  <xacro:property name="wheel_width"  value="0.05" />
+  <xacro:property name="wheel_pos_x"  value="0.15" />
+  <xacro:property name="wheel_pos_y"  value="0.2095" />  <!-- track 0.419 / 2 -->
+  <!-- chassis 中心 (地上 0.300m) から wheel 軸 (地上 0.0855m) へのオフセット -->
+  <xacro:property name="wheel_pos_z"  value="-0.2145" />
+  <xacro:property name="wheel_mass"   value="1.0" />
+
+  <!-- Caster wheel (swivel caster, リア 1 つだけ):
+       BotWheel Explorer の実物写真 (ODrive shop / docs / Instagram) から、
+       キャスターは「リア中央に 1 つだけ」「RevB で大型化され、industrial caster の中では大きめ」。
+       主輪 φ171mm の約 6 割の φ100mm (radius 0.050m ≈ 4 inch) を採用。
+       地上クリアランス 100mm にちょうど収まる大型キャスター。
+       旋回軸 (swivel, z 軸まわり) + 転がり輪 (wheel, y 軸まわり) の 2 段構成。 -->
+  <xacro:property name="caster_wheel_radius" value="0.050" />
+  <xacro:property name="caster_wheel_width"  value="0.030" />
+  <xacro:property name="caster_wheel_mass"   value="0.30" />
+  <xacro:property name="caster_swivel_mass"  value="0.10" />
+  <xacro:property name="caster_trail"        value="0.030" />  <!-- 旋回軸 → 車軸 x オフセット (後方) -->
+
+  <!-- swivel 軸は chassis 底面 (地上 0.100m) のリア寄りに取り付ける。
+       chassis 後端から内側に caster_trail + caster_wheel_radius 入った位置で
+       車輪が chassis 後端より内側に収まる配置。 -->
+  <xacro:property name="caster_swivel_inset" value="${caster_trail + caster_wheel_radius}" />
+  <xacro:property name="caster_rear_x"  value="${-(base_length / 2) + caster_swivel_inset}" />
+  <!-- swivel 軸の base_link 中心からの z オフセット = -base_height/2 (chassis 底面, 地上 0.100m) -->
+  <xacro:property name="caster_swivel_z" value="${-base_height/2}" />
+  <!-- swivel から見た wheel 軸の z オフセット.
+       swivel の地上高 = (wheel_radius - wheel_pos_z - base_height/2) = 0.100
+       wheel 軸の地上高 = caster_wheel_radius (球底 = 地上 0)
+       → caster_wheel_dz = caster_wheel_radius - (wheel_radius - wheel_pos_z - base_height/2) -->
+  <xacro:property name="caster_wheel_dz" value="${caster_wheel_radius - (wheel_radius - wheel_pos_z - base_height/2)}" />
+
+  <!-- ===== Materials ===== -->
+  <material name="bw_orange"><color rgba="0.95 0.45 0.10 1.0"/></material>
+  <material name="bw_blue">  <color rgba="0.18 0.46 0.85 1.0"/></material>
+  <material name="bw_black"> <color rgba="0.05 0.05 0.05 1.0"/></material>
+
+  <!-- ===== base_footprint / base_link (chassis) ===== -->
+
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${base_length} ${base_width} ${base_height}"/>
+      </geometry>
+      <material name="bw_orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${base_length} ${base_width} ${base_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${base_mass}"/>
+      <inertia
+        ixx="${(1.0/12.0) * base_mass * (base_width*base_width  + base_height*base_height)}" ixy="0.0" ixz="0.0"
+        iyy="${(1.0/12.0) * base_mass * (base_length*base_length + base_height*base_height)}" iyz="0.0"
+        izz="${(1.0/12.0) * base_mass * (base_length*base_length + base_width*base_width)}"/>
+    </inertial>
+  </link>
+
+  <joint name="base_to_footprint" type="fixed">
+    <parent link="base_footprint"/>
+    <child  link="base_link"/>
+    <origin xyz="0 0 ${wheel_radius - wheel_pos_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== Drive wheels ===== -->
+
+  <xacro:macro name="bw_wheel" params="side y_sign">
+    <link name="${side}_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="bw_blue"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${wheel_mass}"/>
+        <inertia
+          ixx="${(1.0/12.0) * wheel_mass * (3*wheel_radius*wheel_radius + wheel_width*wheel_width)}" ixy="0" ixz="0"
+          iyy="${(1.0/12.0) * wheel_mass * (3*wheel_radius*wheel_radius + wheel_width*wheel_width)}" iyz="0"
+          izz="${(1.0/2.0)  * wheel_mass * (wheel_radius*wheel_radius)}"/>
+      </inertial>
+    </link>
+    <joint name="${side}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child  link="${side}_wheel_link"/>
+      <origin xyz="${wheel_pos_x} ${y_sign * wheel_pos_y} ${wheel_pos_z}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <dynamics damping="0.2"/>
+      <limit effort="20" velocity="3.0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:bw_wheel side="left"  y_sign="1"/>
+  <xacro:bw_wheel side="right" y_sign="-1"/>
+
+  <!-- ===== Caster wheels (front / rear) ===== -->
+
+  <xacro:macro name="bw_caster" params="side pos_x">
+    <!-- (1) swivel link : base_link に対し z 軸まわりに回転する小さなフォーク -->
+    <link name="${side}_caster_swivel_link">
+      <visual>
+        <!-- フォークを可視化するための細い縦長 box (機能なし、ただの目印) -->
+        <origin xyz="0 0 ${-(base_height/2 - (wheel_radius - wheel_pos_z) - caster_wheel_radius)/2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.020 0.020 ${(wheel_radius - wheel_pos_z - base_height/2) - caster_wheel_radius}"/>
+        </geometry>
+        <material name="bw_black"/>
+      </visual>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${caster_swivel_mass}"/>
+        <inertia ixx="1.0e-5" ixy="0" ixz="0" iyy="1.0e-5" iyz="0" izz="1.0e-5"/>
+      </inertial>
+    </link>
+    <joint name="${side}_caster_swivel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child  link="${side}_caster_swivel_link"/>
+      <origin xyz="${pos_x} 0 ${caster_swivel_z}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <dynamics damping="0.05"/>
+    </joint>
+
+    <!-- (2) wheel link : swivel フォークの先で y 軸まわりに転がる小型シリンダ -->
+    <link name="${side}_caster_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${caster_wheel_radius}" length="${caster_wheel_width}"/>
+        </geometry>
+        <material name="bw_black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${caster_wheel_radius}" length="${caster_wheel_width}"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${caster_wheel_mass}"/>
+        <inertia
+          ixx="${(1.0/12.0) * caster_wheel_mass * (3*caster_wheel_radius*caster_wheel_radius + caster_wheel_width*caster_wheel_width)}" ixy="0" ixz="0"
+          iyy="${(1.0/12.0) * caster_wheel_mass * (3*caster_wheel_radius*caster_wheel_radius + caster_wheel_width*caster_wheel_width)}" iyz="0"
+          izz="${(1.0/2.0)  * caster_wheel_mass * (caster_wheel_radius*caster_wheel_radius)}"/>
+      </inertial>
+    </link>
+    <joint name="${side}_caster_wheel_joint" type="continuous">
+      <parent link="${side}_caster_swivel_link"/>
+      <child  link="${side}_caster_wheel_link"/>
+      <!-- swivel 軸から trail だけ後方 (= -x 方向) に車軸を取り付ける -->
+      <origin xyz="${-caster_trail} 0 ${caster_wheel_dz}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <dynamics damping="0.02"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:bw_caster side="rear"  pos_x="${caster_rear_x}"/>
+
+</robot>
