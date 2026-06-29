@@ -24,12 +24,34 @@
 屋外本線は **GLIM で 3D 点群を作る → trajectory 条件を比較 → Nav2 用 2D 地図化 → waypoint 生成 →
 保存地図巡回で評価** にする。`slam_toolbox` の `/scan` 2D SLAM を屋外本線にはしない。
 
-理由:
+```mermaid
+flowchart LR
+  W["屋外 world<br/>village_*"] --> GLIM["GLIM 3D mapping<br/>/slam/glim_colorized_points_map"]
+  GLIM --> PLY["PLY 保存<br/>save_pointcloud2_to_ply.py"]
+  GLIM --> TUM["trajectory 保存<br/>save_pose_trajectory_to_tum.py"]
+  PLY --> VAR["evaluate_glim_map_variants.py<br/>trajectory 条件を横比較"]
+  TUM --> VAR
+  VAR --> MAP2D["Nav2 用 2D map<br/>*_glim2d.yaml/.pgm"]
+  MAP2D --> WP["generate_outdoor_waypoints.py<br/>hazard / route 展開診断"]
+  WP --> NAV["webots_outdoor_waypoint_nav.launch.py<br/>保存地図巡回"]
+  GT["world 由来 gt map<br/>評価専用"] --> CHECK["check_map_vs_world.py"]
+  MAP2D --> CHECK
+  NAV --> REPORT["patrol / monitor / step event report"]
 
-- MID360 の 3D 情報を 2D LaserScan へ潰すと、段差・縁石・フェンス付近で yaw drift や占有欠落が出やすい。
-- 特徴の少ない `outdoor.wbt` / `city_robot.wbt` は、2D scan match だけでは安定した地図を作りにくい。
-- 都市部・公園のようにフェンス、植栽、ベンチ、街灯、小建物が複数方向にある world では、
-  GLIM の 3D 点群から Nav2 用 2D map を作る方が筋が良い。
+  classDef sensor fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef calc fill:#455a64,stroke:#263238,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class W,GT sensor;
+  class GLIM,PLY,TUM,VAR,WP,NAV,CHECK calc;
+  class MAP2D,REPORT out;
+```
+
+| 判断 | 理由 |
+|---|---|
+| 2D `/scan` SLAM を屋外本線にしない | MID360 の 3D 情報を 2D LaserScan へ潰すと、段差・縁石・フェンス付近で yaw drift や占有欠落が出やすい |
+| `outdoor.wbt` / `city_robot.wbt` は慎重扱い | 特徴が少ない広域 world は 2D scan match だけでは安定した地図を作りにくい |
+| GLIM-first を本線にする | フェンス、植栽、ベンチ、街灯、小建物が複数方向にある world では、3D 点群から Nav2 用 2D map を作る方が筋が良い |
+| `*_gt.yaml` は評価専用 | world 由来の真値地図を `map_file` や waypoint 生成の入力にすると、センサ地図作成タスクではなくなる |
 
 重要: `outputs/mapping_outdoor/*_gt.yaml` は正解データであり、`map_file` や waypoint 生成の入力にしない。
 world 由来地図は評価専用。Nav2 が読む地図は、GLIM のセンサ点群から作った保存地図にする。

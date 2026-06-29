@@ -24,6 +24,36 @@ Gazebo Classic 11 は通常カメラの ROS 2 plugin は使えるが、全天球
 
 そのため、Webots では真の球面投影カメラを使い、Gazebo 側は将来確認用の6面カメラ合成フォールバックを残す。
 
+## 全体構成
+
+全天球カメラは「認識用の画像」と「LiDAR 点群へ色を付ける画像」を兼ねる。どちらも同じ
+`omni_projection.py` と `lidar_link -> omni_camera_link` TF を使う。
+
+```mermaid
+flowchart LR
+  CAM["Webots cylindrical camera<br/>/omni_camera/image_raw/image_color"] --> PROJ["omni_projection.py<br/>equirect / perspective"]
+  TF["lidar_link -> omni_camera_link<br/>初期値 or calib.json"] --> PROJ
+  LIDAR["3D LiDAR<br/>/lidar/points"] --> COLOR["colorized_pointcloud_node<br/>RGB 付与"]
+  PROJ --> COLOR
+  COLOR --> CLOUD["/perception/colorized_points<br/>/slam/*colorized_points_map"]
+
+  PROJ --> CROP["object_classifier_node<br/>tracked object 方向クロップ"]
+  TRACK["/perception/tracked_objects"] --> CROP
+  CROP --> CLASSIFIED["/perception/tracked_objects_classified"]
+
+  PROJ --> TL["traffic_light_detector_node<br/>全周透視ビュー"]
+  TL --> SIGNAL["/perception/traffic_signals<br/>/perception/traffic_light/rois"]
+
+  CALIB["extrinsic_calibration<br/>AprilTag / targetless"] --> TF
+
+  classDef sensor fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef calc fill:#455a64,stroke:#263238,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class CAM,LIDAR,TRACK sensor;
+  class PROJ,TF,COLOR,CROP,TL,CALIB calc;
+  class CLOUD,CLASSIFIED,SIGNAL out;
+```
+
 ## 追加トピック
 
 Webots:
@@ -56,6 +86,12 @@ TF:
 この `lidar_link -> omni_camera_link` が外部キャリブレーションの初期値になる。実機や厳密検証では、このTFをキャリブレーション結果で置き換える。
 
 ## キャリブレーション手法の整理
+
+| 方式 | 初期導入 | 精度の出しやすさ | 実機運用 | このプロジェクトでの扱い |
+|---|---|---|---|---|
+| 既知ターゲット | 高い | 高い。対応点が明確 | ターゲット設置が必要 | AprilTag 方式を採用導線にする |
+| 手動対応点 + 最適化 | 中程度 | 対応点選択に依存 | ターゲットなしで始められる | 初期値作成・切り分け用 |
+| ターゲットレス | 低〜中 | 初期値・環境テクスチャに依存 | ターゲット不要で魅力的 | `direct_visual_lidar_calibration` 導線を保持 |
 
 ### 1. 既知ターゲット方式
 

@@ -16,6 +16,44 @@
 | 出力（中間） | `experiments/recognition/<YYYY-MM-DD>_<label>/`（cycle 別の eval / recorder / nav / crops / yolo_compare / viewpoint。gitignore） |
 | Nav2 連携 | prediction のみを `/perception/predicted_costmap` として自作 costmap layer に max 合成 |
 
+## 処理フロー
+
+```mermaid
+flowchart LR
+  LIDAR["3D LiDAR<br/>/lidar/points"] --> DET["Autoware 検出<br/>crop_box -> ground_filter -> cluster"]
+  DET --> SHAPE["shape_estimation<br/>OBB 形状"]
+  SHAPE --> MERGE["detection_by_tracker<br/>過分割統合"]
+  MERGE --> TRACK["object_tracker<br/>ID / 速度 / existence"]
+  TRACK --> PRED["prediction<br/>将来軌跡"]
+  PRED --> COST["/perception/predicted_costmap<br/>Nav2 predicted_layer"]
+  TRACK --> MARK["RViz markers"]
+
+  CAM["全天球画像"] --> CLS["object_classifier<br/>LiDAR方向クロップ + YOLO"]
+  TRACK --> CLS
+  CLS --> MEM["object_memory<br/>SQLite DB"]
+  MEM --> OUT["recognition_overlay.png<br/>eval.{png,json,csv,md}"]
+
+  CAM --> TL["traffic_light_detector<br/>全周透視ビュー"]
+  TL --> TLS["traffic_signals / rois"]
+  TLS --> TLL["traffic_light_localizer<br/>方向 x LiDAR"]
+  LIDAR --> TLL
+
+  classDef sensor fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef own fill:#e65100,stroke:#bf360c,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class LIDAR,CAM sensor;
+  class DET,SHAPE,MERGE,TRACK,PRED,CLS,MEM,TL,TLL,MARK own;
+  class COST,OUT,TLS out;
+```
+
+| 系統 | 入力 | 主出力 | 評価で見るもの |
+|---|---|---|---|
+| LiDAR 検出・追跡 | `/lidar/points`, `/map` | `/perception/tracked_objects` | ID 継続、速度、壁ゴースト有無 |
+| 画像分類 | tracked objects + 全天球画像 | `/perception/tracked_objects_classified` | COCO/Autoware クラス、空白クロップ、誤分類 |
+| 信号認識 | 全天球画像 + LiDAR | `/perception/traffic_signals`, `/perception/traffic_light/poses` | ID チャタリング、色揺れ、3D 位置 |
+| 予測連携 | tracked objects | `/perception/predicted_costmap` | Nav2 costmap を壊さず進路先だけ焼けるか |
+| 最終レビュー | object memory DB + 保存地図 | overlay / eval PNG・JSON・CSV・MD | precision / recall / F1、余分検出、未検出 |
+
 ## 実行
 
 ```bash
@@ -363,5 +401,6 @@ new_exist = (exist * miss_tp) / (exist * miss_tp + (1 - exist) * miss_fp)
 
 - [認識パイプライン詳細](../autoware_perception.md)
 - [信号認識](../traffic_light_recognition.md)
+- [全天球カメラ認識のしくみ・移動時の速度目安](../omni_camera_recognition.md#移動しながら使う場合の速度目安)
 - [全天球カメラ・LiDAR色付き点群メモ](../omni_lidar_camera.md)
 - [ノード接続図](../node_topology.md)

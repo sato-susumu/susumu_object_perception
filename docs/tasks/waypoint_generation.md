@@ -35,18 +35,37 @@ ros2 run susumu_object_perception generate_waypoints.py \
 
 ## 生成アルゴリズム
 
-`generate_waypoints.py` は「なるべく広く回る」と「Nav2 で完走できる」を両立させるため、次の順で処理する。
+`generate_waypoints.py` は「なるべく広く回る」と「Nav2 で完走できる」を両立させるため、
+**通れるか**、**置けるか**、**安全に順序化できるか**を分けて処理する。
 
-1. PGM/YAML を読み、free / occupied / unknown を分類する。
-2. occupied と unknown からの距離変換を作る。
-3. **連結用 clearance**（既定 `0.30m`）で通れる領域を作り、必要なら **経路用 clearance**
-   （`--route-clearance`）で絞った最大連結成分だけを巡回対象にする。
-4. **配置用 clearance**（既定 `0.60m`、例では `0.40m`）を満たすセルだけから、`spacing` グリッドで候補点を作る。
-5. 点間距離は直線距離ではなく、連結成分上の**測地距離**を使う。
-6. 必要なら `--edge-clearance` / `--edge-clearance-weight` で、通行可能だが obstacle / unknown に近い
-   edge を route graph の順序として選びにくくする。
-7. 最近傍法 + 2-opt で巡回順を作り、YAML/PNG を保存する。`--edge-risk-report` を指定すると、
-   edge ごとの clearance risk CSV/JSON/Markdown も保存する。
+```mermaid
+flowchart LR
+  MAP["map yaml + PGM"] --> CELLCLASS["free / occupied / unknown 分類"]
+  CELLCLASS --> DIST["距離変換<br/>obstacle / unknown からの距離"]
+  DIST --> CONNECT["連結用 clearance<br/>通れる領域を作る"]
+  CONNECT --> ROUTE["route clearance<br/>経路用連結成分を抽出"]
+  DIST --> PLACE["配置用 clearance<br/>壁から離れた候補セル"]
+  ROUTE --> GEOD["測地距離行列<br/>連結成分上の最短路"]
+  PLACE --> CAND["spacing / NMS<br/>候補点を間引く"]
+  CAND --> ORDER["NN + 2-opt<br/>巡回順を決定"]
+  GEOD --> ORDER
+  ORDER --> OUT["waypoints.yaml<br/>waypoints.png<br/>*_check.{json,md}"]
+
+  classDef input fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef calc fill:#455a64,stroke:#263238,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class MAP input;
+  class CELLCLASS,DIST,CONNECT,ROUTE,PLACE,GEOD,CAND,ORDER calc;
+  class OUT out;
+```
+
+| 段階 | 使う主な引数 | 役割 | 失敗すると起きること |
+|---|---|---|---|
+| 地図分類 | `--map` | PGM/YAML から free / occupied / unknown を作る | unknown や壁を free と誤解し、候補点が危険域へ出る |
+| 通行判定 | `--connect-clearance`, `--route-clearance` | 部屋・通路が同一連結成分として繋がるかを見る | ドアや家具の隙間で部屋が分断される |
+| 配置判定 | `--clearance`, `--spacing` | 壁から離れた waypoint 候補を作る | 壁際 goal が増え、Nav2 が到達直前で詰まる |
+| 順序化 | `--edge-clearance`, `--edge-clearance-weight` | 直線距離でなく測地距離を使い、危ない edge を避ける | 壁越しジャンプや inflation 近傍の長い edge が残る |
+| 検査 | `check_waypoints.py`, `--edge-risk-report` | clearance / coverage / route edge を数値化する | `reached=N/N` だけでは配置品質の劣化に気付けない |
 
 連結用と配置用の clearance を分けるのが重要。連結判定まで厳しくすると、ドアや家具の隙間で部屋が
 分断される。配置判定は壁から離したいので、連結判定より厳しくする。

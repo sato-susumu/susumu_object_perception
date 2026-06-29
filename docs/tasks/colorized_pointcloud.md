@@ -15,6 +15,36 @@
 | 出力（最終） | `outputs/colorized_pointcloud/colorized_pointcloud_{indoor,breakroom}_apriltag_calib_final.ply`、`colorized_pointcloud_indoor_goal_run_final.ply` の名前固定 PLY（採用版）、各 PLY に対応する `_check.{png,json,md}` (XY 俯瞰 + XZ 側面の検査画像、ブレ・壁二重化・床下散乱・色付き率の数値、JSON は `schema_version` / `validation_passed` / `summary` 付き)、`colorized_pointcloud_quality_summary.{json,md}` (3 PLY の点数・RGB property・色付き率・値域チェック、同じく schema/pass summary 付き)。`validate_contracts.py` が 3 PLY + 各 check 一式 + summary の存在と `validation_passed=true` を検査する |
 | 出力（中間） | `experiments/colorized_pointcloud/<YYYY-MM-DD>_<label>/` または `experiments/colorized_pointcloud/intermediate/`（タイムスタンプ付き `colorized_map_<ts>.ply`、`*_check.png` 等。gitignore） |
 
+## データフロー
+
+```mermaid
+flowchart LR
+  LIDAR["LiDAR PointCloud2<br/>/lidar/points"] --> SYNC["時刻同期<br/>近い画像を選ぶ"]
+  CAM["全天球画像<br/>/omni_camera/image_raw/image_color"] --> SYNC
+  TF["lidar_link -> omni_camera_link<br/>初期 TF または calib.json"] --> PROJ["点群を全天球画像へ投影"]
+  SYNC --> PROJ
+  PROJ --> RGB["RGB 付与<br/>/perception/colorized_points"]
+  RGB --> ACC2D["2D SLAM / odom 蓄積<br/>/slam/colorized_points_map"]
+  RGB --> ACC3D["GLIM 補正座標へ蓄積<br/>/slam/glim_colorized_points_map"]
+  ACC2D --> SAVE["/slam/save_colorized_map<br/>PLY 保存"]
+  ACC3D --> SAVE
+  SAVE --> CHECK["*_check.{png,json,md}<br/>quality summary"]
+
+  classDef sensor fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef calc fill:#455a64,stroke:#263238,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class LIDAR,CAM,TF sensor;
+  class SYNC,PROJ,ACC2D,ACC3D calc;
+  class RGB,SAVE,CHECK out;
+```
+
+| モード | 使う launch | 座標系 | 向く用途 | 注意 |
+|---|---|---|---|---|
+| 単発色付け | `webots_simulation.launch.py colored_slam:=False` | LiDAR frame | 投影確認、色入れ替わり確認 | 地図としては蓄積しない |
+| 2D SLAM 蓄積 | `webots_colored_slam.launch.py` | `map` / `odom` | 屋内の色付き地図、PLY レビュー | odom / SLAM ぶれが壁二重化に出る |
+| GLIM 蓄積 | `webots_glim_colored_slam.launch.py` | `glim_map` | 3D 補正済み点群の蓄積 | GLIM の起動・依存が重い |
+| 停止時のみ蓄積 | `stationary_only:=True` | 上記と同じ | ブレを抑えた採用品質 | 点数は減るため WP 停止との併用が必要 |
+
 ## 実行
 
 単発の色付き点群:

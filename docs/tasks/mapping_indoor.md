@@ -29,6 +29,38 @@ world を frontier 探索で走らせ、`slam_toolbox` が作る 2D OccupancyGri
 
 いずれも壁・家具・人など SLAM の scan match で姿勢を取りやすい「特徴の多い」屋内環境。
 
+## 処理フロー
+
+```mermaid
+flowchart LR
+  W["Webots / Gazebo world"] --> PCL["3D LiDAR 点群"]
+  PCL --> P2L["pointcloud_to_laserscan<br/>/scan"]
+  P2L --> SLAM["slam_toolbox<br/>/map 更新"]
+  SLAM --> FRONTIER["frontier_explore_node<br/>frontier 抽出・採点"]
+  FRONTIER --> NAV["Nav2 NavigateToPose<br/>未踏領域へ移動"]
+  NAV --> W
+  SLAM --> SAVE["map_saver_cli<br/>PGM/YAML 保存"]
+  SAVE --> EVAL["eval_map_quality.py<br/>*_eval.{png,json,md}"]
+  SAVE --> WORLD["check_map_vs_world.py<br/>*_vs_world.{png,json,csv}"]
+  EVAL --> CONTRACT["validate_contracts.py"]
+  WORLD --> CONTRACT
+
+  classDef sim fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef calc fill:#455a64,stroke:#263238,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class W,PCL sim;
+  class P2L,SLAM,FRONTIER,NAV calc;
+  class SAVE,EVAL,WORLD,CONTRACT out;
+```
+
+| 段階 | 主な確認 | 失敗時に疑うもの |
+|---|---|---|
+| `/scan` 生成 | 点数、frame、全周分布 | p2l の height/range、LiDAR frame、DDS |
+| SLAM 更新 | `/map` の壁が単線で伸びる | odom 過大積算、TF、衝突、`mode:=fast` |
+| frontier 移動 | frontier marker、NavigateToPose 結果 | goal blacklist、Nav2 costmap、狭路 |
+| 保存 | `.yaml` と `.pgm` が揃う | map_saver timeout、相対パス、transient local |
+| 評価 | `_eval` と `_vs_world` が pass | stale summary、world/map 差し替え、寸法ずれ |
+
 ## 屋内と屋外は完全に別物として扱う（重要）
 
 設計方針として、**屋内マッピングと屋外マッピングは設定もコードもタスクも完全に分離**する。

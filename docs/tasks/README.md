@@ -17,6 +17,50 @@
 | カラー点群出力 | 基本機能あり、精密較正は課題 | `/perception/colorized_points`、`/slam/*colorized_points_map`、PLY 保存 | 投影誤差 1deg 未満を断言できない。realtime 4方向 validation と較正入力の整備 | [colorized_pointcloud.md](colorized_pointcloud.md) |
 | 外部キャリブレーション | 基本機能あり、並進精密化は課題 | AprilTag 方式（`apriltag_extrinsic_calib_node.py`、回転 0.32°/RMS 9.6mm）と targetless（`direct_visual_lidar_calibration`）。出力 `calib.json` を TF 置換に使い、`calib_summary.{png,json,md}` で採用判定を残す | 並進絶対誤差 24mm（x -23mm）が残る。1cm 未満にはパネルを LiDAR 水平面中心へ下げる等が要る | [extrinsic_calibration.md](extrinsic_calibration.md) |
 
+## タスク依存図
+
+成果物は後段タスクが読む契約パスになっている。図は依存関係だけを示し、具体的な契約パスは
+下の表で確認する。
+
+```mermaid
+flowchart TD
+  subgraph CORE["屋内の地図・巡回・認識"]
+    MI["屋内マップ"] --> WG["WP生成"]
+    WG --> WN["巡回ナビ"]
+    WN --> REC["物体認識評価"]
+    MI --> REC
+  end
+
+  subgraph SENSOR["カメラ・LiDAR連携"]
+    EX["外部キャリブ"] --> CP["カラー点群"]
+    MI --> CP
+    WN --> CP
+    REC --> TL["信号認識統計"]
+  end
+
+  subgraph OUTDOOR["屋外系（実験中）"]
+    MO["屋外GLIM地図"] --> OWG["屋外WP/巡回"]
+  end
+
+  classDef adopted fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  classDef active fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef experimental fill:#455a64,stroke:#263238,color:#fff;
+  class MI,WG,WN adopted;
+  class REC,TL,CP,EX active;
+  class MO,OWG experimental;
+```
+
+| 図のノード | 主な契約パス / 成果物 | 後段での使い道 |
+|---|---|---|
+| 屋内マップ | `outputs/mapping_indoor/*.yaml`, `*.pgm`, `*_eval.*`, `*_vs_world.*` | WP生成、認識 overlay、カラー点群レビュー |
+| WP生成 | `outputs/waypoint_generation/*_waypoints.{yaml,png}`, `*_check.{json,md}` | 巡回ナビ、認識巡回、停止時カラー点群 |
+| 巡回ナビ | `*_patrol_report.*`, `*_patrol_result.*` | 完走証跡、認識・色付き点群の走行条件 |
+| 物体認識評価 | `outputs/recognition/*_overlay.png`, `*_eval.*`, `*_summary.*` | 採用/未採用判断、信号統計との横確認 |
+| 外部キャリブ | `outputs/extrinsic_calibration/calib.json`, `calib_summary.*` | `omni_calibration_json:=` で TF 置換 |
+| カラー点群 | `outputs/colorized_pointcloud/*.ply`, `*_check.*`, `quality_summary.*` | 点群レビュー、色付き地図の品質確認 |
+| 信号認識統計 | `outputs/traffic_light_recognition/*_traffic_*` | 全天球信号認識の ID/色安定性確認 |
+| 屋外GLIM地図 | `outputs/mapping_outdoor/*_glim2d.*` 候補、`*_gt.*` は評価専用 | 屋外WP/巡回の実験入力 |
+
 ## 読む順
 
 初めて触る場合は次の順で読む。

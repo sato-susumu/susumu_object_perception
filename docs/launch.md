@@ -41,6 +41,30 @@
 [`tasks/mapping_indoor.md`](tasks/mapping_indoor.md)、[`tasks/waypoint_generation.md`](tasks/waypoint_generation.md)、
 [`tasks/waypoint_navigation.md`](tasks/waypoint_navigation.md) を参照。
 
+```mermaid
+flowchart TD
+  START["やりたいこと"] --> SIM{"シミュレータ"}
+  SIM -->|Gazebo cafe + HuNav| GZ["simulation.launch.py<br/>全部入り"]
+  SIM -->|Webots world を指定| WB["webots_simulation.launch.py"]
+  START --> TASK{"タスク"}
+  TASK -->|屋内地図を作る| MAP["webots_indoor_mapping.launch.py<br/>outputs/mapping_indoor"]
+  MAP --> WP["generate_waypoints.py<br/>outputs/waypoint_generation"]
+  WP --> NAV["webots_waypoint_nav.launch.py<br/>patrol_result"]
+  TASK -->|屋外 3D 地図を作る| GLIM["webots_outdoor_glim_mapping.launch.py<br/>GLIM point cloud"]
+  GLIM --> GLIM2D["glim_cloud_to_2d_map / evaluate variants<br/>Nav2用2D地図"]
+  GLIM2D --> ONAV["webots_outdoor_waypoint_nav.launch.py"]
+  TASK -->|認識だけ確認| CITY["webots_city.launch.py<br/>car / person / traffic light"]
+  TASK -->|色付き点群| COLOR["webots_colored_slam.launch.py<br/>または webots_glim_colored_slam.launch.py"]
+  TASK -->|外部キャリブ| CALIB["webots_calibration.launch.py<br/>apriltag_calib:=True"]
+
+  classDef entry fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef task fill:#455a64,stroke:#263238,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class GZ,WB,MAP,GLIM,CITY,COLOR,CALIB entry;
+  class WP,GLIM2D task;
+  class NAV,ONAV out;
+```
+
 ```bash
 # 屋内: 事前地図なしの環境を frontier 探索で自律マッピング（完了時 outputs/mapping_indoor/<name> に自動保存）
 #    ★ mode は realtime 必須。fast は odom が ~21% 過大積算しドリフト→地図が崩れる

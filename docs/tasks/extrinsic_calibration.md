@@ -26,6 +26,30 @@
 
 どちらも出力は同じ `calib.json` 形式で、`omni_sensor_tf_node.py` / `scripts/direct_calib_to_tf.py` が読める。
 
+AprilTag 方式の処理は次の対応付けに集約される。
+
+```mermaid
+flowchart LR
+  IMG["全天球画像<br/>/omni_camera/image_raw/image_color"] --> VIEW["4 方位の透視ビュー展開"]
+  VIEW --> TAG["AprilTag 検出<br/>cv2.aruco"]
+  TAG --> PNP["solvePnP<br/>タグ中心・法線をカメラ座標へ"]
+  LIDAR["LiDAR 点群<br/>/lidar/points/point_cloud"] --> CUT["タグ方位で点群切り出し"]
+  CUT --> PLANE["平面 RANSAC<br/>板中心・法線を LiDAR 座標へ"]
+  PNP --> MATCH["対応点 + 法線の集合"]
+  PLANE --> MATCH
+  MATCH --> SVD["Umeyama / SVD<br/>6DoF 推定"]
+  SVD --> CALIB["calib.json<br/>T_lidar_camera"]
+  CALIB --> TF["omni_sensor_tf_node<br/>TF 置換"]
+  TF --> USE["色付き点群<br/>物体クロップ"]
+
+  classDef sensor fill:#1565c0,stroke:#0d47a1,color:#fff;
+  classDef calc fill:#455a64,stroke:#263238,color:#fff;
+  classDef out fill:#2e7d32,stroke:#1b5e20,color:#fff;
+  class IMG,LIDAR sensor;
+  class VIEW,TAG,PNP,CUT,PLANE,MATCH,SVD,TF calc;
+  class CALIB,USE out;
+```
+
 ## 実行（AprilTag 方式）
 
 ```bash
@@ -64,17 +88,15 @@ ros2 run susumu_object_perception visualize_calib_result.py \
 
 ## 合格基準
 
-1. **検出と推定**
-   calibration.wbt で 4 方位の AprilTag を全て検出し、`calib.json` に `T_lidar_camera` を出力できる。
-2. **精度（色付け用途の基準）**
-   真値 `lidar_link -> omni_camera_link = z 0.55 / 無回転` に対し **回転 1°未満・対応点 RMS 1cm 程度**。
-   現状 realtime で回転 0.32°・RMS 9.6mm を達成。
-3. **活用**
-   calib.json を `omni_calibration_json:=...` で渡すと TF が初期値 `[0,0,0.55]` からキャリブ実測値へ置換され、
-   `colorized_pointcloud_node` がそのキャリブ TF で色付けする。色付け品質（カラー物体の色一致スコア）が
-   初期 TF と同等以下に劣化しない（実測: green 0.970→0.976 / magenta 0.985→0.982）。
+| 観点 | 合格ライン | 現状 / 確認方法 |
+|---|---|---|
+| 検出と推定 | 4 方位の AprilTag を全て検出し、`calib.json` に `T_lidar_camera` を出力できる | `calib.json` の `results.T_lidar_camera` を確認 |
+| 精度 | 真値 `lidar_link -> omni_camera_link = z 0.55 / 無回転` に対し、回転 1°未満・対応点 RMS 1cm 程度 | realtime で回転 0.32°・RMS 9.6mm |
+| 活用 | `omni_calibration_json:=...` で TF が初期値からキャリブ実測値へ置換される | `omni_sensor_tf_node` のログと `tf2_echo` |
+| 色付け品質 | 初期 TF と同等以下に劣化しない | 実測: green 0.970→0.976 / magenta 0.985→0.982 |
+| 機械可読 summary | `calib_summary.json` の `validation_passed=true` | `visualize_calib_result.py --require-pass` |
 
-4. **採用判定が機械可読に残る**
+採用判定の詳細:
    `calib_summary.json` の `validation_passed` が true。既定基準は used tags `>=4`、RMS `<=10mm`、
    回転角 `<=1deg`、並進誤差 `<=30mm`。現在値は RMS `9.60mm`、回転角 `0.317deg`、
    並進誤差 `24.2mm`。iter41 以降、`calib_summary.json` は `summary`、`criteria`、

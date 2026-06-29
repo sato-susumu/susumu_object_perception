@@ -89,29 +89,41 @@ path length 比は改善するが odom aligned と進行性が悪化したため
 ## 仕組み
 
 `webots_waypoint_nav.launch.py` は内部で `webots_nav.launch.py` を起動し、Webots + Nav2 + SLAM を立てる。
-その後:
+巡回本体は次の状態遷移で動く。
 
-- `waypoint_viz_node.py` が `/waypoints/markers` に番号付きウェイポイントと経路を出す。
-- `waypoint_nav_node.py` が各点へ `NavigateToPose` を送る。
-- Nav2 lifecycle bringup 中の一時的な goal reject は同じ点をリトライする
-  （既定 `goal_reject_retries=8`、`goal_reject_retry_sec=2.0`）。リトライを使い切っても
-  reject される点だけ missed にする。
-- `goal_timeout_sec` を超えた点はスキップし、次の点へ進む。
-- 1 周が終わると reached/missed を `/waypoint_nav/status` に出す。
-- `report_prefix` が空でなければ、JSON/CSV/Markdown の reached/missed report を書く。
-  長い屋外巡回では `mission_timeout_sec` で bounded にし、partial report を評価値として残す。
-- `visualize_patrol_result.py` は report JSON と地図から `patrol_result.{png,json,md}` を後処理生成する。
-  PNG は reached/struggled/missed の地図重畳、JSON/Markdown は `validation_passed`、`completion_rate`、
-  `clean_completion_rate`、reached/missed、recovery 合計、reason 別件数、duration 統計を保存する。
-  iter40 以降、result JSON は `schema_version`、`criteria`、`failures` を持つ。
-  既定 criteria は `max_missed=0`、`max_struggled=0` で、missed と struggled がどちらも 0 のときだけ
-  `validation_passed=true` になる。`--require-pass` で NG 時に非ゼロ終了する。
-  `run_all_tasks.sh` は通常巡回後にこの後処理を `--require-pass` 付きで自動実行し、
-  PNG/summary 生成失敗や巡回 NG をログだけで続行しない。`validate_contracts.py` は
-  indoor / break_room の最終 result JSON が `validation_passed=true` で、schema/criteria/failures を
-  持つことまで検査する。iter47 以降の result JSON は `schema_version: 3` で、
-  `safe_pose_recovery_count` と `step_event_count` も持つ。
-- `loop:=True` なら次の周回に入る。
+```mermaid
+sequenceDiagram
+  participant L as launch
+  participant V as waypoint_viz_node
+  participant W as waypoint_nav_node
+  participant N as Nav2 NavigateToPose
+  participant R as report / visualizer
+
+  L->>V: waypoints.yaml を配布
+  V-->>R: /waypoints/markers
+  L->>W: waypoints.yaml + timeout 設定
+  loop waypoint ごと
+    W->>N: goal 送信
+    alt lifecycle 起動中の reject
+      W->>N: 同じ goal を retry
+    else goal accepted
+      N-->>W: succeeded / failed / canceled
+    else goal_timeout_sec 超過
+      W->>W: current WP を missed にして次へ
+    end
+    W-->>R: report JSON/CSV/MD を逐次更新
+  end
+  W-->>R: /waypoint_nav/status = lap finished
+  R->>R: patrol_result.{png,json,md} を生成
+```
+
+| 状態 | トリガ | 出力 / 次状態 | 意図 |
+|---|---|---|---|
+| goal reject retry | Nav2 lifecycle 起動直後の reject | `goal_reject_retries` まで同一 WP を再送 | 起動直後だけの一時失敗を missed にしない |
+| reached | Nav2 が `SUCCEEDED` | report に reached、次 WP へ | 通常成功 |
+| missed | reject 上限、failure、`goal_timeout_sec` | report に reason 付き missed、次 WP へ | 1 点で全体を止めない |
+| mission timeout | `mission_timeout_sec` 超過 | 未実行 WP を `mission_timeout` として保存 | 長い屋外巡回を bounded に評価する |
+| result generation | 巡回後 / `run_all_tasks.sh` | `patrol_result.{png,json,md}` | PNG と機械可読 summary を必ず残す |
 
 1 点で詰まって全体が止まらないことを優先している。最終的な巡回品質は、missed を減らす方向で
 ウェイポイントや Nav2 パラメータを調整する。
